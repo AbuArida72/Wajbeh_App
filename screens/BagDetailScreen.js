@@ -1,9 +1,17 @@
 import {
-  View, Text, StyleSheet, ImageBackground,
-  Image, ScrollView, TouchableOpacity, SafeAreaView, ActivityIndicator
-} from 'react-native';
-import { useState } from 'react';
-import { supabase } from '../lib/supabase';
+  View,
+  Text,
+  StyleSheet,
+  ImageBackground,
+  Image,
+  ScrollView,
+  TouchableOpacity,
+  SafeAreaView,
+  ActivityIndicator,
+} from "react-native";
+import { useState } from "react";
+import { supabase } from "../lib/supabase";
+import { useLanguage } from "../lang/LanguageContext";
 
 export default function BagDetailScreen({ route, navigation }) {
   const { bag } = route.params;
@@ -11,329 +19,492 @@ export default function BagDetailScreen({ route, navigation }) {
   const savings = (bag.original_value - bag.price).toFixed(2);
   const [reserving, setReserving] = useState(false);
   const [reserved, setReserved] = useState(false);
+  const { t, isRTL } = useLanguage();
 
   const handleReserve = async () => {
     setReserving(true);
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      const { data, error } = await supabase.rpc('reserve_bag', {
+      const { data: authData } = await supabase.auth.getUser();
+      if (!authData?.user) {
+        window.alert("Please sign in to reserve a bag.");
+        setReserving(false);
+        return;
+      }
+      const { data, error } = await supabase.rpc("reserve_bag", {
         p_bag_id: bag.id,
-        p_user_id: user.id,
+        p_user_id: authData.user.id,
       });
       if (error) throw error;
       if (data.success) {
         setReserved(true);
-        navigation.navigate('Confirmation', {
+        navigation.navigate("Confirmation", {
           pickupCode: data.pickup_code,
-          bag: bag,
+          bag,
         });
       } else {
-        alert(data.error || 'Could not reserve bag');
+        window.alert(data.error || "Could not reserve bag");
       }
     } catch (err) {
-      alert('Something went wrong. Please try again.');
+      window.alert("Something went wrong. Please try again.");
       console.log(err);
     }
     setReserving(false);
   };
 
+  const expectItems = [
+    { icon: "🌿", key: "freshFood" },
+    { icon: "🎁", key: "surpriseContents" },
+    { icon: "📱", key: "showApp" },
+    { icon: "♻️", key: "fightWaste" },
+    { icon: "💚", key: "supportLocal" },
+    { icon: "🚫", key: "noRefunds" },
+  ];
+
   return (
     <View style={styles.wrapper}>
-
-      {/* Scrollable content */}
       <ScrollView
         style={styles.scroll}
         showsVerticalScrollIndicator={false}
         bounces={false}
       >
-        {/* Hero image */}
+        {/* Hero */}
         <ImageBackground source={{ uri: bag.image }} style={styles.hero}>
-          <View style={styles.heroOverlay} />
-          <SafeAreaView>
-            <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
-              <Text style={styles.backArrow}>←</Text>
+          <View style={styles.heroGradient} />
+
+          {/* Back button */}
+          <SafeAreaView style={styles.heroTopBar}>
+            <TouchableOpacity
+              style={styles.backBtn}
+              onPress={() => navigation.goBack()}
+            >
+              <Text style={styles.backArrow}>{isRTL ? "→" : "←"}</Text>
             </TouchableOpacity>
-          </SafeAreaView>
-          <View style={styles.discountBadge}>
-            <Text style={styles.discountText}>-{discount}%</Text>
-          </View>
-          <View style={styles.heroBottom}>
-            <Image source={{ uri: bag.logo }} style={styles.heroLogo} />
-            <View style={styles.heroRestaurantInfo}>
-              <Text style={styles.heroRestaurantName}>{bag.restaurant}</Text>
-              <Text style={styles.heroArea}>📍 {bag.area}</Text>
+            <View style={styles.discountPill}>
+              <Text style={styles.discountText}>🏷️ {discount}% off</Text>
             </View>
-            <View style={[
-              styles.quantityBadge,
-              bag.quantity_remaining === 1 && styles.quantityBadgeUrgent
-            ]}>
-              <Text style={[
-                styles.quantityText,
-                bag.quantity_remaining === 1 && styles.quantityTextUrgent
-              ]}>
-                {bag.quantity_remaining === 1 ? '🔥 Last!' : `${bag.quantity_remaining} left`}
+          </SafeAreaView>
+
+          {/* Restaurant info overlay */}
+          <View style={[styles.heroBottom, isRTL && styles.rtlRow]}>
+            <Image source={{ uri: bag.logo }} style={styles.heroLogo} />
+            <View style={styles.heroInfo}>
+              <Text style={[styles.heroName, isRTL && styles.rtl]}>
+                {bag.restaurant}
+              </Text>
+              <Text style={[styles.heroArea, isRTL && styles.rtl]}>
+                📍 {bag.area} · {bag.category}
+              </Text>
+            </View>
+            <View
+              style={[
+                styles.qtyBadge,
+                bag.quantity_remaining === 1 && styles.qtyBadgeUrgent,
+              ]}
+            >
+              <Text
+                style={[
+                  styles.qtyText,
+                  bag.quantity_remaining === 1 && styles.qtyTextUrgent,
+                ]}
+              >
+                {bag.quantity_remaining === 1
+                  ? t("lastOne")
+                  : `${bag.quantity_remaining} ${t("left")}`}
               </Text>
             </View>
           </View>
         </ImageBackground>
 
-        {/* Body */}
-        <View style={styles.body}>
-
-          {/* Title */}
-          <Text style={styles.bagTitle}>{bag.title}</Text>
-          <View style={styles.categoryPill}>
-            <Text style={styles.categoryPillText}>
-              {bag.category === 'Bakery' ? '🥐' : bag.category === 'Restaurant' ? '🍽️' : '☕'} {bag.category}
+        {/* Content */}
+        <View style={styles.content}>
+          {/* Title + category */}
+          <View style={styles.titleSection}>
+            <Text style={[styles.bagTitle, isRTL && styles.rtl]}>
+              {bag.title}
             </Text>
+            <View
+              style={[styles.categoryPill, isRTL && { alignSelf: "flex-end" }]}
+            >
+              <Text style={styles.categoryPillText}>
+                {bag.category === "Bakery"
+                  ? "🥐"
+                  : bag.category === "Restaurant"
+                    ? "🍽️"
+                    : "☕"}{" "}
+                {bag.category}
+              </Text>
+            </View>
           </View>
 
           {/* Price card */}
           <View style={styles.priceCard}>
             <View style={styles.priceCol}>
-              <Text style={styles.priceLabel}>You pay</Text>
-              <Text style={styles.priceValue}>JD {parseFloat(bag.price).toFixed(2)}</Text>
+              <Text style={[styles.priceLabel, isRTL && styles.rtl]}>
+                {t("youPay")}
+              </Text>
+              <Text style={styles.priceMain}>
+                JD {parseFloat(bag.price).toFixed(2)}
+              </Text>
             </View>
             <View style={styles.priceDivider} />
             <View style={styles.priceCol}>
-              <Text style={styles.priceLabel}>Original</Text>
-              <Text style={styles.priceOriginal}>JD {parseFloat(bag.original_value).toFixed(2)}</Text>
+              <Text style={[styles.priceLabel, isRTL && styles.rtl]}>
+                {t("originalValue")}
+              </Text>
+              <Text style={styles.priceOriginal}>
+                JD {parseFloat(bag.original_value).toFixed(2)}
+              </Text>
             </View>
             <View style={styles.priceDivider} />
             <View style={styles.priceCol}>
-              <Text style={styles.priceLabel}>You save</Text>
+              <Text style={[styles.priceLabel, isRTL && styles.rtl]}>
+                {t("youSave")}
+              </Text>
               <Text style={styles.priceSavings}>JD {savings}</Text>
             </View>
           </View>
 
-          {/* Pickup */}
-          <Text style={styles.sectionTitle}>🕐 Pickup window</Text>
-          <View style={styles.pickupCard}>
-            <View style={styles.pickupTime}>
-              <Text style={styles.pickupLabel}>From</Text>
-              <Text style={styles.pickupValue}>{bag.pickup_start}</Text>
-            </View>
-            <Text style={styles.pickupArrow}>→</Text>
-            <View style={styles.pickupTime}>
-              <Text style={styles.pickupLabel}>Until</Text>
-              <Text style={styles.pickupValue}>{bag.pickup_end}</Text>
-            </View>
-            <View style={styles.todayBadge}>
-              <Text style={styles.todayText}>Today only</Text>
+          {/* Pickup window */}
+          <View style={styles.section}>
+            <Text style={[styles.sectionTitle, isRTL && styles.rtl]}>
+              {t("pickupWindow")}
+            </Text>
+            <View style={styles.pickupCard}>
+              <View style={styles.pickupTimeBlock}>
+                <Text style={[styles.pickupLabel, isRTL && styles.rtl]}>
+                  {t("from")}
+                </Text>
+                <Text style={styles.pickupTime}>{bag.pickup_start}</Text>
+              </View>
+              <View style={styles.pickupArrowBlock}>
+                <View style={styles.pickupArrowLine} />
+                <View style={styles.pickupArrowDot} />
+              </View>
+              <View style={styles.pickupTimeBlock}>
+                <Text style={[styles.pickupLabel, isRTL && styles.rtl]}>
+                  {t("until")}
+                </Text>
+                <Text style={styles.pickupTime}>{bag.pickup_end}</Text>
+              </View>
+              <View style={styles.todayPill}>
+                <Text style={styles.todayText}>📅 {t("todayOnly")}</Text>
+              </View>
             </View>
           </View>
 
           {/* About */}
-          <Text style={styles.sectionTitle}>🛍️ About this bag</Text>
-          <View style={styles.aboutCard}>
-            <Text style={styles.aboutText}>
-              A surprise bag from <Text style={styles.aboutBold}>{bag.restaurant}</Text>! Contents vary daily based on what's freshly available at closing time. Quality food that would otherwise go to waste — at a fraction of the price.
+          <View style={styles.section}>
+            <Text style={[styles.sectionTitle, isRTL && styles.rtl]}>
+              {t("aboutBag")}
             </Text>
+            <View style={styles.aboutCard}>
+              <Text style={[styles.aboutText, isRTL && styles.rtl]}>
+                {isRTL
+                  ? `كيس مفاجئ من ${bag.restaurant}! تتغير المحتويات يومياً بناءً على ما هو متاح عند الإغلاق. طعام عالي الجودة كان سيُهدر — بجزء من السعر.`
+                  : `A surprise bag from ${bag.restaurant}! Contents vary daily based on what's freshly available at closing time. Quality food that would otherwise go to waste — at a fraction of the price.`}
+              </Text>
+            </View>
           </View>
 
-          {/* Expect */}
-          <Text style={styles.sectionTitle}>✅ What to expect</Text>
-          <View style={styles.expectGrid}>
-            {[
-              { icon: '🌿', text: 'Fresh food' },
-              { icon: '🎁', text: 'Surprise contents' },
-              { icon: '📱', text: 'Show app at pickup' },
-              { icon: '♻️', text: 'Fight food waste' },
-              { icon: '💚', text: 'Support local' },
-              { icon: '🚫', text: 'No refunds' },
-            ].map((item, i) => (
-              <View key={i} style={styles.expectItem}>
-                <Text style={styles.expectIcon}>{item.icon}</Text>
-                <Text style={styles.expectText}>{item.text}</Text>
-              </View>
-            ))}
+          {/* What to expect */}
+          <View style={styles.section}>
+            <Text style={[styles.sectionTitle, isRTL && styles.rtl]}>
+              {t("whatToExpect")}
+            </Text>
+            <View style={styles.expectGrid}>
+              {expectItems.map((item, i) => (
+                <View key={i} style={styles.expectItem}>
+                  <Text style={styles.expectIcon}>{item.icon}</Text>
+                  <Text style={[styles.expectText, isRTL && styles.rtl]}>
+                    {t(item.key)}
+                  </Text>
+                </View>
+              ))}
+            </View>
           </View>
 
+          <View style={{ height: 20 }} />
         </View>
       </ScrollView>
 
-      {/* Footer always at bottom */}
-      <View style={styles.footer}>
-        <View>
-          <Text style={styles.footerLabel}>Total</Text>
-          <Text style={styles.footerPrice}>JD {parseFloat(bag.price).toFixed(2)}</Text>
-          <Text style={styles.footerSave}>Save JD {savings}</Text>
+      {/* Sticky footer */}
+      <View style={[styles.footer, isRTL && styles.rtlRow]}>
+        <View style={styles.footerPrices}>
+          <Text style={[styles.footerLabel, isRTL && styles.rtl]}>
+            {t("total")}
+          </Text>
+          <Text style={styles.footerPrice}>
+            JD {parseFloat(bag.price).toFixed(2)}
+          </Text>
+          <Text style={styles.footerSave}>
+            {t("youSave")} JD {savings}
+          </Text>
         </View>
         <TouchableOpacity
           style={[
             styles.reserveBtn,
-            (bag.quantity_remaining === 0 || reserved) && styles.reserveBtnDisabled
+            (bag.quantity_remaining === 0 || reserved) &&
+              styles.reserveBtnDisabled,
           ]}
           onPress={handleReserve}
           disabled={bag.quantity_remaining === 0 || reserved || reserving}
-          activeOpacity={0.85}
+          activeOpacity={0.88}
         >
-          {reserving
-            ? <ActivityIndicator color="#FFFFFF" />
-            : <Text style={styles.reserveBtnText}>
-                {reserved
-                  ? '✅ Reserved!'
-                  : bag.quantity_remaining === 0
-                  ? '😔 Sold Out'
-                  : '🛍️ Reserve Bag'}
-              </Text>
-          }
+          {reserving ? (
+            <ActivityIndicator color="#FFFFFF" />
+          ) : (
+            <Text style={styles.reserveBtnText}>
+              {reserved
+                ? t("reserved")
+                : bag.quantity_remaining === 0
+                  ? t("soldOut")
+                  : t("reserveBag")}
+            </Text>
+          )}
         </TouchableOpacity>
       </View>
-
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  wrapper: {
-    flex: 1,
-    backgroundColor: '#F0F7F0',
-    flexDirection: 'column',
-  },
-  scroll: {
-    flex: 1,
-  },
+  wrapper: { flex: 1, backgroundColor: "#F0F7F0" },
+  scroll: { flex: 1 },
+  rtl: { textAlign: "right", writingDirection: "rtl" },
+  rtlRow: { flexDirection: "row-reverse" },
 
   // Hero
-  hero: { height: 320, justifyContent: 'space-between' },
-  heroOverlay: {
+  hero: { height: 340, justifyContent: "space-between" },
+  heroGradient: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.3)',
+    backgroundColor: "rgba(0,0,0,0.25)",
+  },
+  heroTopBar: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    padding: 16,
   },
   backBtn: {
-    margin: 16, width: 40, height: 40, borderRadius: 20,
-    backgroundColor: 'rgba(255,255,255,0.9)',
-    alignItems: 'center', justifyContent: 'center',
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "rgba(255,255,255,0.9)",
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+    elevation: 3,
   },
-  backArrow: { fontSize: 22, color: '#1B5E20', fontWeight: '700' },
-  discountBadge: {
-    position: 'absolute', top: 16, right: 16,
-    backgroundColor: '#2E7D32',
-    paddingHorizontal: 14, paddingVertical: 7, borderRadius: 20,
+  backArrow: { fontSize: 20, color: "#1B5E20", fontWeight: "800" },
+  discountPill: {
+    backgroundColor: "#2E7D32",
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 20,
+    borderWidth: 1.5,
+    borderColor: "rgba(255,255,255,0.3)",
   },
-  discountText: { color: '#FFFFFF', fontWeight: '800', fontSize: 15 },
+  discountText: { color: "#FFFFFF", fontWeight: "800", fontSize: 14 },
   heroBottom: {
-    flexDirection: 'row', alignItems: 'center',
-    padding: 16, gap: 12,
-    backgroundColor: 'rgba(0,0,0,0.35)',
+    flexDirection: "row",
+    alignItems: "center",
+    padding: 16,
+    gap: 12,
+    backgroundColor: "rgba(0,0,0,0.5)",
   },
   heroLogo: {
-    width: 48, height: 48, borderRadius: 24,
-    borderWidth: 2, borderColor: '#FFFFFF',
+    width: 46,
+    height: 46,
+    borderRadius: 23,
+    borderWidth: 2,
+    borderColor: "#FFFFFF",
   },
-  heroRestaurantInfo: { flex: 1 },
-  heroRestaurantName: {
-    fontSize: 17, fontWeight: '800', color: '#FFFFFF',
-    textShadowColor: 'rgba(0,0,0,0.4)',
+  heroInfo: { flex: 1 },
+  heroName: {
+    fontSize: 16,
+    fontWeight: "800",
+    color: "#FFFFFF",
+    textShadowColor: "rgba(0,0,0,0.3)",
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 3,
+    marginBottom: 2,
   },
-  heroArea: { fontSize: 12, color: '#C8E6C9', marginTop: 2 },
-  quantityBadge: {
-    backgroundColor: 'rgba(255,255,255,0.92)',
-    paddingHorizontal: 10, paddingVertical: 5, borderRadius: 20,
+  heroArea: { fontSize: 12, color: "rgba(255,255,255,0.8)" },
+  qtyBadge: {
+    backgroundColor: "rgba(255,255,255,0.9)",
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 20,
   },
-  quantityBadgeUrgent: { backgroundColor: '#FFEBEE' },
-  quantityText: { fontSize: 12, fontWeight: '700', color: '#2E7D32' },
-  quantityTextUrgent: { color: '#C62828' },
+  qtyBadgeUrgent: { backgroundColor: "#FFEBEE" },
+  qtyText: { fontSize: 12, fontWeight: "700", color: "#2E7D32" },
+  qtyTextUrgent: { color: "#C62828" },
 
-  // Body
-  body: { padding: 20, gap: 12 },
-  bagTitle: { fontSize: 24, fontWeight: '800', color: '#1B5E20' },
-  categoryPill: {
-    alignSelf: 'flex-start',
-    backgroundColor: '#E8F5E9',
-    paddingHorizontal: 12, paddingVertical: 5,
-    borderRadius: 20, borderWidth: 1, borderColor: '#C8E6C9',
+  // Content
+  content: { padding: 20 },
+  titleSection: { marginBottom: 16 },
+  bagTitle: {
+    fontSize: 26,
+    fontWeight: "800",
+    color: "#1B5E20",
     marginBottom: 8,
   },
-  categoryPillText: { fontSize: 13, color: '#2E7D32', fontWeight: '600' },
+  categoryPill: {
+    alignSelf: "flex-start",
+    backgroundColor: "#E8F5E9",
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: "#C8E6C9",
+  },
+  categoryPillText: { fontSize: 13, color: "#2E7D32", fontWeight: "600" },
 
   // Price card
   priceCard: {
-    backgroundColor: '#FFFFFF', borderRadius: 16, padding: 18,
-    flexDirection: 'row', alignItems: 'center',
-    borderWidth: 1, borderColor: '#E8F5E9',
-    shadowColor: '#1B5E20', shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08, shadowRadius: 8, elevation: 3,
-    marginBottom: 8,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 18,
+    padding: 20,
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 20,
+    shadowColor: "#1B5E20",
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.08,
+    shadowRadius: 10,
+    elevation: 3,
+    borderWidth: 1,
+    borderColor: "#E8F5E9",
   },
-  priceCol: { flex: 1, alignItems: 'center' },
-  priceDivider: { width: 1, height: 40, backgroundColor: '#E8F5E9' },
-  priceLabel: { fontSize: 11, color: '#888780', marginBottom: 4 },
-  priceValue: { fontSize: 20, fontWeight: '800', color: '#2E7D32' },
+  priceCol: { flex: 1, alignItems: "center" },
+  priceDivider: { width: 1, height: 44, backgroundColor: "#E8F5E9" },
+  priceLabel: {
+    fontSize: 11,
+    color: "#888780",
+    marginBottom: 6,
+    fontWeight: "500",
+  },
+  priceMain: { fontSize: 22, fontWeight: "800", color: "#2E7D32" },
   priceOriginal: {
-    fontSize: 15, fontWeight: '600', color: '#B4B2A9',
-    textDecorationLine: 'line-through',
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#B4B2A9",
+    textDecorationLine: "line-through",
   },
-  priceSavings: { fontSize: 17, fontWeight: '800', color: '#C62828' },
+  priceSavings: { fontSize: 20, fontWeight: "800", color: "#C62828" },
 
-  // Section title
-  sectionTitle: { fontSize: 16, fontWeight: '700', color: '#1B5E20', marginTop: 4 },
+  // Sections
+  section: { marginBottom: 20 },
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: "#1B5E20",
+    marginBottom: 10,
+  },
 
-  // Pickup card
+  // Pickup
   pickupCard: {
-    backgroundColor: '#FFFFFF', borderRadius: 16, padding: 18,
-    flexDirection: 'row', alignItems: 'center',
-    borderWidth: 1, borderColor: '#E8F5E9',
+    backgroundColor: "#FFFFFF",
+    borderRadius: 16,
+    padding: 16,
+    flexDirection: "row",
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "#E8F5E9",
+    shadowColor: "#1B5E20",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 6,
+    elevation: 2,
   },
-  pickupTime: { flex: 1, alignItems: 'center' },
-  pickupLabel: { fontSize: 11, color: '#888780', marginBottom: 4 },
-  pickupValue: { fontSize: 20, fontWeight: '800', color: '#1B5E20' },
-  pickupArrow: { fontSize: 20, color: '#A5D6A7', paddingHorizontal: 12 },
-  todayBadge: {
-    backgroundColor: '#E8F5E9',
-    paddingHorizontal: 10, paddingVertical: 5, borderRadius: 12,
+  pickupTimeBlock: { flex: 1, alignItems: "center" },
+  pickupLabel: { fontSize: 11, color: "#888780", marginBottom: 6 },
+  pickupTime: { fontSize: 24, fontWeight: "800", color: "#1B5E20" },
+  pickupArrowBlock: {
+    paddingHorizontal: 12,
+    alignItems: "center",
+    justifyContent: "center",
   },
-  todayText: { fontSize: 11, color: '#2E7D32', fontWeight: '600' },
+  pickupArrowLine: { width: 30, height: 2, backgroundColor: "#C8E6C9" },
+  pickupArrowDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: "#2E7D32",
+    marginTop: -5,
+    alignSelf: "flex-end",
+  },
+  todayPill: {
+    backgroundColor: "#E8F5E9",
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 12,
+  },
+  todayText: { fontSize: 11, color: "#2E7D32", fontWeight: "600" },
 
   // About
   aboutCard: {
-    backgroundColor: '#FFFFFF', borderRadius: 16, padding: 16,
-    borderWidth: 1, borderColor: '#E8F5E9',
+    backgroundColor: "#FFFFFF",
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: "#E8F5E9",
   },
-  aboutText: { fontSize: 14, color: '#5F5E5A', lineHeight: 22 },
-  aboutBold: { fontWeight: '700', color: '#2E7D32' },
+  aboutText: { fontSize: 14, color: "#5F5E5A", lineHeight: 22 },
 
   // Expect grid
-  expectGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 16 },
+  expectGrid: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
   expectItem: {
-    flexDirection: 'row', alignItems: 'center', gap: 6,
-    backgroundColor: '#FFFFFF', paddingHorizontal: 14, paddingVertical: 10,
-    borderRadius: 12, borderWidth: 1, borderColor: '#E8F5E9',
-    minWidth: '45%', flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    backgroundColor: "#FFFFFF",
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#E8F5E9",
+    minWidth: "45%",
+    flex: 1,
   },
-  expectIcon: { fontSize: 16 },
-  expectText: { fontSize: 13, color: '#2C2C2A', fontWeight: '500' },
+  expectIcon: { fontSize: 18 },
+  expectText: { fontSize: 13, color: "#2C2C2A", fontWeight: "500", flex: 1 },
 
   // Footer
   footer: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: "#FFFFFF",
     padding: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
     borderTopWidth: 1,
-    borderTopColor: '#E8F5E9',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: -3 },
+    borderTopColor: "#E8F5E9",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: -4 },
     shadowOpacity: 0.08,
-    shadowRadius: 10,
+    shadowRadius: 12,
     elevation: 12,
   },
-  footerLabel: { fontSize: 11, color: '#888780' },
-  footerPrice: { fontSize: 26, fontWeight: '800', color: '#2E7D32' },
-  footerSave: { fontSize: 12, color: '#C62828', fontWeight: '600' },
+  footerPrices: { gap: 2 },
+  footerLabel: { fontSize: 11, color: "#888780" },
+  footerPrice: { fontSize: 28, fontWeight: "800", color: "#2E7D32" },
+  footerSave: { fontSize: 12, color: "#C62828", fontWeight: "600" },
   reserveBtn: {
-    backgroundColor: '#2E7D32',
-    paddingHorizontal: 28, paddingVertical: 16,
+    backgroundColor: "#2E7D32",
+    paddingHorizontal: 28,
+    paddingVertical: 16,
     borderRadius: 16,
-    shadowColor: '#2E7D32',
+    shadowColor: "#2E7D32",
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3, shadowRadius: 8, elevation: 6,
-    minWidth: 160, alignItems: 'center',
+    shadowOpacity: 0.3,
+    shadowRadius: 10,
+    elevation: 6,
+    minWidth: 160,
+    alignItems: "center",
   },
-  reserveBtnDisabled: { backgroundColor: '#B4B2A9', shadowOpacity: 0 },
-  reserveBtnText: { color: '#FFFFFF', fontSize: 16, fontWeight: '800' },
+  reserveBtnDisabled: { backgroundColor: "#B4B2A9", shadowOpacity: 0 },
+  reserveBtnText: { color: "#FFFFFF", fontSize: 16, fontWeight: "800" },
 });

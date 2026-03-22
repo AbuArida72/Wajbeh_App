@@ -7,10 +7,12 @@ import {
   ActivityIndicator,
 } from "react-native";
 import { supabase } from "../lib/supabase";
+import { useLanguage } from "../lang/LanguageContext";
 
 export default function ProfileScreen() {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  const { t, language, toggleLanguage, isRTL } = useLanguage();
 
   useEffect(() => {
     getUser();
@@ -25,7 +27,7 @@ export default function ProfileScreen() {
   };
 
   const handleSignOut = async () => {
-    const confirmed = window.confirm("Are you sure you want to sign out?");
+    const confirmed = window.confirm(t("signOutConfirm"));
     if (confirmed) {
       await supabase.auth.signOut();
     }
@@ -45,10 +47,10 @@ export default function ProfileScreen() {
 
   const displayName = user?.user_metadata?.full_name || user?.email;
 
-  const memberSince = new Date(user?.created_at).toLocaleDateString("en-JO", {
-    year: "numeric",
-    month: "long",
-  });
+  const memberSince = new Date(user?.created_at).toLocaleDateString(
+    language === "ar" ? "ar-JO" : "en-JO",
+    { year: "numeric", month: "long" },
+  );
 
   return (
     <View style={styles.container}>
@@ -59,25 +61,37 @@ export default function ProfileScreen() {
         </View>
         <Text style={styles.name}>{displayName}</Text>
         <Text style={styles.email}>{user?.email}</Text>
-        <Text style={styles.memberSince}>Member since {memberSince}</Text>
+        <Text style={styles.memberSince}>
+          {t("memberSince")} {memberSince}
+        </Text>
       </View>
 
-      {/* Info */}
+      {/* Info cards */}
       <View style={styles.section}>
-        <View style={styles.infoCard}>
-          <Text style={styles.infoLabel}>Email</Text>
-          <Text style={styles.infoValue}>{user?.email}</Text>
+        <View style={[styles.infoCard, isRTL && styles.rtlRow]}>
+          <Text style={[styles.infoLabel, isRTL && styles.rtl]}>
+            {t("email")}
+          </Text>
+          <Text style={[styles.infoValue, isRTL && styles.rtl]}>
+            {user?.email}
+          </Text>
         </View>
         {user?.user_metadata?.full_name && (
-          <View style={styles.infoCard}>
-            <Text style={styles.infoLabel}>Name</Text>
-            <Text style={styles.infoValue}>{user.user_metadata.full_name}</Text>
+          <View style={[styles.infoCard, isRTL && styles.rtlRow]}>
+            <Text style={[styles.infoLabel, isRTL && styles.rtl]}>
+              {t("name")}
+            </Text>
+            <Text style={[styles.infoValue, isRTL && styles.rtl]}>
+              {user.user_metadata.full_name}
+            </Text>
           </View>
         )}
-        <View style={styles.infoCard}>
-          <Text style={styles.infoLabel}>Status</Text>
+        <View style={[styles.infoCard, isRTL && styles.rtlRow]}>
+          <Text style={[styles.infoLabel, isRTL && styles.rtl]}>
+            {t("status")}
+          </Text>
           <View style={styles.statusBadge}>
-            <Text style={styles.statusText}>✅ Verified</Text>
+            <Text style={styles.statusText}>{t("verified")}</Text>
           </View>
         </View>
       </View>
@@ -87,23 +101,36 @@ export default function ProfileScreen() {
         <View style={styles.statCard}>
           <Text style={styles.statEmoji}>🛍️</Text>
           <Text style={styles.statValue}>0</Text>
-          <Text style={styles.statLabel}>Bags saved</Text>
+          <Text style={[styles.statLabel, isRTL && styles.rtl]}>
+            {t("bagsSaved")}
+          </Text>
         </View>
         <View style={styles.statCard}>
           <Text style={styles.statEmoji}>💚</Text>
           <Text style={styles.statValue}>0 kg</Text>
-          <Text style={styles.statLabel}>Food saved</Text>
+          <Text style={[styles.statLabel, isRTL && styles.rtl]}>
+            {t("foodSaved")}
+          </Text>
         </View>
         <View style={styles.statCard}>
           <Text style={styles.statEmoji}>💰</Text>
           <Text style={styles.statValue}>JD 0</Text>
-          <Text style={styles.statLabel}>Money saved</Text>
+          <Text style={[styles.statLabel, isRTL && styles.rtl]}>
+            {t("moneySaved")}
+          </Text>
         </View>
       </View>
 
+      {/* Language toggle */}
+      <TouchableOpacity style={styles.languageBtn} onPress={toggleLanguage}>
+        <Text style={styles.languageBtnText}>
+          {language === "en" ? "🇯🇴 العربية" : "🇬🇧 English"}
+        </Text>
+      </TouchableOpacity>
+
       {/* Sign out */}
       <TouchableOpacity style={styles.signOutBtn} onPress={handleSignOut}>
-        <Text style={styles.signOutText}>🚪 Sign Out</Text>
+        <Text style={styles.signOutText}>{t("signOut")}</Text>
       </TouchableOpacity>
     </View>
   );
@@ -145,6 +172,8 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#E8F5E9",
   },
+  rtlRow: { flexDirection: "row-reverse" },
+  rtl: { textAlign: "right", writingDirection: "rtl" },
   infoLabel: { fontSize: 13, color: "#888780" },
   infoValue: {
     fontSize: 14,
@@ -179,6 +208,17 @@ const styles = StyleSheet.create({
   statEmoji: { fontSize: 22 },
   statValue: { fontSize: 16, fontWeight: "800", color: "#1B5E20" },
   statLabel: { fontSize: 11, color: "#888780", textAlign: "center" },
+  languageBtn: {
+    marginHorizontal: 16,
+    backgroundColor: "#E8F5E9",
+    borderRadius: 14,
+    padding: 16,
+    alignItems: "center",
+    borderWidth: 1.5,
+    borderColor: "#C8E6C9",
+    marginBottom: 10,
+  },
+  languageBtnText: { fontSize: 15, fontWeight: "700", color: "#2E7D32" },
   signOutBtn: {
     marginHorizontal: 16,
     backgroundColor: "#FFFFFF",

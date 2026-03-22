@@ -5,6 +5,7 @@ import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { createStackNavigator } from "@react-navigation/stack";
 import { Text, View, ActivityIndicator } from "react-native";
 import { supabase } from "./lib/supabase";
+import { LanguageProvider, useLanguage } from "./lang/LanguageContext";
 import HomeScreen from "./screens/HomeScreen";
 import OrdersScreen from "./screens/OrdersScreen";
 import ProfileScreen from "./screens/ProfileScreen";
@@ -13,6 +14,7 @@ import BagDetailScreen from "./screens/BagDetailScreen";
 import ConfirmationScreen from "./screens/ConfirmationScreen";
 import DashboardScreen from "./screens/DashboardScreen";
 import RestaurantOrdersScreen from "./screens/RestaurantOrdersScreen";
+import MapScreen from "./screens/MapScreen";
 import LandingScreen from "./screens/LandingScreen";
 import SignInScreen from "./screens/SignInScreen";
 import SignUpScreen from "./screens/SignUpScreen";
@@ -54,6 +56,7 @@ const TabIcon = ({ emoji, label, focused }) => (
 );
 
 function UserTabs() {
+  const { t } = useLanguage();
   return (
     <Tab.Navigator
       screenOptions={{
@@ -85,7 +88,7 @@ function UserTabs() {
         options={{
           title: "🌿 Wajbeh",
           tabBarIcon: ({ focused }) => (
-            <TabIcon emoji="🏠" label="Discover" focused={focused} />
+            <TabIcon emoji="🏠" label={t("discover")} focused={focused} />
           ),
         }}
       />
@@ -93,9 +96,9 @@ function UserTabs() {
         name="Search"
         component={SearchScreen}
         options={{
-          title: "Search",
+          title: t("search"),
           tabBarIcon: ({ focused }) => (
-            <TabIcon emoji="🔍" label="Search" focused={focused} />
+            <TabIcon emoji="🔍" label={t("search")} focused={focused} />
           ),
         }}
       />
@@ -103,9 +106,9 @@ function UserTabs() {
         name="Orders"
         component={OrdersScreen}
         options={{
-          title: "My Orders",
+          title: t("orders"),
           tabBarIcon: ({ focused }) => (
-            <TabIcon emoji="🛍️" label="Orders" focused={focused} />
+            <TabIcon emoji="🛍️" label={t("orders")} focused={focused} />
           ),
         }}
       />
@@ -113,9 +116,9 @@ function UserTabs() {
         name="Profile"
         component={ProfileScreen}
         options={{
-          title: "Profile",
+          title: t("profile"),
           tabBarIcon: ({ focused }) => (
-            <TabIcon emoji="👤" label="Profile" focused={focused} />
+            <TabIcon emoji="👤" label={t("profile")} focused={focused} />
           ),
         }}
       />
@@ -124,6 +127,7 @@ function UserTabs() {
 }
 
 function RestaurantTabs() {
+  const { t } = useLanguage();
   return (
     <Tab.Navigator
       screenOptions={{
@@ -153,9 +157,9 @@ function RestaurantTabs() {
         name="Reservations"
         component={RestaurantOrdersScreen}
         options={{
-          title: "Reservations",
+          title: t("reservations"),
           tabBarIcon: ({ focused }) => (
-            <TabIcon emoji="🎫" label="Reservations" focused={focused} />
+            <TabIcon emoji="🎫" label={t("reservations")} focused={focused} />
           ),
         }}
       />
@@ -163,9 +167,19 @@ function RestaurantTabs() {
         name="Dashboard"
         component={DashboardScreen}
         options={{
-          title: "Dashboard",
+          title: t("dashboard"),
           tabBarIcon: ({ focused }) => (
-            <TabIcon emoji="📊" label="Dashboard" focused={focused} />
+            <TabIcon emoji="📊" label={t("dashboard")} focused={focused} />
+          ),
+        }}
+      />
+      <Tab.Screen
+        name="Map"
+        component={MapScreen}
+        options={{
+          title: t("location"),
+          tabBarIcon: ({ focused }) => (
+            <TabIcon emoji="🗺️" label={t("location")} focused={focused} />
           ),
         }}
       />
@@ -173,9 +187,9 @@ function RestaurantTabs() {
         name="Profile"
         component={ProfileScreen}
         options={{
-          title: "Profile",
+          title: t("profile"),
           tabBarIcon: ({ focused }) => (
-            <TabIcon emoji="👤" label="Profile" focused={focused} />
+            <TabIcon emoji="👤" label={t("profile")} focused={focused} />
           ),
         }}
       />
@@ -183,7 +197,7 @@ function RestaurantTabs() {
   );
 }
 
-export default function App() {
+function AppContent() {
   const [user, setUser] = useState(null);
   const [isRestaurant, setIsRestaurant] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -279,5 +293,13 @@ export default function App() {
         )}
       </Stack.Navigator>
     </NavigationContainer>
+  );
+}
+
+export default function App() {
+  return (
+    <LanguageProvider>
+      <AppContent />
+    </LanguageProvider>
   );
 }

@@ -99,13 +99,20 @@ export default function RestaurantOrdersScreen() {
 
   const confirmArrival = async (orderId) => {
     setConfirming(true);
-    const { error } = await supabase
+    console.log("Confirming arrival for order:", orderId);
+
+    const { data, error } = await supabase
       .from("orders")
       .update({ status: "arriving" })
-      .eq("id", orderId);
+      .eq("id", orderId)
+      .select();
+
+    console.log("Update result:", data, error);
 
     if (error) {
       window.alert("Error: " + error.message);
+    } else if (!data || data.length === 0) {
+      window.alert("No rows were updated. Order ID might not match.");
     } else {
       setFoundOrder(null);
       setCode("");
