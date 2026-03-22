@@ -22,32 +22,41 @@ import SignUpScreen from "./screens/SignUpScreen";
 const Tab = createBottomTabNavigator();
 const Stack = createStackNavigator();
 
-const TabIcon = ({ emoji, label, focused }) => (
+const TabIcon = ({ label, focused, children }) => (
   <View
     style={{
       alignItems: "center",
       justifyContent: "center",
       paddingTop: 6,
-      gap: 3,
+      gap: 2,
     }}
   >
     <View
       style={{
-        width: 44,
-        height: 30,
-        borderRadius: 15,
+        width: 40,
+        height: 28,
+        borderRadius: 14,
         backgroundColor: focused ? "#E8F5E9" : "transparent",
         alignItems: "center",
         justifyContent: "center",
       }}
     >
-      <Text style={{ fontSize: 18 }}>{emoji}</Text>
+      <Text
+        style={{
+          fontSize: 18,
+          filter: focused ? "none" : "grayscale(100%)",
+          opacity: focused ? 1 : 0.45,
+        }}
+      >
+        {children}
+      </Text>
     </View>
     <Text
       style={{
-        fontSize: 11,
-        fontWeight: focused ? "700" : "400",
-        color: focused ? "#2E7D32" : "#888780",
+        fontSize: 10,
+        fontWeight: focused ? "700" : "500",
+        color: focused ? "#2E7D32" : "#B4B2A9",
+        letterSpacing: 0.2,
       }}
     >
       {label}
@@ -60,22 +69,23 @@ function UserTabs() {
   return (
     <Tab.Navigator
       screenOptions={{
-        headerStyle: { backgroundColor: "#F1F8F1" },
-        headerTitleStyle: {
-          color: "#1B5E20",
-          fontWeight: "800",
-          fontSize: 22,
-          letterSpacing: 1,
+        headerStyle: {
+          backgroundColor: "#F1F8F1",
+          elevation: 0,
+          shadowOpacity: 0,
         },
+        headerTitleStyle: { color: "#1B5E20", fontWeight: "800", fontSize: 20 },
         headerTitleAlign: "center",
         tabBarStyle: {
           backgroundColor: "#FFFFFF",
-          borderTopColor: "#E0EEE0",
-          height: 72,
+          borderTopColor: "#F0F0F0",
+          borderTopWidth: 1,
+          height: 68,
           paddingBottom: 8,
+          paddingTop: 4,
           shadowColor: "#000",
           shadowOffset: { width: 0, height: -2 },
-          shadowOpacity: 0.06,
+          shadowOpacity: 0.05,
           shadowRadius: 8,
           elevation: 10,
         },
@@ -88,7 +98,9 @@ function UserTabs() {
         options={{
           title: "🌿 Wajbeh",
           tabBarIcon: ({ focused }) => (
-            <TabIcon emoji="🏠" label={t("discover")} focused={focused} />
+            <TabIcon label={t("discover")} focused={focused}>
+              🏠
+            </TabIcon>
           ),
         }}
       />
@@ -98,7 +110,9 @@ function UserTabs() {
         options={{
           title: t("search"),
           tabBarIcon: ({ focused }) => (
-            <TabIcon emoji="🔍" label={t("search")} focused={focused} />
+            <TabIcon label={t("search")} focused={focused}>
+              🔍
+            </TabIcon>
           ),
         }}
       />
@@ -108,7 +122,9 @@ function UserTabs() {
         options={{
           title: t("orders"),
           tabBarIcon: ({ focused }) => (
-            <TabIcon emoji="🛍️" label={t("orders")} focused={focused} />
+            <TabIcon label={t("orders")} focused={focused}>
+              🛍️
+            </TabIcon>
           ),
         }}
       />
@@ -118,7 +134,9 @@ function UserTabs() {
         options={{
           title: t("profile"),
           tabBarIcon: ({ focused }) => (
-            <TabIcon emoji="👤" label={t("profile")} focused={focused} />
+            <TabIcon label={t("profile")} focused={focused}>
+              👤
+            </TabIcon>
           ),
         }}
       />
@@ -131,22 +149,23 @@ function RestaurantTabs() {
   return (
     <Tab.Navigator
       screenOptions={{
-        headerStyle: { backgroundColor: "#F1F8F1" },
-        headerTitleStyle: {
-          color: "#1B5E20",
-          fontWeight: "800",
-          fontSize: 22,
-          letterSpacing: 1,
+        headerStyle: {
+          backgroundColor: "#F1F8F1",
+          elevation: 0,
+          shadowOpacity: 0,
         },
+        headerTitleStyle: { color: "#1B5E20", fontWeight: "800", fontSize: 20 },
         headerTitleAlign: "center",
         tabBarStyle: {
           backgroundColor: "#FFFFFF",
-          borderTopColor: "#E0EEE0",
-          height: 72,
+          borderTopColor: "#F0F0F0",
+          borderTopWidth: 1,
+          height: 68,
           paddingBottom: 8,
+          paddingTop: 4,
           shadowColor: "#000",
           shadowOffset: { width: 0, height: -2 },
-          shadowOpacity: 0.06,
+          shadowOpacity: 0.05,
           shadowRadius: 8,
           elevation: 10,
         },
@@ -159,7 +178,9 @@ function RestaurantTabs() {
         options={{
           title: t("reservations"),
           tabBarIcon: ({ focused }) => (
-            <TabIcon emoji="🎫" label={t("reservations")} focused={focused} />
+            <TabIcon label={t("reservations")} focused={focused}>
+              🎫
+            </TabIcon>
           ),
         }}
       />
@@ -169,7 +190,9 @@ function RestaurantTabs() {
         options={{
           title: t("dashboard"),
           tabBarIcon: ({ focused }) => (
-            <TabIcon emoji="📊" label={t("dashboard")} focused={focused} />
+            <TabIcon label={t("dashboard")} focused={focused}>
+              📊
+            </TabIcon>
           ),
         }}
       />
@@ -179,7 +202,9 @@ function RestaurantTabs() {
         options={{
           title: t("location"),
           tabBarIcon: ({ focused }) => (
-            <TabIcon emoji="🗺️" label={t("location")} focused={focused} />
+            <TabIcon label={t("location")} focused={focused}>
+              🗺️
+            </TabIcon>
           ),
         }}
       />
@@ -189,11 +214,31 @@ function RestaurantTabs() {
         options={{
           title: t("profile"),
           tabBarIcon: ({ focused }) => (
-            <TabIcon emoji="👤" label={t("profile")} focused={focused} />
+            <TabIcon label={t("profile")} focused={focused}>
+              👤
+            </TabIcon>
           ),
         }}
       />
     </Tab.Navigator>
+  );
+}
+
+function UserStack() {
+  return (
+    <Stack.Navigator screenOptions={{ headerShown: false }}>
+      <Stack.Screen name="Tabs" component={UserTabs} />
+      <Stack.Screen name="BagDetail" component={BagDetailScreen} />
+      <Stack.Screen name="Confirmation" component={ConfirmationScreen} />
+    </Stack.Navigator>
+  );
+}
+
+function RestaurantStack() {
+  return (
+    <Stack.Navigator screenOptions={{ headerShown: false }}>
+      <Stack.Screen name="RestaurantTabs" component={RestaurantTabs} />
+    </Stack.Navigator>
   );
 }
 
@@ -255,6 +300,9 @@ function AppContent() {
       >
         <Text style={{ fontSize: 48, marginBottom: 16 }}>🌿</Text>
         <ActivityIndicator color="#FFFFFF" size="large" />
+        <Text style={{ color: "#A5D6A7", marginTop: 12, fontSize: 14 }}>
+          Loading Wajbeh...
+        </Text>
       </View>
     );
   }
@@ -281,17 +329,7 @@ function AppContent() {
 
   return (
     <NavigationContainer>
-      <Stack.Navigator screenOptions={{ headerShown: false }}>
-        {isRestaurant ? (
-          <Stack.Screen name="RestaurantTabs" component={RestaurantTabs} />
-        ) : (
-          <>
-            <Stack.Screen name="Tabs" component={UserTabs} />
-            <Stack.Screen name="BagDetail" component={BagDetailScreen} />
-            <Stack.Screen name="Confirmation" component={ConfirmationScreen} />
-          </>
-        )}
-      </Stack.Navigator>
+      {isRestaurant ? <RestaurantStack /> : <UserStack />}
     </NavigationContainer>
   );
 }

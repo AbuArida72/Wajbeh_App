@@ -8,6 +8,7 @@ import {
   ActivityIndicator,
   RefreshControl,
   TextInput,
+  ScrollView,
 } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
 import { supabase } from "../lib/supabase";
@@ -21,6 +22,7 @@ export default function RestaurantOrdersScreen() {
   const [foundOrder, setFoundOrder] = useState(null);
   const [confirming, setConfirming] = useState(false);
   const [restaurantId, setRestaurantId] = useState(null);
+  const [activeTab, setActiveTab] = useState("active");
 
   useFocusEffect(
     useCallback(() => {
@@ -32,7 +34,6 @@ export default function RestaurantOrdersScreen() {
     const {
       data: { user },
     } = await supabase.auth.getUser();
-
     const { data: restaurant } = await supabase
       .from("restaurants")
       .select("id")
@@ -43,27 +44,17 @@ export default function RestaurantOrdersScreen() {
       setLoading(false);
       return;
     }
-
     setRestaurantId(restaurant.id);
 
     const { data } = await supabase
       .from("orders")
-      .select(
-        `
-        *,
-        bags (
-          title, price, restaurant_id,
-          restaurants ( name )
-        )
-      `,
-      )
+      .select(`*, bags (title, price, restaurant_id, restaurants (name))`)
       .in("status", ["reserved", "arriving", "picked_up"])
       .order("reserved_at", { ascending: false });
 
     const filtered = (data || []).filter(
       (o) => o.bags?.restaurant_id === restaurant.id,
     );
-
     setOrders(filtered);
     setLoading(false);
     setRefreshing(false);
@@ -76,15 +67,7 @@ export default function RestaurantOrdersScreen() {
 
     const { data } = await supabase
       .from("orders")
-      .select(
-        `
-        *,
-        bags (
-          title, price, restaurant_id,
-          restaurants ( name, area )
-        )
-      `,
-      )
+      .select(`*, bags (title, price, restaurant_id, restaurants (name, area))`)
       .eq("pickup_code", code.toUpperCase())
       .eq("status", "reserved")
       .single();
@@ -99,20 +82,16 @@ export default function RestaurantOrdersScreen() {
 
   const confirmArrival = async (orderId) => {
     setConfirming(true);
-    console.log("Confirming arrival for order:", orderId);
-
     const { data, error } = await supabase
       .from("orders")
       .update({ status: "arriving" })
       .eq("id", orderId)
       .select();
 
-    console.log("Update result:", data, error);
-
     if (error) {
       window.alert("Error: " + error.message);
     } else if (!data || data.length === 0) {
-      window.alert("No rows were updated. Order ID might not match.");
+      window.alert("Could not update order.");
     } else {
       setFoundOrder(null);
       setCode("");
@@ -124,182 +103,298 @@ export default function RestaurantOrdersScreen() {
     setConfirming(false);
   };
 
-  const getStatusColor = (status) => {
+  const activeOrders = orders.filter(
+    (o) => o.status === "reserved" || o.status === "arriving",
+  );
+  const fulfilledOrders = orders.filter((o) => o.status === "picked_up");
+  const displayOrders = activeTab === "active" ? activeOrders : fulfilledOrders;
+
+  const totalRevenue = orders
+    .filter((o) => o.status === "picked_up")
+    .reduce((s, o) => s + parseFloat(o.bags?.price || 0), 0);
+
+  const getStatusConfig = (status) => {
     switch (status) {
       case "reserved":
-        return "#2E7D32";
+        return { label: "⏳ Pending", color: "#2E7D32", bg: "#E8F5E9" };
       case "arriving":
-        return "#E65100";
+        return { label: "🚶 Arriving", color: "#E65100", bg: "#FFF3E0" };
       case "picked_up":
-        return "#1565C0";
+        return { label: "✅ Fulfilled", color: "#1565C0", bg: "#E3F2FD" };
       default:
-        return "#888780";
+        return { label: status, color: "#888780", bg: "#F5F5F5" };
     }
   };
 
-  const getStatusLabel = (status) => {
-    switch (status) {
-      case "reserved":
-        return "⏳ Pending";
-      case "arriving":
-        return "🚶 Pending confirmation";
-      case "picked_up":
-        return "✅ Fulfilled";
-      default:
-        return status;
-    }
-  };
+  const renderOrder = ({ item }) => {
+    const config = getStatusConfig(item.status);
+    const isFulfilled = item.status === "picked_up";
 
-  const renderOrder = ({ item }) => (
-    <View
-      style={[
-        styles.orderCard,
-        item.status === "picked_up" && styles.orderCardFulfilled,
-      ]}
-    >
-      <View style={styles.orderTop}>
-        <View style={styles.orderLeft}>
-          <Text style={styles.orderBagTitle}>{item.bags?.title}</Text>
-          <Text style={styles.orderDate}>
-            {new Date(item.reserved_at).toLocaleTimeString("en-JO", {
-              hour: "2-digit",
-              minute: "2-digit",
-            })}
-          </Text>
-        </View>
-        <View
-          style={[
-            styles.statusBadge,
-            { backgroundColor: getStatusColor(item.status) + "18" },
-          ]}
-        >
-          <Text
-            style={[styles.statusText, { color: getStatusColor(item.status) }]}
-          >
-            {getStatusLabel(item.status)}
-          </Text>
-        </View>
-      </View>
-      <View style={styles.orderBottom}>
-        <Text style={styles.orderPrice}>
-          JD {parseFloat(item.bags?.price).toFixed(2)}
-        </Text>
-        {item.status === "arriving" && (
-          <View style={styles.awaitingBadge}>
-            <Text style={styles.awaitingText}>
-              Awaiting customer confirmation
+    return (
+      <View
+        style={[
+          styles.orderCard,
+          isFulfilled && styles.orderCardFulfilled,
+          { borderLeftColor: config.color },
+        ]}
+      >
+        <View style={styles.orderTop}>
+          <View style={styles.orderLeft}>
+            <Text
+              style={[styles.orderBagTitle, isFulfilled && styles.textMuted]}
+            >
+              {item.bags?.title}
+            </Text>
+            <Text style={styles.orderDate}>
+              🕐{" "}
+              {new Date(item.reserved_at).toLocaleTimeString("en-JO", {
+                hour: "2-digit",
+                minute: "2-digit",
+              })}
             </Text>
           </View>
-        )}
+          <View style={[styles.statusBadge, { backgroundColor: config.bg }]}>
+            <Text style={[styles.statusText, { color: config.color }]}>
+              {config.label}
+            </Text>
+          </View>
+        </View>
+
+        <View style={styles.orderBottom}>
+          <Text style={styles.orderPrice}>
+            JD {parseFloat(item.bags?.price || 0).toFixed(2)}
+          </Text>
+          {item.status === "arriving" && (
+            <View style={styles.awaitingBadge}>
+              <Text style={styles.awaitingText}>
+                ⏱️ Awaiting customer confirmation
+              </Text>
+            </View>
+          )}
+          {item.status === "picked_up" && (
+            <View style={styles.fulfilledBadge}>
+              <Text style={styles.fulfilledBadgeText}>✅ Complete</Text>
+            </View>
+          )}
+        </View>
       </View>
-    </View>
-  );
+    );
+  };
 
   return (
     <View style={styles.container}>
-      {/* Code check section */}
-      <View style={styles.scanSection}>
-        <Text style={styles.scanTitle}>🎫 Check Pickup Code</Text>
-        <Text style={styles.scanSubtitle}>
-          Enter the code shown by the customer
-        </Text>
-        <View style={styles.searchRow}>
-          <TextInput
-            style={styles.codeInput}
-            placeholder="e.g. C921E4"
-            placeholderTextColor="#A5C8A5"
-            value={code}
-            onChangeText={(t) => setCode(t.toUpperCase())}
-            maxLength={6}
-            autoCapitalize="characters"
+      <FlatList
+        data={displayOrders}
+        keyExtractor={(item) => item.id}
+        renderItem={renderOrder}
+        contentContainerStyle={styles.list}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={() => {
+              setRefreshing(true);
+              fetchOrders();
+            }}
+            tintColor="#2E7D32"
           />
-          <TouchableOpacity
-            style={[styles.searchBtn, searching && styles.searchBtnDisabled]}
-            onPress={searchCode}
-            disabled={searching}
-          >
-            {searching ? (
-              <ActivityIndicator color="#fff" size="small" />
-            ) : (
-              <Text style={styles.searchBtnText}>Check</Text>
-            )}
-          </TouchableOpacity>
-        </View>
-
-        {/* Found order */}
-        {foundOrder && (
-          <View style={styles.foundCard}>
-            <View style={styles.foundHeader}>
-              <Text style={styles.foundTitle}>✅ Valid Reservation</Text>
-            </View>
-            <View style={styles.foundBody}>
-              <View style={styles.foundRow}>
-                <Text style={styles.foundLabel}>Bag</Text>
-                <Text style={styles.foundValue}>{foundOrder.bags?.title}</Text>
-              </View>
-              <View style={styles.foundRow}>
-                <Text style={styles.foundLabel}>Amount</Text>
-                <Text style={styles.foundValueGreen}>
-                  JD {parseFloat(foundOrder.bags?.price).toFixed(2)}
+        }
+        ListHeaderComponent={
+          <View>
+            {/* Code checker */}
+            <View style={styles.scanSection}>
+              <View style={styles.scanHeader}>
+                <Text style={styles.scanTitle}>🎫 Verify Pickup Code</Text>
+                <Text style={styles.scanSubtitle}>
+                  Enter the code shown by the customer
                 </Text>
               </View>
-            </View>
-            <TouchableOpacity
-              style={[
-                styles.confirmBtn,
-                confirming && styles.confirmBtnDisabled,
-              ]}
-              onPress={() => confirmArrival(foundOrder.id)}
-              disabled={confirming}
-            >
-              {confirming ? (
-                <ActivityIndicator color="#fff" />
-              ) : (
-                <Text style={styles.confirmBtnText}>✅ Confirm Arrival</Text>
+
+              <View style={styles.codeInputRow}>
+                {[0, 1, 2, 3, 4, 5].map((i) => (
+                  <View
+                    key={i}
+                    style={[styles.codeBox, code[i] && styles.codeBoxFilled]}
+                  >
+                    <Text style={styles.codeBoxChar}>{code[i] || ""}</Text>
+                  </View>
+                ))}
+              </View>
+
+              <TextInput
+                style={styles.hiddenInput}
+                value={code}
+                onChangeText={(t) => setCode(t.toUpperCase().slice(0, 6))}
+                maxLength={6}
+                autoCapitalize="characters"
+                placeholder="Tap to enter code"
+                placeholderTextColor="#A5C8A5"
+              />
+
+              <TouchableOpacity
+                style={[
+                  styles.checkBtn,
+                  (code.length < 4 || searching) && styles.checkBtnDisabled,
+                ]}
+                onPress={searchCode}
+                disabled={code.length < 4 || searching}
+                activeOpacity={0.88}
+              >
+                {searching ? (
+                  <ActivityIndicator color="#fff" size="small" />
+                ) : (
+                  <Text style={styles.checkBtnText}>Verify Code →</Text>
+                )}
+              </TouchableOpacity>
+
+              {code.length > 0 && (
+                <TouchableOpacity
+                  style={styles.clearCodeBtn}
+                  onPress={() => {
+                    setCode("");
+                    setFoundOrder(null);
+                  }}
+                >
+                  <Text style={styles.clearCodeText}>Clear</Text>
+                </TouchableOpacity>
               )}
-            </TouchableOpacity>
+
+              {/* Found order */}
+              {foundOrder && (
+                <View style={styles.foundCard}>
+                  <View style={styles.foundHeader}>
+                    <Text style={styles.foundHeaderEmoji}>✅</Text>
+                    <Text style={styles.foundHeaderText}>
+                      Valid Reservation Found
+                    </Text>
+                  </View>
+                  <View style={styles.foundBody}>
+                    <View style={styles.foundRow}>
+                      <Text style={styles.foundLabel}>Bag</Text>
+                      <Text style={styles.foundValue}>
+                        {foundOrder.bags?.title}
+                      </Text>
+                    </View>
+                    <View style={styles.foundDivider} />
+                    <View style={styles.foundRow}>
+                      <Text style={styles.foundLabel}>Amount</Text>
+                      <Text style={styles.foundValueGreen}>
+                        JD {parseFloat(foundOrder.bags?.price || 0).toFixed(2)}
+                      </Text>
+                    </View>
+                    <View style={styles.foundDivider} />
+                    <View style={styles.foundRow}>
+                      <Text style={styles.foundLabel}>Reserved at</Text>
+                      <Text style={styles.foundValue}>
+                        {new Date(foundOrder.reserved_at).toLocaleTimeString(
+                          "en-JO",
+                          {
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          },
+                        )}
+                      </Text>
+                    </View>
+                  </View>
+                  <TouchableOpacity
+                    style={[
+                      styles.confirmBtn,
+                      confirming && styles.confirmBtnDisabled,
+                    ]}
+                    onPress={() => confirmArrival(foundOrder.id)}
+                    disabled={confirming}
+                    activeOpacity={0.88}
+                  >
+                    {confirming ? (
+                      <ActivityIndicator color="#fff" />
+                    ) : (
+                      <Text style={styles.confirmBtnText}>
+                        ✅ Confirm Customer Arrival
+                      </Text>
+                    )}
+                  </TouchableOpacity>
+                </View>
+              )}
+            </View>
+
+            {/* Stats row */}
+            <View style={styles.statsRow}>
+              <View style={styles.statCard}>
+                <Text style={styles.statEmoji}>⏳</Text>
+                <Text style={styles.statNum}>{activeOrders.length}</Text>
+                <Text style={styles.statLabel}>Active</Text>
+              </View>
+              <View style={styles.statCard}>
+                <Text style={styles.statEmoji}>✅</Text>
+                <Text style={styles.statNum}>{fulfilledOrders.length}</Text>
+                <Text style={styles.statLabel}>Fulfilled</Text>
+              </View>
+              <View style={styles.statCard}>
+                <Text style={styles.statEmoji}>💰</Text>
+                <Text style={styles.statNum}>JD {totalRevenue.toFixed(2)}</Text>
+                <Text style={styles.statLabel}>Earned</Text>
+              </View>
+            </View>
+
+            {/* Tabs */}
+            <View style={styles.tabRow}>
+              <TouchableOpacity
+                style={[styles.tab, activeTab === "active" && styles.tabActive]}
+                onPress={() => setActiveTab("active")}
+              >
+                <Text
+                  style={[
+                    styles.tabText,
+                    activeTab === "active" && styles.tabTextActive,
+                  ]}
+                >
+                  Active ({activeOrders.length})
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[
+                  styles.tab,
+                  activeTab === "fulfilled" && styles.tabActive,
+                ]}
+                onPress={() => setActiveTab("fulfilled")}
+              >
+                <Text
+                  style={[
+                    styles.tabText,
+                    activeTab === "fulfilled" && styles.tabTextActive,
+                  ]}
+                >
+                  Fulfilled ({fulfilledOrders.length})
+                </Text>
+              </TouchableOpacity>
+            </View>
           </View>
-        )}
-      </View>
-
-      {/* Reservations list */}
-      <View style={styles.listHeader}>
-        <Text style={styles.listTitle}>Today's Reservations</Text>
-        <Text style={styles.listCount}>
-          {orders.filter((o) => o.status !== "picked_up").length} active
-        </Text>
-      </View>
-
-      {loading ? (
-        <ActivityIndicator color="#2E7D32" style={{ marginTop: 32 }} />
-      ) : (
-        <FlatList
-          data={orders}
-          keyExtractor={(item) => item.id}
-          renderItem={renderOrder}
-          contentContainerStyle={styles.list}
-          showsVerticalScrollIndicator={false}
-          refreshControl={
-            <RefreshControl
-              refreshing={refreshing}
-              onRefresh={() => {
-                setRefreshing(true);
-                fetchOrders();
-              }}
-              tintColor="#2E7D32"
-            />
-          }
-          ListEmptyComponent={
+        }
+        ListEmptyComponent={
+          loading ? (
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator color="#2E7D32" size="large" />
+            </View>
+          ) : (
             <View style={styles.emptyContainer}>
-              <Text style={styles.emptyEmoji}>🎫</Text>
-              <Text style={styles.emptyTitle}>No reservations yet</Text>
+              <Text style={styles.emptyEmoji}>
+                {activeTab === "active" ? "🎫" : "✅"}
+              </Text>
+              <Text style={styles.emptyTitle}>
+                {activeTab === "active"
+                  ? "No active reservations"
+                  : "No fulfilled orders yet"}
+              </Text>
               <Text style={styles.emptySubtitle}>
-                Reservations will appear here when customers reserve your bags
+                {activeTab === "active"
+                  ? "Reservations will appear here when customers reserve your bags"
+                  : "Fulfilled orders will appear here after customers confirm pickup"}
               </Text>
             </View>
-          }
-        />
-      )}
+          )
+        }
+      />
     </View>
   );
 }
@@ -313,35 +408,61 @@ const styles = StyleSheet.create({
     padding: 20,
     paddingBottom: 24,
   },
+  scanHeader: { marginBottom: 16 },
   scanTitle: {
     fontSize: 18,
     fontWeight: "800",
     color: "#FFFFFF",
     marginBottom: 4,
   },
-  scanSubtitle: { fontSize: 13, color: "#A5D6A7", marginBottom: 16 },
-  searchRow: { flexDirection: "row", gap: 10 },
-  codeInput: {
-    flex: 1,
-    backgroundColor: "#FFFFFF",
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    fontSize: 20,
-    fontWeight: "800",
-    color: "#1B5E20",
-    letterSpacing: 6,
-  },
-  searchBtn: {
-    backgroundColor: "#1B5E20",
-    borderRadius: 12,
-    paddingHorizontal: 20,
+  scanSubtitle: { fontSize: 13, color: "#A5D6A7" },
+
+  // Code boxes
+  codeInputRow: {
+    flexDirection: "row",
+    gap: 8,
     justifyContent: "center",
-    alignItems: "center",
-    minWidth: 80,
+    marginBottom: 12,
   },
-  searchBtnDisabled: { opacity: 0.6 },
-  searchBtnText: { color: "#FFFFFF", fontWeight: "800", fontSize: 15 },
+  codeBox: {
+    width: 44,
+    height: 54,
+    borderRadius: 12,
+    backgroundColor: "rgba(255,255,255,0.12)",
+    borderWidth: 1.5,
+    borderColor: "rgba(255,255,255,0.25)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  codeBoxFilled: {
+    backgroundColor: "rgba(255,255,255,0.2)",
+    borderColor: "rgba(255,255,255,0.6)",
+  },
+  codeBoxChar: { fontSize: 22, fontWeight: "800", color: "#FFFFFF" },
+  hiddenInput: {
+    backgroundColor: "rgba(255,255,255,0.1)",
+    borderRadius: 12,
+    padding: 12,
+    fontSize: 18,
+    color: "#FFFFFF",
+    textAlign: "center",
+    letterSpacing: 4,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.2)",
+  },
+  checkBtn: {
+    backgroundColor: "#1B5E20",
+    borderRadius: 14,
+    paddingVertical: 14,
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.2)",
+  },
+  checkBtnDisabled: { opacity: 0.5 },
+  checkBtnText: { color: "#FFFFFF", fontWeight: "800", fontSize: 15 },
+  clearCodeBtn: { alignItems: "center", marginTop: 10 },
+  clearCodeText: { color: "#A5D6A7", fontSize: 13, fontWeight: "600" },
 
   // Found card
   foundCard: {
@@ -349,45 +470,97 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     marginTop: 16,
     overflow: "hidden",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 10,
+    elevation: 6,
   },
   foundHeader: {
     backgroundColor: "#E8F5E9",
-    padding: 12,
+    padding: 14,
+    flexDirection: "row",
     alignItems: "center",
+    gap: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: "#C8E6C9",
   },
-  foundTitle: { fontSize: 15, fontWeight: "800", color: "#2E7D32" },
-  foundBody: { padding: 16, gap: 12 },
+  foundHeaderEmoji: { fontSize: 20 },
+  foundHeaderText: { fontSize: 15, fontWeight: "800", color: "#2E7D32" },
+  foundBody: { padding: 16, gap: 2 },
   foundRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
+    paddingVertical: 8,
   },
+  foundDivider: { height: 1, backgroundColor: "#F0F7F0" },
   foundLabel: { fontSize: 13, color: "#888780" },
   foundValue: { fontSize: 14, fontWeight: "600", color: "#1B5E20" },
   foundValueGreen: { fontSize: 18, fontWeight: "800", color: "#2E7D32" },
   confirmBtn: {
     backgroundColor: "#2E7D32",
     margin: 16,
+    marginTop: 8,
     borderRadius: 12,
     paddingVertical: 14,
     alignItems: "center",
+    shadowColor: "#2E7D32",
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.25,
+    shadowRadius: 6,
+    elevation: 4,
   },
   confirmBtnDisabled: { opacity: 0.6 },
   confirmBtnText: { color: "#FFFFFF", fontWeight: "800", fontSize: 15 },
 
-  // List
-  listHeader: {
+  // Stats
+  statsRow: {
     flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
     padding: 16,
-    paddingBottom: 8,
+    gap: 10,
+    backgroundColor: "#FFFFFF",
+    borderBottomWidth: 1,
+    borderBottomColor: "#F0F0F0",
   },
-  listTitle: { fontSize: 16, fontWeight: "800", color: "#1B5E20" },
-  listCount: { fontSize: 13, color: "#888780" },
-  list: { paddingHorizontal: 16, paddingBottom: 32 },
+  statCard: {
+    flex: 1,
+    alignItems: "center",
+    padding: 12,
+    backgroundColor: "#F0F7F0",
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: "#E8F5E9",
+  },
+  statEmoji: { fontSize: 20, marginBottom: 4 },
+  statNum: {
+    fontSize: 18,
+    fontWeight: "800",
+    color: "#1B5E20",
+    marginBottom: 2,
+  },
+  statLabel: { fontSize: 11, color: "#888780" },
 
-  // Order card
+  // Tabs
+  tabRow: {
+    flexDirection: "row",
+    backgroundColor: "#FFFFFF",
+    borderBottomWidth: 1,
+    borderBottomColor: "#F0F0F0",
+  },
+  tab: {
+    flex: 1,
+    paddingVertical: 14,
+    alignItems: "center",
+    borderBottomWidth: 3,
+    borderBottomColor: "transparent",
+  },
+  tabActive: { borderBottomColor: "#2E7D32" },
+  tabText: { fontSize: 14, fontWeight: "600", color: "#888780" },
+  tabTextActive: { color: "#2E7D32", fontWeight: "800" },
+
+  // Order cards
+  list: { paddingHorizontal: 16, paddingBottom: 32, paddingTop: 12 },
   orderCard: {
     backgroundColor: "#FFFFFF",
     borderRadius: 14,
@@ -395,16 +568,14 @@ const styles = StyleSheet.create({
     marginBottom: 10,
     borderWidth: 1,
     borderColor: "#E8F5E9",
+    borderLeftWidth: 4,
     shadowColor: "#1B5E20",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.06,
     shadowRadius: 6,
     elevation: 2,
   },
-  orderCardFulfilled: {
-    opacity: 0.6,
-    borderColor: "#C8E6C9",
-  },
+  orderCardFulfilled: { opacity: 0.7 },
   orderTop: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -416,17 +587,23 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "700",
     color: "#1B5E20",
-    marginBottom: 3,
+    marginBottom: 4,
   },
+  textMuted: { color: "#888780" },
   orderDate: { fontSize: 12, color: "#888780" },
-  statusBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20 },
+  statusBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 20,
+    marginLeft: 10,
+  },
   statusText: { fontSize: 12, fontWeight: "700" },
   orderBottom: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
   },
-  orderPrice: { fontSize: 16, fontWeight: "800", color: "#2E7D32" },
+  orderPrice: { fontSize: 18, fontWeight: "800", color: "#2E7D32" },
   awaitingBadge: {
     backgroundColor: "#FFF3E0",
     paddingHorizontal: 10,
@@ -434,8 +611,16 @@ const styles = StyleSheet.create({
     borderRadius: 10,
   },
   awaitingText: { fontSize: 11, color: "#E65100", fontWeight: "600" },
+  fulfilledBadge: {
+    backgroundColor: "#E3F2FD",
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 10,
+  },
+  fulfilledBadgeText: { fontSize: 11, color: "#1565C0", fontWeight: "600" },
 
-  // Empty
+  // Empty & loading
+  loadingContainer: { paddingTop: 48, alignItems: "center" },
   emptyContainer: {
     alignItems: "center",
     paddingTop: 48,
