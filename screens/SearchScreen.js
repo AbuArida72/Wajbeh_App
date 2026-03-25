@@ -6,20 +6,30 @@ import {
   TextInput,
   FlatList,
   TouchableOpacity,
-  ImageBackground,
   Image,
   ActivityIndicator,
+  StatusBar,
 } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import { supabase } from "../lib/supabase";
 import { useLanguage } from "../lang/LanguageContext";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+
+const QUICK_FILTERS = [
+  { label: "Bakery", bg: "#FFF8E1", text: "#E65100", border: "#FFE082" },
+  { label: "Restaurant", bg: "#E8F5E9", text: "#2E7D32", border: "#A5D6A7" },
+  { label: "Café", bg: "#FBE9E7", text: "#BF360C", border: "#FFCCBC" },
+  { label: "Abdoun", bg: "#E3F2FD", text: "#1565C0", border: "#BBDEFB" },
+  { label: "Sweifieh", bg: "#E3F2FD", text: "#1565C0", border: "#BBDEFB" },
+];
 
 export default function SearchScreen({ navigation }) {
   const [query, setQuery] = useState("");
   const [bags, setBags] = useState([]);
   const [filtered, setFiltered] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [focused, setFocused] = useState(false);
   const { t, isRTL } = useLanguage();
+  const insets = useSafeAreaInsets();
 
   useEffect(() => {
     fetchBags();
@@ -46,7 +56,7 @@ export default function SearchScreen({ navigation }) {
     const { data, error } = await supabase
       .from("bags")
       .select(
-        `*, restaurants (name, category, area, logo_url, pickup_start, pickup_end)`,
+        `*, restaurants (name, category, area, logo_url)`,
       )
       .eq("status", "available")
       .gt("quantity_remaining", 0);
@@ -74,8 +84,8 @@ export default function SearchScreen({ navigation }) {
               area: r?.area,
               category: r?.category,
               logo: r?.logo_url,
-              pickup_start: r?.pickup_start?.slice(0, 5),
-              pickup_end: r?.pickup_end?.slice(0, 5),
+              pickup_start: item.pickup_start?.slice(0, 5),
+              pickup_end: item.pickup_end?.slice(0, 5),
               image: item.image_url,
             },
           })
@@ -83,67 +93,52 @@ export default function SearchScreen({ navigation }) {
       >
         {/* Image */}
         <View style={styles.imageWrapper}>
-          <ImageBackground
-            source={{ uri: item.image_url }}
-            style={styles.cardImage}
-            imageStyle={{ borderTopLeftRadius: 16, borderTopRightRadius: 16 }}
-          >
-            <View style={styles.imageOverlay} />
-            <View style={styles.imageTopRow}>
-              <View style={[styles.badge, isLast && styles.badgeUrgent]}>
-                <Text
-                  style={[styles.badgeText, isLast && styles.badgeTextUrgent]}
-                >
-                  {isLast
-                    ? t("lastOne")
-                    : `${item.quantity_remaining} ${t("left")}`}
-                </Text>
-              </View>
-              <View style={styles.discountBadge}>
-                <Text style={styles.discountText}>-{discount}%</Text>
-              </View>
-            </View>
-            <View style={[styles.imageBottom, isRTL && styles.rtlRow]}>
-              <Image source={{ uri: r?.logo_url }} style={styles.logo} />
-              <View style={{ flex: 1 }}>
-                <Text style={styles.restaurantNameOverlay}>{r?.name}</Text>
-                <Text style={styles.areaOverlay}>
-                  📍 {r?.area} · {r?.category}
-                </Text>
-              </View>
-            </View>
-          </ImageBackground>
+          <Image source={{ uri: item.image_url }} style={styles.cardImage} />
+          <View style={[styles.qtyBadge, isLast && styles.qtyBadgeUrgent]}>
+            <Text style={[styles.qtyBadgeText, isLast && styles.qtyBadgeTextUrgent]}>
+              {isLast ? t("lastOne") : `${item.quantity_remaining} ${t("left")}`}
+            </Text>
+          </View>
+          <View style={styles.discountBadge}>
+            <Text style={styles.discountText}>-{discount}%</Text>
+          </View>
         </View>
 
         {/* Card body */}
         <View style={styles.cardBody}>
-          <View style={[styles.cardRow, isRTL && styles.rtlRow]}>
-            <View style={styles.cardLeft}>
-              <Text
-                style={[styles.bagTitle, isRTL && styles.rtl]}
-                numberOfLines={1}
-              >
-                {item.title}
+          <View style={[styles.restaurantRow, isRTL && styles.rtlRow]}>
+            <Image source={{ uri: r?.logo_url }} style={styles.logo} />
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.restaurantName, isRTL && styles.rtl]} numberOfLines={1}>
+                {r?.name}
               </Text>
               <View style={[styles.metaRow, isRTL && styles.rtlRow]}>
-                <Text style={styles.metaIcon}>🕐</Text>
-                <Text style={styles.metaText}>
-                  {r?.pickup_start?.slice(0, 5)} – {r?.pickup_end?.slice(0, 5)}
-                </Text>
+                <Ionicons name="location-outline" size={11} color="#B8B8B8" />
+                <Text style={styles.areaText}>{r?.area}</Text>
+                <Text style={styles.dotSep}>·</Text>
+                <Text style={styles.categoryText}>{r?.category}</Text>
               </View>
             </View>
-            <View style={styles.priceBlock}>
+          </View>
+
+          <Text style={[styles.bagTitle, isRTL && styles.rtl]} numberOfLines={1}>
+            {item.title}
+          </Text>
+
+          <View style={[styles.bottomRow, isRTL && styles.rtlRow]}>
+            <View style={[styles.pickupRow, isRTL && styles.rtlRow]}>
+              <Ionicons name="time-outline" size={12} color="#B8B8B8" />
+              <Text style={styles.pickupText}>
+                {item.pickup_start?.slice(0, 5)} – {item.pickup_end?.slice(0, 5)}
+              </Text>
+            </View>
+            <View style={styles.priceGroup}>
               <Text style={styles.originalPrice}>
                 JD {parseFloat(item.original_value).toFixed(2)}
               </Text>
               <Text style={styles.price}>
                 JD {parseFloat(item.price).toFixed(2)}
               </Text>
-              <View style={styles.saveBadge}>
-                <Text style={styles.saveText}>
-                  {t("save")} {discount}%
-                </Text>
-              </View>
             </View>
           </View>
         </View>
@@ -151,29 +146,24 @@ export default function SearchScreen({ navigation }) {
     );
   };
 
-  const QUICK_FILTERS = ["Bakery", "Restaurant", "Café", "Abdoun", "Sweifieh"];
-
   return (
     <View style={styles.container}>
+      <StatusBar backgroundColor="#1B5E20" barStyle="light-content" />
       {/* Search header */}
-      <View style={styles.header}>
-        <View style={[styles.searchBar, focused && styles.searchBarFocused]}>
-          <Text style={styles.searchIcon}>🔍</Text>
+      <View style={[styles.header, { paddingTop: insets.top + 16 }]}>
+        <Text style={styles.headerTitle}>Search</Text>
+        <View style={styles.searchBar}>
+          <Ionicons name="search-outline" size={18} color="rgba(255,255,255,0.7)" style={styles.searchIcon} />
           <TextInput
             style={[styles.input, isRTL && styles.inputRTL]}
             placeholder={t("searchPlaceholder")}
-            placeholderTextColor="#A5C8A5"
+            placeholderTextColor="rgba(255,255,255,0.5)"
             value={query}
             onChangeText={setQuery}
-            onFocus={() => setFocused(true)}
-            onBlur={() => setFocused(false)}
           />
           {query.length > 0 && (
-            <TouchableOpacity
-              style={styles.clearBtn}
-              onPress={() => setQuery("")}
-            >
-              <Text style={styles.clearBtnText}>✕</Text>
+            <TouchableOpacity onPress={() => setQuery("")}>
+              <Ionicons name="close" size={18} color="rgba(255,255,255,0.7)" />
             </TouchableOpacity>
           )}
         </View>
@@ -183,11 +173,11 @@ export default function SearchScreen({ navigation }) {
           <View style={styles.quickFilters}>
             {QUICK_FILTERS.map((f) => (
               <TouchableOpacity
-                key={f}
-                style={styles.quickChip}
-                onPress={() => setQuery(f)}
+                key={f.label}
+                style={[styles.quickChip, { backgroundColor: f.bg, borderColor: f.border }]}
+                onPress={() => setQuery(f.label)}
               >
-                <Text style={styles.quickChipText}>{f}</Text>
+                <Text style={[styles.quickChipText, { color: f.text }]}>{f.label}</Text>
               </TouchableOpacity>
             ))}
           </View>
@@ -198,8 +188,8 @@ export default function SearchScreen({ navigation }) {
       {query.length >= 2 && (
         <View style={[styles.resultsBar, isRTL && styles.rtlRow]}>
           <Text style={[styles.resultsText, isRTL && styles.rtl]}>
-            {filtered.length} {t("results")} "
-            <Text style={styles.resultsQuery}>{query}</Text>"
+            {filtered.length} {t("results")}{" "}
+            <Text style={styles.resultsQuery}>"{query}"</Text>
           </Text>
           <TouchableOpacity onPress={() => setQuery("")}>
             <Text style={styles.clearText}>Clear</Text>
@@ -207,13 +197,13 @@ export default function SearchScreen({ navigation }) {
         </View>
       )}
 
-      {/* Empty search state */}
+      {/* Empty search header */}
       {query.length === 0 && !loading && (
-        <View style={styles.emptySearchHeader}>
-          <Text style={[styles.emptySearchTitle, isRTL && styles.rtl]}>
+        <View style={styles.browseHeader}>
+          <Text style={[styles.browseTitle, isRTL && styles.rtl]}>
             All available bags today
           </Text>
-          <Text style={[styles.emptySearchSub, isRTL && styles.rtl]}>
+          <Text style={[styles.browseSub, isRTL && styles.rtl]}>
             {bags.length} bags from{" "}
             {new Set(bags.map((b) => b.restaurants?.name)).size} restaurants
           </Text>
@@ -228,7 +218,7 @@ export default function SearchScreen({ navigation }) {
         </View>
       ) : filtered.length === 0 ? (
         <View style={styles.noResultsContainer}>
-          <Text style={styles.noResultsEmoji}>🔍</Text>
+          <Ionicons name="search-outline" size={48} color="#B8B8B8" />
           <Text style={[styles.noResultsTitle, isRTL && styles.rtl]}>
             No results found
           </Text>
@@ -247,7 +237,7 @@ export default function SearchScreen({ navigation }) {
           data={filtered}
           keyExtractor={(item) => item.id}
           renderItem={renderBag}
-          contentContainerStyle={styles.list}
+          contentContainerStyle={[styles.list, { paddingBottom: insets.bottom + 24 }]}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         />
@@ -257,47 +247,32 @@ export default function SearchScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#F0F7F0" },
+  container: { flex: 1, backgroundColor: "#FFFFFF" },
   rtl: { textAlign: "right", writingDirection: "rtl" },
   rtlRow: { flexDirection: "row-reverse" },
 
   // Header
   header: {
-    backgroundColor: "#2E7D32",
-    paddingHorizontal: 16,
-    paddingTop: 12,
-    paddingBottom: 16,
+    backgroundColor: "#1B5E20",
+    paddingHorizontal: 20,
+    paddingBottom: 20,
+    borderBottomWidth: 0,
+    gap: 12,
   },
+  headerTitle: { fontSize: 22, fontWeight: "700", color: "#FFFFFF", textAlign: "center" },
   searchBar: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#FFFFFF",
-    borderRadius: 14,
-    paddingHorizontal: 14,
-    paddingVertical: 2,
-    borderWidth: 2,
-    borderColor: "transparent",
+    backgroundColor: "rgba(255,255,255,0.15)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.3)",
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
   },
-  searchBarFocused: {
-    borderColor: "#A5D6A7",
-    shadowColor: "#2E7D32",
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  searchIcon: { fontSize: 16, marginRight: 10 },
-  input: { flex: 1, paddingVertical: 12, fontSize: 15, color: "#1B5E20" },
+  searchIcon: { marginRight: 8 },
+  input: { flex: 1, fontSize: 15, color: "#FFFFFF" },
   inputRTL: { textAlign: "right" },
-  clearBtn: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: "#F0F7F0",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  clearBtnText: { fontSize: 12, color: "#888780", fontWeight: "700" },
 
   // Quick filters
   quickFilters: {
@@ -307,45 +282,44 @@ const styles = StyleSheet.create({
     marginTop: 10,
   },
   quickChip: {
-    backgroundColor: "rgba(255,255,255,0.15)",
     paddingHorizontal: 14,
     paddingVertical: 7,
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.25)",
   },
-  quickChipText: { color: "#FFFFFF", fontSize: 13, fontWeight: "600" },
+  quickChipText: { fontSize: 13, fontWeight: "600" },
 
   // Results bar
   resultsBar: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    paddingHorizontal: 16,
+    paddingHorizontal: 20,
     paddingVertical: 10,
     backgroundColor: "#FFFFFF",
     borderBottomWidth: 1,
-    borderBottomColor: "#F0F0F0",
+    borderBottomColor: "#DBDBDB",
   },
-  resultsText: { fontSize: 13, color: "#5F5E5A" },
-  resultsQuery: { fontWeight: "700", color: "#2E7D32" },
+  resultsText: { fontSize: 13, color: "#737373" },
+  resultsQuery: { fontWeight: "600", color: "#0F0F0F" },
   clearText: { fontSize: 13, color: "#2E7D32", fontWeight: "600" },
 
-  // Empty search header
-  emptySearchHeader: {
-    paddingHorizontal: 16,
+  // Browse header
+  browseHeader: {
+    paddingHorizontal: 20,
     paddingVertical: 12,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: "#F9FBE7",
     borderBottomWidth: 1,
-    borderBottomColor: "#F0F0F0",
+    borderBottomColor: "#DCEDC8",
   },
-  emptySearchTitle: {
-    fontSize: 15,
-    fontWeight: "700",
-    color: "#1B5E20",
+  browseTitle: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#33691E",
     marginBottom: 2,
+    textAlign: "center",
   },
-  emptySearchSub: { fontSize: 12, color: "#888780" },
+  browseSub: { fontSize: 12, color: "#558B2F", textAlign: "center" },
 
   // Loading
   loadingContainer: {
@@ -354,7 +328,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 12,
   },
-  loadingText: { fontSize: 14, color: "#2E7D32" },
+  loadingText: { fontSize: 14, color: "#737373" },
 
   // No results
   noResultsContainer: {
@@ -362,122 +336,103 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     padding: 32,
+    gap: 12,
   },
-  noResultsEmoji: { fontSize: 48, marginBottom: 16 },
   noResultsTitle: {
-    fontSize: 18,
-    fontWeight: "700",
-    color: "#1B5E20",
-    marginBottom: 8,
+    fontSize: 17,
+    fontWeight: "600",
+    color: "#0F0F0F",
+    marginTop: 8,
   },
   noResultsSub: {
     fontSize: 14,
-    color: "#888780",
+    color: "#737373",
     textAlign: "center",
     lineHeight: 20,
-    marginBottom: 20,
   },
   clearSearchBtn: {
     backgroundColor: "#2E7D32",
     paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 12,
+    paddingVertical: 14,
+    borderRadius: 10,
+    marginTop: 8,
   },
-  clearSearchBtnText: { color: "#FFFFFF", fontWeight: "700", fontSize: 14 },
+  clearSearchBtnText: { color: "#FFFFFF", fontWeight: "600", fontSize: 15 },
 
   // List
-  list: { padding: 16, paddingBottom: 32 },
+  list: { paddingHorizontal: 0, paddingTop: 12, paddingBottom: 32 },
 
   // Card
   card: {
     backgroundColor: "#FFFFFF",
-    borderRadius: 16,
-    marginBottom: 16,
-    shadowColor: "#1B5E20",
+    borderRadius: 14,
+    marginHorizontal: 12,
+    marginBottom: 12,
+    shadowColor: "#000",
     shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.08,
-    shadowRadius: 10,
+    shadowOpacity: 0.09,
+    shadowRadius: 8,
     elevation: 4,
     overflow: "hidden",
   },
-  imageWrapper: { overflow: "hidden" },
-  cardImage: { height: 160, justifyContent: "space-between" },
-  imageOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(0,0,0,0.2)",
-  },
-  imageTopRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    padding: 10,
-  },
-  badge: {
-    backgroundColor: "rgba(255,255,255,0.92)",
+  imageWrapper: { position: "relative" },
+  cardImage: { width: "100%", height: 200, backgroundColor: "#F0F0F0" },
+  qtyBadge: {
+    position: "absolute",
+    top: 10,
+    left: 10,
+    backgroundColor: "rgba(0,0,0,0.55)",
     paddingHorizontal: 10,
     paddingVertical: 5,
     borderRadius: 20,
   },
-  badgeUrgent: { backgroundColor: "#FFEBEE" },
-  badgeText: { fontSize: 12, fontWeight: "700", color: "#2E7D32" },
-  badgeTextUrgent: { color: "#C62828" },
+  qtyBadgeUrgent: { backgroundColor: "#C62828" },
+  qtyBadgeText: { fontSize: 12, fontWeight: "700", color: "#FFFFFF" },
+  qtyBadgeTextUrgent: { color: "#FFFFFF" },
   discountBadge: {
-    backgroundColor: "#2E7D32",
+    position: "absolute",
+    top: 10,
+    right: 10,
+    backgroundColor: "#F57F17",
     paddingHorizontal: 10,
     paddingVertical: 5,
     borderRadius: 20,
   },
-  discountText: { fontSize: 12, fontWeight: "800", color: "#FFFFFF" },
-  imageBottom: {
+  discountText: { fontSize: 12, fontWeight: "700", color: "#FFFFFF" },
+
+  cardBody: { padding: 14 },
+  restaurantRow: {
     flexDirection: "row",
     alignItems: "center",
-    padding: 10,
-    gap: 8,
-    backgroundColor: "rgba(0,0,0,0.45)",
+    gap: 10,
+    marginBottom: 8,
   },
   logo: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    borderWidth: 1.5,
-    borderColor: "#FFFFFF",
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "#EBEBEB",
+    backgroundColor: "#F0F0F0",
   },
-  restaurantNameOverlay: {
-    fontSize: 14,
-    fontWeight: "700",
-    color: "#FFFFFF",
-    textShadowColor: "rgba(0,0,0,0.3)",
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 2,
-  },
-  areaOverlay: { fontSize: 11, color: "rgba(255,255,255,0.8)" },
-  cardBody: { padding: 12 },
-  cardRow: {
+  restaurantName: { fontSize: 14, fontWeight: "600", color: "#0F0F0F", marginBottom: 2 },
+  metaRow: { flexDirection: "row", alignItems: "center", gap: 4 },
+  areaText: { fontSize: 12, color: "#B8B8B8" },
+  dotSep: { fontSize: 12, color: "#B8B8B8" },
+  categoryText: { fontSize: 12, color: "#B8B8B8" },
+  bagTitle: { fontSize: 15, fontWeight: "600", color: "#0F0F0F", marginBottom: 8 },
+  bottomRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
   },
-  cardLeft: { flex: 1, paddingRight: 12 },
-  bagTitle: {
-    fontSize: 15,
-    fontWeight: "700",
-    color: "#1B5E20",
-    marginBottom: 6,
-  },
-  metaRow: { flexDirection: "row", alignItems: "center", gap: 4 },
-  metaIcon: { fontSize: 11 },
-  metaText: { fontSize: 12, color: "#5F5E5A" },
-  priceBlock: { alignItems: "flex-end", gap: 2 },
+  pickupRow: { flexDirection: "row", alignItems: "center", gap: 4 },
+  pickupText: { fontSize: 12, color: "#737373" },
+  priceGroup: { alignItems: "flex-end", gap: 2 },
   originalPrice: {
     fontSize: 11,
-    color: "#B4B2A9",
+    color: "#B8B8B8",
     textDecorationLine: "line-through",
   },
-  price: { fontSize: 20, fontWeight: "800", color: "#2E7D32" },
-  saveBadge: {
-    backgroundColor: "#E8F5E9",
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 10,
-  },
-  saveText: { fontSize: 11, color: "#2E7D32", fontWeight: "700" },
+  price: { fontSize: 18, fontWeight: "700", color: "#0F0F0F" },
 });

@@ -8,12 +8,16 @@ import {
   ActivityIndicator,
   RefreshControl,
   TextInput,
-  ScrollView,
+  Alert,
+  StatusBar,
 } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
+import { Ionicons } from "@expo/vector-icons";
 import { supabase } from "../lib/supabase";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function RestaurantOrdersScreen() {
+  const insets = useSafeAreaInsets();
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -75,7 +79,7 @@ export default function RestaurantOrdersScreen() {
     if (data && data.bags?.restaurant_id === restaurantId) {
       setFoundOrder(data);
     } else {
-      window.alert("No active reservation found with this code.");
+      Alert.alert("Not Found", "No active reservation found with this code.");
     }
     setSearching(false);
   };
@@ -89,16 +93,14 @@ export default function RestaurantOrdersScreen() {
       .select();
 
     if (error) {
-      window.alert("Error: " + error.message);
+      Alert.alert("Error", error.message);
     } else if (!data || data.length === 0) {
-      window.alert("Could not update order.");
+      Alert.alert("Error", "Could not update order.");
     } else {
       setFoundOrder(null);
       setCode("");
       fetchOrders();
-      window.alert(
-        "Confirmed! Ask the customer to confirm pickup in their app.",
-      );
+      Alert.alert("Confirmed!", "Ask the customer to confirm pickup in their app.");
     }
     setConfirming(false);
   };
@@ -116,13 +118,13 @@ export default function RestaurantOrdersScreen() {
   const getStatusConfig = (status) => {
     switch (status) {
       case "reserved":
-        return { label: "⏳ Pending", color: "#2E7D32", bg: "#E8F5E9" };
+        return { label: "Pending", color: "#2E7D32", bg: "#F2F8F2" };
       case "arriving":
-        return { label: "🚶 Arriving", color: "#E65100", bg: "#FFF3E0" };
+        return { label: "Arriving", color: "#E65100", bg: "#FFF3E0" };
       case "picked_up":
-        return { label: "✅ Fulfilled", color: "#1565C0", bg: "#E3F2FD" };
+        return { label: "Fulfilled", color: "#737373", bg: "#F0F0F0" };
       default:
-        return { label: status, color: "#888780", bg: "#F5F5F5" };
+        return { label: status, color: "#737373", bg: "#F5F5F5" };
     }
   };
 
@@ -131,27 +133,24 @@ export default function RestaurantOrdersScreen() {
     const isFulfilled = item.status === "picked_up";
 
     return (
-      <View
-        style={[
-          styles.orderCard,
-          isFulfilled && styles.orderCardFulfilled,
-          { borderLeftColor: config.color },
-        ]}
-      >
+      <View style={[styles.orderCard, isFulfilled && styles.orderCardFulfilled]}>
         <View style={styles.orderTop}>
           <View style={styles.orderLeft}>
             <Text
               style={[styles.orderBagTitle, isFulfilled && styles.textMuted]}
+              numberOfLines={1}
             >
               {item.bags?.title}
             </Text>
-            <Text style={styles.orderDate}>
-              🕐{" "}
-              {new Date(item.reserved_at).toLocaleTimeString("en-JO", {
-                hour: "2-digit",
-                minute: "2-digit",
-              })}
-            </Text>
+            <View style={styles.orderTimeRow}>
+              <Ionicons name="time-outline" size={12} color="#B8B8B8" />
+              <Text style={styles.orderDate}>
+                {new Date(item.reserved_at).toLocaleTimeString("en-JO", {
+                  hour: "2-digit",
+                  minute: "2-digit",
+                })}
+              </Text>
+            </View>
           </View>
           <View style={[styles.statusBadge, { backgroundColor: config.bg }]}>
             <Text style={[styles.statusText, { color: config.color }]}>
@@ -167,13 +166,14 @@ export default function RestaurantOrdersScreen() {
           {item.status === "arriving" && (
             <View style={styles.awaitingBadge}>
               <Text style={styles.awaitingText}>
-                ⏱️ Awaiting customer confirmation
+                Awaiting customer confirmation
               </Text>
             </View>
           )}
           {item.status === "picked_up" && (
             <View style={styles.fulfilledBadge}>
-              <Text style={styles.fulfilledBadgeText}>✅ Complete</Text>
+              <Ionicons name="checkmark" size={12} color="#737373" />
+              <Text style={styles.fulfilledBadgeText}>Complete</Text>
             </View>
           )}
         </View>
@@ -183,11 +183,12 @@ export default function RestaurantOrdersScreen() {
 
   return (
     <View style={styles.container}>
+      <StatusBar backgroundColor="#1B5E20" barStyle="light-content" />
       <FlatList
         data={displayOrders}
         keyExtractor={(item) => item.id}
         renderItem={renderOrder}
-        contentContainerStyle={styles.list}
+        contentContainerStyle={[styles.list, { paddingBottom: insets.bottom + 24 }]}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
         refreshControl={
@@ -203,13 +204,11 @@ export default function RestaurantOrdersScreen() {
         ListHeaderComponent={
           <View>
             {/* Code checker */}
-            <View style={styles.scanSection}>
-              <View style={styles.scanHeader}>
-                <Text style={styles.scanTitle}>🎫 Verify Pickup Code</Text>
-                <Text style={styles.scanSubtitle}>
-                  Enter the code shown by the customer
-                </Text>
-              </View>
+            <View style={[styles.scanSection, { paddingTop: insets.top + 16 }]}>
+              <Text style={styles.scanTitle}>Verify Pickup Code</Text>
+              <Text style={styles.scanSubtitle}>
+                Enter the code shown by the customer
+              </Text>
 
               <View style={styles.codeInputRow}>
                 {[0, 1, 2, 3, 4, 5].map((i) => (
@@ -229,7 +228,7 @@ export default function RestaurantOrdersScreen() {
                 maxLength={6}
                 autoCapitalize="characters"
                 placeholder="Tap to enter code"
-                placeholderTextColor="#A5C8A5"
+                placeholderTextColor="#B8B8B8"
               />
 
               <TouchableOpacity
@@ -244,7 +243,7 @@ export default function RestaurantOrdersScreen() {
                 {searching ? (
                   <ActivityIndicator color="#fff" size="small" />
                 ) : (
-                  <Text style={styles.checkBtnText}>Verify Code →</Text>
+                  <Text style={styles.checkBtnText}>Verify Code</Text>
                 )}
               </TouchableOpacity>
 
@@ -264,7 +263,7 @@ export default function RestaurantOrdersScreen() {
               {foundOrder && (
                 <View style={styles.foundCard}>
                   <View style={styles.foundHeader}>
-                    <Text style={styles.foundHeaderEmoji}>✅</Text>
+                    <Ionicons name="checkmark-circle" size={20} color="#2E7D32" />
                     <Text style={styles.foundHeaderText}>
                       Valid Reservation Found
                     </Text>
@@ -310,7 +309,7 @@ export default function RestaurantOrdersScreen() {
                       <ActivityIndicator color="#fff" />
                     ) : (
                       <Text style={styles.confirmBtnText}>
-                        ✅ Confirm Customer Arrival
+                        Confirm Customer Arrival
                       </Text>
                     )}
                   </TouchableOpacity>
@@ -321,17 +320,16 @@ export default function RestaurantOrdersScreen() {
             {/* Stats row */}
             <View style={styles.statsRow}>
               <View style={styles.statCard}>
-                <Text style={styles.statEmoji}>⏳</Text>
                 <Text style={styles.statNum}>{activeOrders.length}</Text>
                 <Text style={styles.statLabel}>Active</Text>
               </View>
+              <View style={styles.statDivider} />
               <View style={styles.statCard}>
-                <Text style={styles.statEmoji}>✅</Text>
                 <Text style={styles.statNum}>{fulfilledOrders.length}</Text>
                 <Text style={styles.statLabel}>Fulfilled</Text>
               </View>
+              <View style={styles.statDivider} />
               <View style={styles.statCard}>
-                <Text style={styles.statEmoji}>💰</Text>
                 <Text style={styles.statNum}>JD {totalRevenue.toFixed(2)}</Text>
                 <Text style={styles.statLabel}>Earned</Text>
               </View>
@@ -378,9 +376,11 @@ export default function RestaurantOrdersScreen() {
             </View>
           ) : (
             <View style={styles.emptyContainer}>
-              <Text style={styles.emptyEmoji}>
-                {activeTab === "active" ? "🎫" : "✅"}
-              </Text>
+              <Ionicons
+                name={activeTab === "active" ? "calendar-outline" : "checkmark-circle-outline"}
+                size={40}
+                color="#B8B8B8"
+              />
               <Text style={styles.emptyTitle}>
                 {activeTab === "active"
                   ? "No active reservations"
@@ -400,22 +400,23 @@ export default function RestaurantOrdersScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#F0F7F0" },
+  container: { flex: 1, backgroundColor: "#FAFAFA" },
 
   // Scan section
   scanSection: {
-    backgroundColor: "#2E7D32",
+    backgroundColor: "#1B5E20",
     padding: 20,
     paddingBottom: 24,
+    borderBottomWidth: 0,
   },
-  scanHeader: { marginBottom: 16 },
   scanTitle: {
-    fontSize: 18,
-    fontWeight: "800",
+    fontSize: 22,
+    fontWeight: "700",
     color: "#FFFFFF",
     marginBottom: 4,
+    textAlign: "center",
   },
-  scanSubtitle: { fontSize: 13, color: "#A5D6A7" },
+  scanSubtitle: { fontSize: 13, color: "rgba(255,255,255,0.7)", marginBottom: 16, textAlign: "center" },
 
   // Code boxes
   codeInputRow: {
@@ -427,66 +428,60 @@ const styles = StyleSheet.create({
   codeBox: {
     width: 44,
     height: 54,
-    borderRadius: 12,
+    borderRadius: 10,
     backgroundColor: "rgba(255,255,255,0.12)",
-    borderWidth: 1.5,
-    borderColor: "rgba(255,255,255,0.25)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.3)",
     alignItems: "center",
     justifyContent: "center",
   },
   codeBoxFilled: {
-    backgroundColor: "rgba(255,255,255,0.2)",
-    borderColor: "rgba(255,255,255,0.6)",
+    backgroundColor: "rgba(255,255,255,0.25)",
+    borderColor: "#FFFFFF",
   },
-  codeBoxChar: { fontSize: 22, fontWeight: "800", color: "#FFFFFF" },
+  codeBoxChar: { fontSize: 22, fontWeight: "700", color: "#FFFFFF" },
   hiddenInput: {
-    backgroundColor: "rgba(255,255,255,0.1)",
-    borderRadius: 12,
+    backgroundColor: "rgba(255,255,255,0.12)",
+    borderRadius: 10,
     padding: 12,
-    fontSize: 18,
+    fontSize: 15,
     color: "#FFFFFF",
     textAlign: "center",
     letterSpacing: 4,
     marginBottom: 12,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.2)",
+    borderColor: "rgba(255,255,255,0.3)",
   },
   checkBtn: {
-    backgroundColor: "#1B5E20",
-    borderRadius: 14,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 10,
     paddingVertical: 14,
     alignItems: "center",
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.2)",
   },
   checkBtnDisabled: { opacity: 0.5 },
-  checkBtnText: { color: "#FFFFFF", fontWeight: "800", fontSize: 15 },
+  checkBtnText: { color: "#1B5E20", fontWeight: "700", fontSize: 15 },
   clearCodeBtn: { alignItems: "center", marginTop: 10 },
-  clearCodeText: { color: "#A5D6A7", fontSize: 13, fontWeight: "600" },
+  clearCodeText: { color: "rgba(255,255,255,0.65)", fontSize: 13, fontWeight: "500" },
 
   // Found card
   foundCard: {
     backgroundColor: "#FFFFFF",
-    borderRadius: 16,
+    borderRadius: 12,
     marginTop: 16,
     overflow: "hidden",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 10,
-    elevation: 6,
+    borderWidth: 1,
+    borderColor: "#EBEBEB",
   },
   foundHeader: {
-    backgroundColor: "#E8F5E9",
+    backgroundColor: "#F2F8F2",
     padding: 14,
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
     borderBottomWidth: 1,
-    borderBottomColor: "#C8E6C9",
+    borderBottomColor: "#DBDBDB",
   },
-  foundHeaderEmoji: { fontSize: 20 },
-  foundHeaderText: { fontSize: 15, fontWeight: "800", color: "#2E7D32" },
+  foundHeaderText: { fontSize: 14, fontWeight: "600", color: "#2E7D32" },
   foundBody: { padding: 16, gap: 2 },
   foundRow: {
     flexDirection: "row",
@@ -494,59 +489,53 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingVertical: 8,
   },
-  foundDivider: { height: 1, backgroundColor: "#F0F7F0" },
-  foundLabel: { fontSize: 13, color: "#888780" },
-  foundValue: { fontSize: 14, fontWeight: "600", color: "#1B5E20" },
-  foundValueGreen: { fontSize: 18, fontWeight: "800", color: "#2E7D32" },
+  foundDivider: { height: 1, backgroundColor: "#F5F5F5" },
+  foundLabel: { fontSize: 13, color: "#737373" },
+  foundValue: { fontSize: 13, fontWeight: "500", color: "#0F0F0F" },
+  foundValueGreen: { fontSize: 17, fontWeight: "700", color: "#2E7D32" },
   confirmBtn: {
     backgroundColor: "#2E7D32",
     margin: 16,
     marginTop: 8,
-    borderRadius: 12,
+    borderRadius: 10,
     paddingVertical: 14,
     alignItems: "center",
-    shadowColor: "#2E7D32",
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.25,
-    shadowRadius: 6,
-    elevation: 4,
   },
   confirmBtnDisabled: { opacity: 0.6 },
-  confirmBtnText: { color: "#FFFFFF", fontWeight: "800", fontSize: 15 },
+  confirmBtnText: { color: "#FFFFFF", fontWeight: "600", fontSize: 15 },
 
   // Stats
   statsRow: {
     flexDirection: "row",
     padding: 16,
-    gap: 10,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: "#E8F5E9",
     borderBottomWidth: 1,
-    borderBottomColor: "#F0F0F0",
+    borderBottomColor: "#A5D6A7",
   },
   statCard: {
     flex: 1,
     alignItems: "center",
-    padding: 12,
-    backgroundColor: "#F0F7F0",
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: "#E8F5E9",
+    paddingVertical: 4,
   },
-  statEmoji: { fontSize: 20, marginBottom: 4 },
+  statDivider: {
+    width: 1,
+    backgroundColor: "#A5D6A7",
+    marginHorizontal: 8,
+  },
   statNum: {
-    fontSize: 18,
-    fontWeight: "800",
+    fontSize: 17,
+    fontWeight: "700",
     color: "#1B5E20",
     marginBottom: 2,
   },
-  statLabel: { fontSize: 11, color: "#888780" },
+  statLabel: { fontSize: 11, color: "#4CAF50" },
 
   // Tabs
   tabRow: {
     flexDirection: "row",
     backgroundColor: "#FFFFFF",
     borderBottomWidth: 1,
-    borderBottomColor: "#F0F0F0",
+    borderBottomColor: "#DBDBDB",
   },
   tab: {
     flex: 1,
@@ -556,26 +545,27 @@ const styles = StyleSheet.create({
     borderBottomColor: "transparent",
   },
   tabActive: { borderBottomColor: "#2E7D32" },
-  tabText: { fontSize: 14, fontWeight: "600", color: "#888780" },
-  tabTextActive: { color: "#2E7D32", fontWeight: "800" },
+  tabText: { fontSize: 14, fontWeight: "500", color: "#737373" },
+  tabTextActive: { color: "#1B5E20", fontWeight: "700" },
 
   // Order cards
-  list: { paddingHorizontal: 16, paddingBottom: 32, paddingTop: 12 },
+  list: { paddingHorizontal: 0, paddingTop: 0, paddingBottom: 32 },
   orderCard: {
     backgroundColor: "#FFFFFF",
     borderRadius: 14,
-    padding: 14,
-    marginBottom: 10,
-    borderWidth: 1,
-    borderColor: "#E8F5E9",
+    marginHorizontal: 12,
+    marginBottom: 12,
+    padding: 16,
     borderLeftWidth: 4,
-    shadowColor: "#1B5E20",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 6,
-    elevation: 2,
+    borderLeftColor: "#2E7D32",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.09,
+    shadowRadius: 8,
+    elevation: 4,
+    overflow: "hidden",
   },
-  orderCardFulfilled: { opacity: 0.7 },
+  orderCardFulfilled: { opacity: 0.7, borderLeftColor: "#B8B8B8" },
   orderTop: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -585,39 +575,43 @@ const styles = StyleSheet.create({
   orderLeft: { flex: 1 },
   orderBagTitle: {
     fontSize: 14,
-    fontWeight: "700",
-    color: "#1B5E20",
+    fontWeight: "600",
+    color: "#0F0F0F",
     marginBottom: 4,
   },
-  textMuted: { color: "#888780" },
-  orderDate: { fontSize: 12, color: "#888780" },
+  textMuted: { color: "#B8B8B8" },
+  orderTimeRow: { flexDirection: "row", alignItems: "center", gap: 4 },
+  orderDate: { fontSize: 12, color: "#737373" },
   statusBadge: {
     paddingHorizontal: 10,
     paddingVertical: 5,
     borderRadius: 20,
     marginLeft: 10,
   },
-  statusText: { fontSize: 12, fontWeight: "700" },
+  statusText: { fontSize: 12, fontWeight: "600" },
   orderBottom: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
   },
-  orderPrice: { fontSize: 18, fontWeight: "800", color: "#2E7D32" },
+  orderPrice: { fontSize: 17, fontWeight: "700", color: "#0F0F0F" },
   awaitingBadge: {
     backgroundColor: "#FFF3E0",
     paddingHorizontal: 10,
     paddingVertical: 5,
     borderRadius: 10,
   },
-  awaitingText: { fontSize: 11, color: "#E65100", fontWeight: "600" },
+  awaitingText: { fontSize: 11, color: "#E65100", fontWeight: "500" },
   fulfilledBadge: {
-    backgroundColor: "#E3F2FD",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    backgroundColor: "#F0F0F0",
     paddingHorizontal: 10,
     paddingVertical: 5,
     borderRadius: 10,
   },
-  fulfilledBadgeText: { fontSize: 11, color: "#1565C0", fontWeight: "600" },
+  fulfilledBadgeText: { fontSize: 11, color: "#737373", fontWeight: "500" },
 
   // Empty & loading
   loadingContainer: { paddingTop: 48, alignItems: "center" },
@@ -625,17 +619,17 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingTop: 48,
     paddingHorizontal: 32,
+    gap: 10,
   },
-  emptyEmoji: { fontSize: 48, marginBottom: 16 },
   emptyTitle: {
-    fontSize: 18,
-    fontWeight: "700",
-    color: "#1B5E20",
-    marginBottom: 8,
+    fontSize: 17,
+    fontWeight: "600",
+    color: "#0F0F0F",
+    marginTop: 8,
   },
   emptySubtitle: {
     fontSize: 14,
-    color: "#888780",
+    color: "#737373",
     textAlign: "center",
     lineHeight: 22,
   },

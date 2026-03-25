@@ -7,17 +7,32 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   RefreshControl,
+  Alert,
+  StatusBar,
 } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
+import { Ionicons } from "@expo/vector-icons";
 import { supabase } from "../lib/supabase";
 import { useLanguage } from "../lang/LanguageContext";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+
+const isPickupTimeActive = (pickupStart) => {
+  if (!pickupStart) return false;
+  const now = new Date();
+  const [h, m] = pickupStart.slice(0, 5).split(":").map(Number);
+  const start = new Date();
+  start.setHours(h, m, 0, 0);
+  return now >= start;
+};
 
 export default function OrdersScreen({ navigation }) {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [activeTab, setActiveTab] = useState("today");
   const pollingRef = useRef(null);
   const { t, isRTL } = useLanguage();
+  const insets = useSafeAreaInsets();
 
   useEffect(() => {
     fetchOrders();
@@ -43,24 +58,52 @@ export default function OrdersScreen({ navigation }) {
       data: { user },
     } = await supabase.auth.getUser();
     if (!user) return;
+
+    const monthAgo = new Date();
+    monthAgo.setMonth(monthAgo.getMonth() - 1);
+
     const { data, error } = await supabase
       .from("orders")
       .select(
         `*, bags (title, image_url, price, restaurants (name, area, pickup_start, pickup_end))`,
       )
       .eq("user_id", user.id)
+      .gte("reserved_at", monthAgo.toISOString())
       .order("reserved_at", { ascending: false });
-    if (!error) setOrders(data);
+
+    if (error) console.log("OrdersScreen fetchOrders error:", error.message);
+
+    if (!error && data) {
+      setOrders(data);
+      // Auto-switch to history if nothing reserved today
+      const localToday = new Date().toLocaleDateString("en-CA"); // YYYY-MM-DD in local time
+      const hasToday = data.some((o) => {
+        const d = new Date(o.reserved_at);
+        return d.toLocaleDateString("en-CA") === localToday;
+      });
+      if (!hasToday && data.length > 0) setActiveTab("history");
+    }
     setLoading(false);
     setRefreshing(false);
   };
+
+  // Use local date for today comparison (avoids UTC vs local timezone mismatch)
+  const localToday = new Date().toLocaleDateString("en-CA"); // "YYYY-MM-DD"
+  const todayOrders = orders.filter((o) => {
+    const d = new Date(o.reserved_at);
+    return d.toLocaleDateString("en-CA") === localToday;
+  });
+  const historyOrders = orders.filter((o) => {
+    const d = new Date(o.reserved_at);
+    return d.toLocaleDateString("en-CA") !== localToday;
+  });
 
   const confirmPickup = async (orderId) => {
     const { error } = await supabase
       .from("orders")
       .update({ status: "picked_up", picked_up_at: new Date().toISOString() })
       .eq("id", orderId);
-    if (error) window.alert("Error: " + error.message);
+    if (error) Alert.alert("Error", error.message);
     else fetchOrders();
   };
 
@@ -69,62 +112,47 @@ export default function OrdersScreen({ navigation }) {
       case "reserved":
         return {
           color: "#2E7D32",
-          bg: "#E8F5E9",
+          bg: "#F2F8F2",
           label: t("statusReserved"),
-          border: "#2E7D32",
         };
       case "arriving":
         return {
           color: "#E65100",
           bg: "#FFF3E0",
           label: t("statusArriving"),
-          border: "#E65100",
         };
       case "picked_up":
         return {
-          color: "#1565C0",
-          bg: "#E3F2FD",
+          color: "#737373",
+          bg: "#F0F0F0",
           label: t("statusPickedUp"),
-          border: "#1565C0",
         };
       case "cancelled":
         return {
-          color: "#C62828",
-          bg: "#FFEBEE",
+          color: "#ED4956",
+          bg: "#FEF2F2",
           label: t("statusCancelled"),
-          border: "#C62828",
         };
       default:
         return {
-          color: "#888780",
+          color: "#737373",
           bg: "#F5F5F5",
           label: status,
-          border: "#888780",
         };
     }
   };
 
-  const activeOrders = orders.filter(
-    (o) => o.status !== "picked_up" && o.status !== "cancelled",
-  );
-  const pastOrders = orders.filter(
-    (o) => o.status === "picked_up" || o.status === "cancelled",
-  );
+  const displayOrders = activeTab === "today" ? todayOrders : historyOrders;
 
   const renderOrder = ({ item }) => {
     const bag = item.bags;
     const restaurant = bag?.restaurants;
     const config = getStatusConfig(item.status);
     const isPast = item.status === "picked_up" || item.status === "cancelled";
+    const codeVisible = isPickupTimeActive(restaurant?.pickup_start);
 
     return (
-      <View
-        style={[
-          styles.card,
-          isPast && styles.cardPast,
-          { borderLeftColor: config.border },
-        ]}
-      >
+      <View style={[styles.card, isPast && styles.cardPast]}>
         {/* Top row */}
         <View style={[styles.cardTop, isRTL && styles.rtlRow]}>
           <View style={styles.cardTopLeft}>
@@ -138,7 +166,7 @@ export default function OrdersScreen({ navigation }) {
               {restaurant?.name}
             </Text>
             <Text style={[styles.area, isRTL && styles.rtl]}>
-              📍 {restaurant?.area}
+              {restaurant?.area}
             </Text>
           </View>
           <View style={[styles.statusBadge, { backgroundColor: config.bg }]}>
@@ -160,17 +188,29 @@ export default function OrdersScreen({ navigation }) {
         >
           {bag?.title}
         </Text>
-        <Text style={[styles.pickupTime, isRTL && styles.rtl]}>
-          🕐 {t("pickupToday")} {restaurant?.pickup_start?.slice(0, 5)} –{" "}
-          {restaurant?.pickup_end?.slice(0, 5)}
-        </Text>
+        <View style={[styles.pickupRow, isRTL && styles.rtlRow]}>
+          <Ionicons name="time-outline" size={12} color="#B8B8B8" />
+          <Text style={[styles.pickupTime, isRTL && styles.rtl]}>
+            {t("pickupToday")} {restaurant?.pickup_start?.slice(0, 5)} –{" "}
+            {restaurant?.pickup_end?.slice(0, 5)}
+          </Text>
+        </View>
 
         {/* Code + price — only for active orders */}
         {!isPast && (
           <View style={[styles.codeRow, isRTL && styles.rtlRow]}>
-            <View style={styles.codeCard}>
+            <View style={[styles.codeCard, !codeVisible && styles.codeCardLocked]}>
               <Text style={styles.codeLabel}>{t("pickupCode")}</Text>
-              <Text style={styles.codeValue}>{item.pickup_code}</Text>
+              {codeVisible && item.pickup_code ? (
+                <Text style={styles.codeValue}>{item.pickup_code}</Text>
+              ) : (
+                <View style={styles.codeLockContent}>
+                  <Ionicons name="lock-closed-outline" size={20} color="#B8B8B8" />
+                  <Text style={styles.codeLockText}>
+                    Available at {restaurant?.pickup_start?.slice(0, 5)}
+                  </Text>
+                </View>
+              )}
             </View>
             <View style={styles.priceCard}>
               <Text style={styles.priceLabel}>{t("paid")}</Text>
@@ -184,7 +224,7 @@ export default function OrdersScreen({ navigation }) {
         {/* Status-based actions */}
         {item.status === "reserved" && (
           <View style={styles.infoBox}>
-            <Text style={styles.infoBoxIcon}>📱</Text>
+            <Ionicons name="phone-portrait-outline" size={14} color="#737373" />
             <Text style={[styles.infoBoxText, isRTL && styles.rtl]}>
               {t("showCode")}
             </Text>
@@ -205,7 +245,7 @@ export default function OrdersScreen({ navigation }) {
           <View style={[styles.fulfilledRow, isRTL && styles.rtlRow]}>
             <View style={styles.fulfilledBox}>
               <Text style={styles.fulfilledText}>
-                🎉 {t("pickedUpOn")}{" "}
+                {t("pickedUpOn")}{" "}
                 {new Date(item.picked_up_at).toLocaleDateString("en-JO", {
                   day: "numeric",
                   month: "short",
@@ -246,58 +286,58 @@ export default function OrdersScreen({ navigation }) {
     );
   }
 
-  if (orders.length === 0) {
-    return (
-      <View style={styles.emptyContainer}>
-        <View style={styles.emptyIconCircle}>
-          <Text style={styles.emptyEmoji}>🛍️</Text>
-        </View>
-        <Text style={[styles.emptyTitle, isRTL && styles.rtl]}>
-          {t("noOrdersTitle")}
-        </Text>
-        <Text style={[styles.emptySubtitle, isRTL && styles.rtl]}>
-          {t("noOrdersSubtitle")}
-        </Text>
-        <TouchableOpacity
-          style={styles.browseBtn}
-          onPress={() => navigation.navigate("Home")}
-        >
-          <Text style={styles.browseBtnText}>{t("browseBags")}</Text>
-        </TouchableOpacity>
-      </View>
-    );
-  }
-
   return (
     <View style={styles.container}>
-      {/* Summary header */}
-      <View style={styles.summaryHeader}>
-        <View style={styles.summaryItem}>
-          <Text style={styles.summaryNum}>{activeOrders.length}</Text>
-          <Text style={styles.summaryLabel}>Active</Text>
+      <StatusBar backgroundColor="#1B5E20" barStyle="light-content" />
+      {/* Header */}
+      <View style={[styles.summaryHeader, { paddingTop: insets.top + 16 }]}>
+        <Text style={styles.summaryTitle}>My Orders</Text>
+        <View style={styles.summaryStats}>
+          <View style={styles.summaryItem}>
+            <Text style={styles.summaryNum}>{todayOrders.length}</Text>
+            <Text style={styles.summaryLabel}>Today</Text>
+          </View>
+          <View style={styles.summaryDivider} />
+          <View style={styles.summaryItem}>
+            <Text style={styles.summaryNum}>{historyOrders.length}</Text>
+            <Text style={styles.summaryLabel}>This Month</Text>
+          </View>
+          <View style={styles.summaryDivider} />
+          <View style={styles.summaryItem}>
+            <Text style={styles.summaryNum}>
+              JD {orders.reduce((s, o) => s + parseFloat(o.amount_paid || 0), 0).toFixed(2)}
+            </Text>
+            <Text style={styles.summaryLabel}>Spent</Text>
+          </View>
         </View>
-        <View style={styles.summaryDivider} />
-        <View style={styles.summaryItem}>
-          <Text style={styles.summaryNum}>{pastOrders.length}</Text>
-          <Text style={styles.summaryLabel}>Completed</Text>
-        </View>
-        <View style={styles.summaryDivider} />
-        <View style={styles.summaryItem}>
-          <Text style={styles.summaryNum}>
-            JD{" "}
-            {orders
-              .reduce((s, o) => s + parseFloat(o.amount_paid || 0), 0)
-              .toFixed(2)}
-          </Text>
-          <Text style={styles.summaryLabel}>Spent</Text>
-        </View>
+      </View>
+
+      {/* Tabs */}
+      <View style={styles.tabRow}>
+        <TouchableOpacity
+          style={[styles.tab, activeTab === "today" && styles.tabActive]}
+          onPress={() => setActiveTab("today")}
+        >
+          <Text style={[styles.tabText, activeTab === "today" && styles.tabTextActive]}>Today</Text>
+          {todayOrders.length > 0 && (
+            <View style={styles.tabBadge}>
+              <Text style={styles.tabBadgeText}>{todayOrders.length}</Text>
+            </View>
+          )}
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.tab, activeTab === "history" && styles.tabActive]}
+          onPress={() => setActiveTab("history")}
+        >
+          <Text style={[styles.tabText, activeTab === "history" && styles.tabTextActive]}>Past Month</Text>
+        </TouchableOpacity>
       </View>
 
       <FlatList
-        data={orders}
+        data={displayOrders}
         keyExtractor={(item) => item.id}
         renderItem={renderOrder}
-        contentContainerStyle={styles.list}
+        contentContainerStyle={[styles.list, { paddingBottom: insets.bottom + 24 }]}
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl
@@ -309,13 +349,31 @@ export default function OrdersScreen({ navigation }) {
             tintColor="#2E7D32"
           />
         }
+        ListEmptyComponent={
+          <View style={styles.emptyContainer}>
+            <Ionicons name="bag-handle-outline" size={44} color="#B8B8B8" />
+            <Text style={styles.emptyTitle}>
+              {activeTab === "today" ? "No orders today" : "No orders this month"}
+            </Text>
+            <Text style={styles.emptySubtitle}>
+              {activeTab === "today"
+                ? "Bags you reserve today will appear here"
+                : "Orders from the past 30 days will show here"}
+            </Text>
+            {activeTab === "today" && (
+              <TouchableOpacity style={styles.browseBtn} onPress={() => navigation.navigate("Home")}>
+                <Text style={styles.browseBtnText}>{t("browseBags")}</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        }
       />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#F0F7F0" },
+  container: { flex: 1, backgroundColor: "#FAFAFA" },
   rtl: { textAlign: "right", writingDirection: "rtl" },
   rtlRow: { flexDirection: "row-reverse" },
   loadingContainer: {
@@ -323,30 +381,68 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     gap: 12,
-    backgroundColor: "#F0F7F0",
+    backgroundColor: "#FFFFFF",
   },
-  loadingText: { fontSize: 14, color: "#2E7D32" },
+  loadingText: { fontSize: 14, color: "#737373" },
 
   // Summary header
   summaryHeader: {
-    backgroundColor: "#2E7D32",
+    backgroundColor: "#1B5E20",
+    paddingHorizontal: 20,
+    paddingBottom: 28,
+    borderBottomWidth: 0,
+  },
+  summaryTitle: {
+    fontSize: 22,
+    fontWeight: "700",
+    color: "#FFFFFF",
+    marginBottom: 16,
+    textAlign: "center",
+  },
+  summaryStats: {
     flexDirection: "row",
-    padding: 16,
-    paddingVertical: 14,
   },
   summaryItem: { flex: 1, alignItems: "center" },
   summaryNum: {
-    fontSize: 18,
-    fontWeight: "800",
+    fontSize: 16,
+    fontWeight: "700",
     color: "#FFFFFF",
     marginBottom: 2,
   },
-  summaryLabel: { fontSize: 11, color: "#A5D6A7" },
+  summaryLabel: { fontSize: 11, color: "rgba(255,255,255,0.7)" },
   summaryDivider: {
     width: 1,
-    backgroundColor: "rgba(255,255,255,0.2)",
+    backgroundColor: "rgba(255,255,255,0.25)",
     marginHorizontal: 8,
   },
+
+  // Tabs
+  tabRow: {
+    flexDirection: "row",
+    backgroundColor: "#FFFFFF",
+    borderBottomWidth: 1,
+    borderBottomColor: "#EBEBEB",
+  },
+  tab: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 13,
+    gap: 6,
+    borderBottomWidth: 3,
+    borderBottomColor: "transparent",
+  },
+  tabActive: { borderBottomColor: "#1B5E20" },
+  tabText: { fontSize: 14, fontWeight: "500", color: "#737373" },
+  tabTextActive: { color: "#1B5E20", fontWeight: "700" },
+  tabBadge: {
+    backgroundColor: "#2E7D32",
+    borderRadius: 10,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+  },
+  tabBadgeText: { fontSize: 11, fontWeight: "700", color: "#FFFFFF" },
 
   // Empty state
   emptyContainer: {
@@ -354,64 +450,50 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     padding: 32,
-    backgroundColor: "#F0F7F0",
+    gap: 12,
+    backgroundColor: "#FFFFFF",
   },
-  emptyIconCircle: {
-    width: 90,
-    height: 90,
-    borderRadius: 45,
-    backgroundColor: "#E8F5E9",
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 20,
-    borderWidth: 3,
-    borderColor: "#C8E6C9",
-  },
-  emptyEmoji: { fontSize: 44 },
   emptyTitle: {
-    fontSize: 20,
-    fontWeight: "800",
-    color: "#1B5E20",
-    marginBottom: 8,
+    fontSize: 17,
+    fontWeight: "600",
+    color: "#0F0F0F",
+    marginTop: 8,
+    textAlign: "center",
   },
   emptySubtitle: {
     fontSize: 14,
-    color: "#888780",
-    marginBottom: 24,
+    color: "#737373",
     textAlign: "center",
   },
   browseBtn: {
     backgroundColor: "#2E7D32",
     paddingHorizontal: 28,
     paddingVertical: 14,
-    borderRadius: 14,
-    shadowColor: "#2E7D32",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 6,
+    borderRadius: 10,
+    marginTop: 8,
   },
-  browseBtnText: { color: "#FFFFFF", fontWeight: "700", fontSize: 15 },
+  browseBtnText: { color: "#FFFFFF", fontWeight: "600", fontSize: 15 },
 
   // List
-  list: { padding: 16, paddingBottom: 32 },
+  list: { paddingHorizontal: 0, paddingTop: 12, paddingBottom: 32 },
 
   // Card
   card: {
     backgroundColor: "#FFFFFF",
-    borderRadius: 16,
+    borderRadius: 14,
+    marginHorizontal: 12,
+    marginBottom: 12,
     padding: 16,
-    marginBottom: 14,
-    borderWidth: 1,
-    borderColor: "#E8F5E9",
     borderLeftWidth: 4,
-    shadowColor: "#1B5E20",
+    borderLeftColor: "#2E7D32",
+    shadowColor: "#000",
     shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.07,
+    shadowOpacity: 0.09,
     shadowRadius: 8,
-    elevation: 3,
+    elevation: 4,
+    overflow: "hidden",
   },
-  cardPast: { opacity: 0.75, borderLeftColor: "#B4B2A9" },
+  cardPast: { opacity: 0.7, borderLeftColor: "#B8B8B8" },
   cardTop: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -420,28 +502,34 @@ const styles = StyleSheet.create({
   },
   cardTopLeft: { flex: 1 },
   restaurantName: {
-    fontSize: 16,
-    fontWeight: "800",
-    color: "#1B5E20",
+    fontSize: 15,
+    fontWeight: "700",
+    color: "#0F0F0F",
     marginBottom: 3,
   },
-  textMuted: { color: "#888780" },
-  area: { fontSize: 12, color: "#81C784" },
+  textMuted: { color: "#B8B8B8" },
+  area: { fontSize: 12, color: "#737373" },
   statusBadge: {
-    paddingHorizontal: 10,
-    paddingVertical: 5,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
     borderRadius: 20,
     marginLeft: 10,
   },
   statusText: { fontSize: 12, fontWeight: "700" },
-  divider: { height: 1, backgroundColor: "#F0F7F0", marginVertical: 10 },
+  divider: { height: 1, backgroundColor: "#F5F5F5", marginVertical: 10 },
   bagTitle: {
     fontSize: 14,
-    fontWeight: "600",
-    color: "#2C2C2A",
-    marginBottom: 4,
+    fontWeight: "500",
+    color: "#0F0F0F",
+    marginBottom: 6,
   },
-  pickupTime: { fontSize: 12, color: "#5F5E5A", marginBottom: 12 },
+  pickupRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    marginBottom: 12,
+  },
+  pickupTime: { fontSize: 12, color: "#737373" },
 
   // Code row
   codeRow: {
@@ -451,75 +539,80 @@ const styles = StyleSheet.create({
   },
   codeCard: {
     flex: 1,
-    backgroundColor: "#1B5E20",
-    borderRadius: 14,
+    backgroundColor: "#E8F5E9",
+    borderRadius: 12,
     padding: 14,
     alignItems: "center",
-    shadowColor: "#1B5E20",
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.2,
-    shadowRadius: 6,
-    elevation: 3,
+    borderWidth: 1,
+    borderColor: "#A5D6A7",
   },
   codeLabel: {
     fontSize: 10,
-    color: "#A5D6A7",
+    color: "#2E7D32",
     marginBottom: 6,
     fontWeight: "600",
     letterSpacing: 0.5,
+    textTransform: "uppercase",
   },
   codeValue: {
     fontSize: 26,
-    fontWeight: "800",
-    color: "#FFFFFF",
+    fontWeight: "700",
+    color: "#1B5E20",
     letterSpacing: 5,
   },
+  codeCardLocked: {
+    backgroundColor: "#F5F5F5",
+    borderColor: "#E0E0E0",
+  },
+  codeLockContent: { alignItems: "center", gap: 6 },
+  codeLockText: {
+    fontSize: 11,
+    color: "#737373",
+    fontWeight: "500",
+    textAlign: "center",
+  },
   priceCard: {
-    backgroundColor: "#F0F7F0",
-    borderRadius: 14,
+    backgroundColor: "#FAFAFA",
+    borderRadius: 12,
     padding: 14,
     alignItems: "center",
-    borderWidth: 1.5,
-    borderColor: "#C8E6C9",
+    borderWidth: 1,
+    borderColor: "#EBEBEB",
     minWidth: 90,
   },
   priceLabel: {
     fontSize: 10,
-    color: "#888780",
+    color: "#737373",
     marginBottom: 6,
     fontWeight: "600",
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
   },
-  priceValue: { fontSize: 20, fontWeight: "800", color: "#2E7D32" },
+  priceValue: { fontSize: 18, fontWeight: "700", color: "#0F0F0F" },
 
   // Info box
   infoBox: {
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
-    backgroundColor: "#F0F7F0",
+    backgroundColor: "#FAFAFA",
     borderRadius: 10,
     padding: 10,
     marginBottom: 8,
     borderWidth: 1,
-    borderColor: "#C8E6C9",
+    borderColor: "#EBEBEB",
   },
-  infoBoxIcon: { fontSize: 14 },
-  infoBoxText: { fontSize: 12, color: "#5F5E5A", flex: 1 },
+  infoBoxText: { fontSize: 12, color: "#737373", flex: 1 },
 
   // Confirm button
   confirmBtn: {
-    backgroundColor: "#E65100",
-    borderRadius: 12,
+    backgroundColor: "#2E7D32",
+    borderRadius: 10,
     paddingVertical: 14,
     alignItems: "center",
     marginBottom: 8,
-    shadowColor: "#E65100",
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.25,
-    shadowRadius: 6,
-    elevation: 4,
   },
-  confirmBtnText: { color: "#FFFFFF", fontWeight: "800", fontSize: 15 },
+  confirmBtnText: { color: "#FFFFFF", fontWeight: "600", fontSize: 15 },
 
   // Fulfilled
   fulfilledRow: {
@@ -530,23 +623,23 @@ const styles = StyleSheet.create({
   },
   fulfilledBox: {
     flex: 1,
-    backgroundColor: "#E8F5E9",
+    backgroundColor: "#FAFAFA",
     borderRadius: 10,
     padding: 10,
     borderWidth: 1,
-    borderColor: "#C8E6C9",
+    borderColor: "#EBEBEB",
   },
-  fulfilledText: { fontSize: 12, color: "#2E7D32", fontWeight: "600" },
+  fulfilledText: { fontSize: 12, color: "#737373", fontWeight: "500" },
   paidSmall: {
-    backgroundColor: "#F0F7F0",
+    backgroundColor: "#FAFAFA",
     borderRadius: 10,
     padding: 10,
     alignItems: "center",
     borderWidth: 1,
-    borderColor: "#C8E6C9",
+    borderColor: "#EBEBEB",
   },
-  paidSmallLabel: { fontSize: 10, color: "#888780", marginBottom: 2 },
-  paidSmallValue: { fontSize: 14, fontWeight: "800", color: "#2E7D32" },
+  paidSmallLabel: { fontSize: 10, color: "#737373", marginBottom: 2 },
+  paidSmallValue: { fontSize: 14, fontWeight: "700", color: "#0F0F0F" },
 
-  dateText: { fontSize: 11, color: "#B4B2A9", textAlign: "right" },
+  dateText: { fontSize: 11, color: "#B8B8B8", textAlign: "center", marginTop: 4 },
 });

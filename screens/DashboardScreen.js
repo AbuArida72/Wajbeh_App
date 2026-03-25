@@ -9,11 +9,109 @@ import {
   TextInput,
   Modal,
   ScrollView,
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
+  StatusBar,
 } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
+import { Ionicons } from "@expo/vector-icons";
 import { supabase } from "../lib/supabase";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+
+const TIMES = (() => {
+  const t = [];
+  for (let h = 0; h <= 23; h++) {
+    t.push(`${String(h).padStart(2, "0")}:00`);
+    t.push(`${String(h).padStart(2, "0")}:30`);
+  }
+  return t;
+})();
+
+const QUANTITIES = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 15, 20, 25, 30, 50];
+
+function DropdownPicker({ placeholder, value, options, onSelect, isOpen, onToggle, format }) {
+  return (
+    <View style={dpStyles.wrapper}>
+      <TouchableOpacity style={dpStyles.btn} onPress={onToggle} activeOpacity={0.8}>
+        <Text style={value != null ? dpStyles.value : dpStyles.placeholder}>
+          {value != null ? (format ? format(value) : String(value)) : placeholder}
+        </Text>
+        <Ionicons name={isOpen ? "chevron-up" : "chevron-down"} size={16} color="#737373" />
+      </TouchableOpacity>
+      {isOpen && (
+        <ScrollView style={dpStyles.list} nestedScrollEnabled showsVerticalScrollIndicator={false}>
+          {options.map((opt) => {
+            const selected = value === opt;
+            return (
+              <TouchableOpacity
+                key={String(opt)}
+                style={[dpStyles.option, selected && dpStyles.optionSelected]}
+                onPress={() => onSelect(opt)}
+                activeOpacity={0.7}
+              >
+                <Text style={[dpStyles.optionText, selected && dpStyles.optionTextSelected]}>
+                  {format ? format(opt) : String(opt)}
+                </Text>
+                {selected && <Ionicons name="checkmark" size={15} color="#2E7D32" />}
+              </TouchableOpacity>
+            );
+          })}
+        </ScrollView>
+      )}
+    </View>
+  );
+}
+
+const dpStyles = StyleSheet.create({
+  wrapper: { marginBottom: 14 },
+  btn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    backgroundColor: "#FFFFFF",
+    borderWidth: 1,
+    borderColor: "#DBDBDB",
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 13,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 3,
+    elevation: 1,
+  },
+  value: { fontSize: 15, color: "#0F0F0F", fontWeight: "500" },
+  placeholder: { fontSize: 15, color: "#B8B8B8" },
+  list: {
+    borderWidth: 1,
+    borderColor: "#DBDBDB",
+    borderRadius: 10,
+    backgroundColor: "#FFFFFF",
+    maxHeight: 200,
+    marginTop: 4,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 6,
+    elevation: 3,
+  },
+  option: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: "#F5F5F5",
+  },
+  optionSelected: { backgroundColor: "#E8F5E9" },
+  optionText: { fontSize: 15, color: "#0F0F0F" },
+  optionTextSelected: { color: "#2E7D32", fontWeight: "600" },
+});
 
 export default function DashboardScreen() {
+  const insets = useSafeAreaInsets();
   const [bags, setBags] = useState([]);
   const [restaurant, setRestaurant] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -22,9 +120,13 @@ export default function DashboardScreen() {
   const [title, setTitle] = useState("");
   const [price, setPrice] = useState("");
   const [originalValue, setOriginalValue] = useState("");
-  const [quantity, setQuantity] = useState("");
+  const [quantity, setQuantity] = useState(null);
+  const [pickupStart, setPickupStart] = useState(null);
+  const [pickupEnd, setPickupEnd] = useState(null);
   const [description, setDescription] = useState("");
-  const [focusedField, setFocusedField] = useState(null);
+  const [openDropdown, setOpenDropdown] = useState(null); // 'qty' | 'start' | 'end'
+
+  const toggleDropdown = (key) => setOpenDropdown((prev) => (prev === key ? null : key));
 
   useFocusEffect(
     useCallback(() => {
@@ -56,49 +158,66 @@ export default function DashboardScreen() {
   };
 
   const addBag = async () => {
-    if (!title || !price || !originalValue || !quantity) {
-      window.alert("Please fill in all required fields");
+    if (!title || !price || !originalValue || !quantity || !pickupStart || !pickupEnd) {
+      Alert.alert("Missing Fields", "Please fill in all required fields including pickup times and quantity");
+      return;
+    }
+    if (pickupStart >= pickupEnd) {
+      Alert.alert("Invalid Times", "Pickup end time must be after start time");
       return;
     }
     setSaving(true);
-    const { error } = await supabase.from("bags").insert({
-      restaurant_id: restaurant.id,
-      title,
-      description,
-      price: parseFloat(price),
-      original_value: parseFloat(originalValue),
-      quantity_total: parseInt(quantity),
-      quantity_remaining: parseInt(quantity),
-      available_date: new Date().toISOString().split("T")[0],
-      status: "available",
-      image_url:
-        "https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=600",
-    });
+    const [bagRes] = await Promise.all([
+      supabase.from("bags").insert({
+        restaurant_id: restaurant.id,
+        title,
+        description,
+        price: parseFloat(price),
+        original_value: parseFloat(originalValue),
+        quantity_total: quantity,
+        quantity_remaining: quantity,
+        available_date: new Date().toISOString().split("T")[0],
+        status: "available",
+        pickup_start: pickupStart + ":00",
+        pickup_end: pickupEnd + ":00",
+        image_url:
+          "https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=600",
+      }),
+    ]);
 
-    if (error) {
-      window.alert("Error: " + error.message);
+    if (bagRes.error) {
+      Alert.alert("Error", bagRes.error.message);
     } else {
       setModalVisible(false);
       setTitle("");
       setPrice("");
       setOriginalValue("");
-      setQuantity("");
+      setQuantity(null);
+      setPickupStart(null);
+      setPickupEnd(null);
       setDescription("");
+      setOpenDropdown(null);
       fetchDashboard();
     }
     setSaving(false);
   };
 
-  const markSoldOut = async (bagId) => {
-    const confirmed = window.confirm("Mark this bag as sold out?");
-    if (confirmed) {
-      const { error } = await supabase
-        .from("bags")
-        .update({ quantity_remaining: 0, status: "sold_out" })
-        .eq("id", bagId);
-      if (error) window.alert("Error: " + error.message);
-      else fetchDashboard();
-    }
+  const markSoldOut = (bagId) => {
+    Alert.alert("Mark as Sold Out", "Mark this bag as sold out?", [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Confirm",
+        style: "destructive",
+        onPress: async () => {
+          const { error } = await supabase
+            .from("bags")
+            .update({ quantity_remaining: 0, status: "sold_out" })
+            .eq("id", bagId);
+          if (error) Alert.alert("Error", error.message);
+          else fetchDashboard();
+        },
+      },
+    ]);
   };
 
   const totalBags = bags.length;
@@ -128,12 +247,13 @@ export default function DashboardScreen() {
             <View
               style={[
                 styles.bagStatusDot,
-                { backgroundColor: isAvailable ? "#2E7D32" : "#B4B2A9" },
+                { backgroundColor: isAvailable ? "#2E7D32" : "#B8B8B8" },
               ]}
             />
-            <View>
+            <View style={{ flex: 1 }}>
               <Text
                 style={[styles.bagCardTitle, !isAvailable && styles.textMuted]}
+                numberOfLines={1}
               >
                 {item.title}
               </Text>
@@ -142,12 +262,7 @@ export default function DashboardScreen() {
               </Text>
             </View>
           </View>
-          <View
-            style={[
-              styles.bagStatusBadge,
-              isAvailable ? styles.bagStatusAvailable : styles.bagStatusSoldOut,
-            ]}
-          >
+          <View style={styles.bagStatusBadge}>
             <Text
               style={[
                 styles.bagStatusText,
@@ -156,7 +271,7 @@ export default function DashboardScreen() {
                   : styles.bagStatusTextSoldOut,
               ]}
             >
-              {isAvailable ? "🟢 Active" : "🔴 Sold out"}
+              {isAvailable ? "Active" : "Sold out"}
             </Text>
           </View>
         </View>
@@ -210,7 +325,7 @@ export default function DashboardScreen() {
             onPress={() => markSoldOut(item.id)}
             activeOpacity={0.88}
           >
-            <Text style={styles.soldOutBtnText}>Mark as Sold Out</Text>
+            <Text style={styles.soldOutBtnText}>Mark as sold out</Text>
           </TouchableOpacity>
         )}
       </View>
@@ -228,7 +343,7 @@ export default function DashboardScreen() {
   if (!restaurant) {
     return (
       <View style={styles.noRestaurantContainer}>
-        <Text style={styles.noRestaurantEmoji}>🏪</Text>
+        <Ionicons name="storefront-outline" size={48} color="#B8B8B8" />
         <Text style={styles.noRestaurantTitle}>No restaurant found</Text>
         <Text style={styles.noRestaurantSubtitle}>
           Your account is not linked to any restaurant.
@@ -239,31 +354,28 @@ export default function DashboardScreen() {
 
   return (
     <View style={styles.container}>
+      <StatusBar backgroundColor="#1B5E20" barStyle="light-content" />
       <FlatList
         data={bags}
         keyExtractor={(item) => item.id}
         renderItem={renderBag}
-        contentContainerStyle={styles.list}
+        contentContainerStyle={[styles.list, { paddingBottom: insets.bottom + 24 }]}
         showsVerticalScrollIndicator={false}
         ListHeaderComponent={
           <View>
             {/* Restaurant header */}
-            <View style={styles.restaurantHeader}>
+            <View style={[styles.restaurantHeader, { paddingTop: insets.top + 12 }]}>
               <View style={styles.restaurantHeaderLeft}>
                 <View style={styles.restaurantAvatar}>
                   <Text style={styles.restaurantAvatarText}>
                     {restaurant.name?.slice(0, 2).toUpperCase()}
                   </Text>
                 </View>
-                <View>
-                  <Text style={styles.restaurantName}>{restaurant.name}</Text>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.restaurantName} numberOfLines={1}>{restaurant.name}</Text>
                   <Text style={styles.restaurantMeta}>
-                    📍 {restaurant.area} · {restaurant.category}
+                    {restaurant.area} · {restaurant.category}
                   </Text>
-                  <View style={styles.activeBadge}>
-                    <View style={styles.activeDot} />
-                    <Text style={styles.activeText}>Active today</Text>
-                  </View>
                 </View>
               </View>
               <TouchableOpacity
@@ -271,32 +383,31 @@ export default function DashboardScreen() {
                 onPress={() => setModalVisible(true)}
                 activeOpacity={0.88}
               >
-                <Text style={styles.addBtnText}>+</Text>
+                <Ionicons name="add" size={16} color="#1B5E20" />
                 <Text style={styles.addBtnLabel}>Add Bag</Text>
               </TouchableOpacity>
             </View>
 
-            {/* Stats grid */}
-            <View style={styles.statsGrid}>
-              <View style={[styles.statCard, styles.statCardGreen]}>
-                <Text style={styles.statEmoji}>🛍️</Text>
+            {/* Stats row */}
+            <View style={styles.statsRow}>
+              <View style={styles.statItem}>
                 <Text style={styles.statNum}>{totalBags}</Text>
-                <Text style={styles.statLabel}>Bags posted</Text>
+                <Text style={styles.statLabel}>Posted</Text>
               </View>
-              <View style={[styles.statCard, styles.statCardBlue]}>
-                <Text style={styles.statEmoji}>🎫</Text>
+              <View style={styles.statItemDivider} />
+              <View style={styles.statItem}>
                 <Text style={styles.statNum}>{totalReserved}</Text>
                 <Text style={styles.statLabel}>Reserved</Text>
               </View>
-              <View style={[styles.statCard, styles.statCardAmber]}>
-                <Text style={styles.statEmoji}>💰</Text>
+              <View style={styles.statItemDivider} />
+              <View style={styles.statItem}>
                 <Text style={styles.statNum}>JD {totalEarned.toFixed(0)}</Text>
                 <Text style={styles.statLabel}>Earned</Text>
               </View>
-              <View style={[styles.statCard, styles.statCardPurple]}>
-                <Text style={styles.statEmoji}>✅</Text>
+              <View style={styles.statItemDivider} />
+              <View style={styles.statItem}>
                 <Text style={styles.statNum}>{availableBags}</Text>
-                <Text style={styles.statLabel}>Available</Text>
+                <Text style={styles.statLabel}>Active</Text>
               </View>
             </View>
 
@@ -309,17 +420,16 @@ export default function DashboardScreen() {
         }
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
-            <Text style={styles.emptyEmoji}>🛍️</Text>
+            <Ionicons name="bag-handle-outline" size={40} color="#B8B8B8" />
             <Text style={styles.emptyTitle}>No bags posted today</Text>
             <Text style={styles.emptySubtitle}>
-              Tap "+ Add Bag" to post your first bag and start getting
-              reservations
+              Tap "Add Bag" to post your first bag and start getting reservations
             </Text>
             <TouchableOpacity
               style={styles.emptyAddBtn}
               onPress={() => setModalVisible(true)}
             >
-              <Text style={styles.emptyAddBtnText}>+ Post Your First Bag</Text>
+              <Text style={styles.emptyAddBtnText}>Post Your First Bag</Text>
             </TouchableOpacity>
           </View>
         }
@@ -329,172 +439,194 @@ export default function DashboardScreen() {
       <Modal
         visible={modalVisible}
         animationType="slide"
-        presentationStyle="pageSheet"
         onRequestClose={() => setModalVisible(false)}
       >
         <View style={styles.modal}>
+          {/* Green modal header */}
           <View style={styles.modalHeader}>
             <View style={styles.modalHandle} />
             <View style={styles.modalTitleRow}>
-              <Text style={styles.modalTitle}>Add New Bag</Text>
+              <View style={styles.modalTitleLeft}>
+                <View style={styles.modalTitleIcon}>
+                  <Ionicons name="bag-handle" size={18} color="#FFFFFF" />
+                </View>
+                <Text style={styles.modalTitle}>Add New Bag</Text>
+              </View>
               <TouchableOpacity
                 style={styles.modalCloseBtn}
                 onPress={() => setModalVisible(false)}
               >
-                <Text style={styles.modalCloseBtnText}>✕</Text>
+                <Ionicons name="close" size={18} color="#FFFFFF" />
               </TouchableOpacity>
             </View>
           </View>
 
-          <ScrollView
-            style={styles.modalBody}
-            showsVerticalScrollIndicator={false}
-            keyboardShouldPersistTaps="handled"
-          >
-            <View style={styles.modalSection}>
-              <Text style={styles.modalSectionTitle}>Bag details</Text>
+          <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={{ flex: 1 }}>
+            <ScrollView
+              style={styles.modalBody}
+              showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="always"
+            >
+              {/* BAG DETAILS */}
+              <View style={styles.modalSection}>
+                <View style={styles.sectionChip}>
+                  <Ionicons name="pencil-outline" size={13} color="#1565C0" />
+                  <Text style={[styles.modalSectionTitle, { color: "#1565C0" }]}>BAG DETAILS</Text>
+                </View>
 
-              <Text style={styles.inputLabel}>Bag title *</Text>
-              <View
-                style={[
-                  styles.inputWrapper,
-                  focusedField === "title" && styles.inputWrapperFocused,
-                ]}
-              >
-                <TextInput
-                  style={styles.input}
-                  placeholder="e.g. Surprise Pastry Bag"
-                  placeholderTextColor="#B4D4B4"
-                  value={title}
-                  onChangeText={setTitle}
-                  onFocus={() => setFocusedField("title")}
-                  onBlur={() => setFocusedField(null)}
-                />
+                <Text style={styles.inputLabel}>Bag title *</Text>
+                <View style={styles.inputWrapper}>
+                  <Ionicons name="pricetag-outline" size={15} color="#B8B8B8" style={{ marginRight: 8 }} />
+                  <TextInput
+                    style={styles.input}
+                    placeholder="e.g. Surprise Pastry Bag"
+                    placeholderTextColor="#B8B8B8"
+                    value={title}
+                    onChangeText={setTitle}
+                  />
+                </View>
+
+                <Text style={styles.inputLabel}>Description</Text>
+                <View style={[styles.inputWrapper, styles.inputWrapperMulti]}>
+                  <TextInput
+                    style={[styles.input, styles.inputMulti]}
+                    placeholder="What's in the bag? (optional)"
+                    placeholderTextColor="#B8B8B8"
+                    value={description}
+                    onChangeText={setDescription}
+                    multiline
+                    numberOfLines={3}
+                  />
+                </View>
               </View>
 
-              <Text style={styles.inputLabel}>Description</Text>
-              <View
-                style={[
-                  styles.inputWrapper,
-                  styles.inputWrapperMulti,
-                  focusedField === "desc" && styles.inputWrapperFocused,
-                ]}
-              >
-                <TextInput
-                  style={[styles.input, styles.inputMulti]}
-                  placeholder="What's in the bag? (optional)"
-                  placeholderTextColor="#B4D4B4"
-                  value={description}
-                  onChangeText={setDescription}
-                  multiline
-                  numberOfLines={3}
-                  onFocus={() => setFocusedField("desc")}
-                  onBlur={() => setFocusedField(null)}
-                />
-              </View>
-            </View>
+              {/* PRICING */}
+              <View style={styles.modalSection}>
+                <View style={styles.sectionChip}>
+                  <Ionicons name="cash-outline" size={13} color="#E65100" />
+                  <Text style={[styles.modalSectionTitle, { color: "#E65100" }]}>PRICING</Text>
+                </View>
 
-            <View style={styles.modalSection}>
-              <Text style={styles.modalSectionTitle}>Pricing</Text>
-
-              <View style={styles.inputRow}>
-                <View style={styles.inputHalf}>
-                  <Text style={styles.inputLabel}>Your price (JD) *</Text>
-                  <View
-                    style={[
-                      styles.inputWrapper,
-                      focusedField === "price" && styles.inputWrapperFocused,
-                    ]}
-                  >
-                    <Text style={styles.inputPrefix}>JD</Text>
-                    <TextInput
-                      style={styles.input}
-                      placeholder="3.50"
-                      placeholderTextColor="#B4D4B4"
-                      keyboardType="decimal-pad"
-                      value={price}
-                      onChangeText={setPrice}
-                      onFocus={() => setFocusedField("price")}
-                      onBlur={() => setFocusedField(null)}
-                    />
+                <View style={styles.inputRow}>
+                  <View style={styles.inputHalf}>
+                    <Text style={styles.inputLabel}>Your price (JD) *</Text>
+                    <View style={[styles.inputWrapper, styles.inputWrapperGreen]}>
+                      <Text style={styles.inputPrefixGreen}>JD</Text>
+                      <TextInput
+                        style={styles.input}
+                        placeholder="3.50"
+                        placeholderTextColor="#B8B8B8"
+                        keyboardType="decimal-pad"
+                        value={price}
+                        onChangeText={setPrice}
+                      />
+                    </View>
+                  </View>
+                  <View style={styles.inputHalf}>
+                    <Text style={styles.inputLabel}>Original value (JD) *</Text>
+                    <View style={styles.inputWrapper}>
+                      <Text style={styles.inputPrefix}>JD</Text>
+                      <TextInput
+                        style={styles.input}
+                        placeholder="12.00"
+                        placeholderTextColor="#B8B8B8"
+                        keyboardType="decimal-pad"
+                        value={originalValue}
+                        onChangeText={setOriginalValue}
+                      />
+                    </View>
                   </View>
                 </View>
-                <View style={styles.inputHalf}>
-                  <Text style={styles.inputLabel}>Original value (JD) *</Text>
-                  <View
-                    style={[
-                      styles.inputWrapper,
-                      focusedField === "orig" && styles.inputWrapperFocused,
-                    ]}
-                  >
-                    <Text style={styles.inputPrefix}>JD</Text>
-                    <TextInput
-                      style={styles.input}
-                      placeholder="12.00"
-                      placeholderTextColor="#B4D4B4"
-                      keyboardType="decimal-pad"
-                      value={originalValue}
-                      onChangeText={setOriginalValue}
-                      onFocus={() => setFocusedField("orig")}
-                      onBlur={() => setFocusedField(null)}
-                    />
+
+                {price && originalValue && !isNaN(parseFloat(price)) && !isNaN(parseFloat(originalValue)) && parseFloat(originalValue) > 0 && (
+                  <View style={styles.discountPreview}>
+                    <View style={styles.discountBadge}>
+                      <Text style={styles.discountBadgeText}>
+                        -{Math.round((1 - parseFloat(price) / parseFloat(originalValue)) * 100)}%
+                      </Text>
+                    </View>
+                    <Text style={styles.discountPreviewText}>
+                      Customers save{" "}
+                      <Text style={styles.discountHighlight}>
+                        JD {(parseFloat(originalValue) - parseFloat(price)).toFixed(2)}
+                      </Text>
+                      {" "}per bag — great deal!
+                    </Text>
                   </View>
-                </View>
-              </View>
-
-              {price && originalValue && (
-                <View style={styles.discountPreview}>
-                  <Text style={styles.discountPreviewText}>
-                    🏷️ Customers save{" "}
-                    {Math.round(
-                      (1 - parseFloat(price) / parseFloat(originalValue)) * 100,
-                    )}
-                    % — great deal!
-                  </Text>
-                </View>
-              )}
-            </View>
-
-            <View style={styles.modalSection}>
-              <Text style={styles.modalSectionTitle}>Quantity</Text>
-              <Text style={styles.inputLabel}>Number of bags *</Text>
-              <View
-                style={[
-                  styles.inputWrapper,
-                  focusedField === "qty" && styles.inputWrapperFocused,
-                ]}
-              >
-                <Text style={styles.inputPrefix}>🛍️</Text>
-                <TextInput
-                  style={styles.input}
-                  placeholder="How many bags available?"
-                  placeholderTextColor="#B4D4B4"
-                  keyboardType="number-pad"
-                  value={quantity}
-                  onChangeText={setQuantity}
-                  onFocus={() => setFocusedField("qty")}
-                  onBlur={() => setFocusedField(null)}
-                />
-              </View>
-            </View>
-
-            <View style={styles.modalSection}>
-              <TouchableOpacity
-                style={[styles.saveBtn, saving && styles.saveBtnDisabled]}
-                onPress={addBag}
-                disabled={saving}
-                activeOpacity={0.88}
-              >
-                {saving ? (
-                  <ActivityIndicator color="#fff" />
-                ) : (
-                  <Text style={styles.saveBtnText}>🌿 Post Bag</Text>
                 )}
-              </TouchableOpacity>
-            </View>
+              </View>
 
-            <View style={{ height: 40 }} />
-          </ScrollView>
+              {/* QUANTITY */}
+              <View style={styles.modalSection}>
+                <View style={styles.sectionChip}>
+                  <Ionicons name="layers-outline" size={13} color="#6A1B9A" />
+                  <Text style={[styles.modalSectionTitle, { color: "#6A1B9A" }]}>QUANTITY</Text>
+                </View>
+                <DropdownPicker
+                  placeholder="Select number of bags"
+                  value={quantity}
+                  options={QUANTITIES}
+                  onSelect={(v) => { setQuantity(v); setOpenDropdown(null); }}
+                  isOpen={openDropdown === "qty"}
+                  onToggle={() => toggleDropdown("qty")}
+                  format={(v) => `${v} bag${v !== 1 ? "s" : ""}`}
+                />
+              </View>
+
+              {/* PICKUP TIME */}
+              <View style={styles.modalSection}>
+                <View style={styles.sectionChip}>
+                  <Ionicons name="time-outline" size={13} color="#00838F" />
+                  <Text style={[styles.modalSectionTitle, { color: "#00838F" }]}>PICKUP TIME</Text>
+                </View>
+                <View style={styles.inputRow}>
+                  <View style={styles.inputHalf}>
+                    <Text style={styles.inputLabel}>Start time *</Text>
+                    <DropdownPicker
+                      placeholder="From"
+                      value={pickupStart}
+                      options={TIMES}
+                      onSelect={(v) => {
+                        setPickupStart(v);
+                        if (pickupEnd && pickupEnd <= v) setPickupEnd(null);
+                        setOpenDropdown(null);
+                      }}
+                      isOpen={openDropdown === "start"}
+                      onToggle={() => toggleDropdown("start")}
+                    />
+                  </View>
+                  <View style={styles.inputHalf}>
+                    <Text style={styles.inputLabel}>End time *</Text>
+                    <DropdownPicker
+                      placeholder="Until"
+                      value={pickupEnd}
+                      options={pickupStart ? TIMES.filter((t) => t > pickupStart) : TIMES}
+                      onSelect={(v) => { setPickupEnd(v); setOpenDropdown(null); }}
+                      isOpen={openDropdown === "end"}
+                      onToggle={() => toggleDropdown("end")}
+                    />
+                  </View>
+                </View>
+              </View>
+
+              <View style={styles.modalSection}>
+                <TouchableOpacity
+                  style={[styles.saveBtn, saving && styles.saveBtnDisabled]}
+                  onPress={addBag}
+                  disabled={saving}
+                  activeOpacity={0.88}
+                >
+                  {saving ? (
+                    <ActivityIndicator color="#fff" />
+                  ) : (
+                    <Text style={styles.saveBtnText}>Post Bag</Text>
+                  )}
+                </TouchableOpacity>
+              </View>
+
+              <View style={{ height: 40 }} />
+            </ScrollView>
+          </KeyboardAvoidingView>
         </View>
       </Modal>
     </View>
@@ -502,27 +634,30 @@ export default function DashboardScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#F0F7F0" },
-  loadingContainer: { flex: 1, justifyContent: "center", alignItems: "center" },
+  container: { flex: 1, backgroundColor: "#FAFAFA" },
+  loadingContainer: { flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: "#FFFFFF" },
   noRestaurantContainer: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
     padding: 32,
+    gap: 12,
+    backgroundColor: "#FFFFFF",
   },
-  noRestaurantEmoji: { fontSize: 56, marginBottom: 16 },
   noRestaurantTitle: {
-    fontSize: 20,
-    fontWeight: "800",
-    color: "#1B5E20",
-    marginBottom: 8,
+    fontSize: 17,
+    fontWeight: "600",
+    color: "#0F0F0F",
+    marginTop: 8,
+    textAlign: "center",
   },
-  noRestaurantSubtitle: { fontSize: 14, color: "#888780", textAlign: "center" },
+  noRestaurantSubtitle: { fontSize: 14, color: "#737373", textAlign: "center" },
 
   // Restaurant header
   restaurantHeader: {
-    backgroundColor: "#2E7D32",
-    padding: 20,
+    backgroundColor: "#1B5E20",
+    paddingHorizontal: 20,
+    paddingBottom: 28,
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
@@ -530,121 +665,98 @@ const styles = StyleSheet.create({
   restaurantHeaderLeft: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 14,
+    gap: 12,
     flex: 1,
   },
   restaurantAvatar: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     backgroundColor: "rgba(255,255,255,0.2)",
     alignItems: "center",
     justifyContent: "center",
-    borderWidth: 2,
-    borderColor: "rgba(255,255,255,0.3)",
   },
-  restaurantAvatarText: { fontSize: 18, fontWeight: "800", color: "#FFFFFF" },
+  restaurantAvatarText: { fontSize: 16, fontWeight: "700", color: "#FFFFFF" },
   restaurantName: {
-    fontSize: 17,
-    fontWeight: "800",
+    fontSize: 15,
+    fontWeight: "700",
     color: "#FFFFFF",
     marginBottom: 2,
   },
-  restaurantMeta: { fontSize: 12, color: "#A5D6A7", marginBottom: 6 },
-  activeBadge: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 5,
-    backgroundColor: "rgba(255,255,255,0.15)",
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 20,
-    alignSelf: "flex-start",
-  },
-  activeDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: "#4CAF50",
-  },
-  activeText: { fontSize: 11, color: "#A5D6A7", fontWeight: "600" },
+  restaurantMeta: { fontSize: 12, color: "rgba(255,255,255,0.7)" },
   addBtn: {
-    backgroundColor: "rgba(255,255,255,0.15)",
-    borderRadius: 14,
-    padding: 12,
-    alignItems: "center",
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.3)",
-    minWidth: 72,
-  },
-  addBtnText: {
-    fontSize: 22,
-    color: "#FFFFFF",
-    fontWeight: "800",
-    lineHeight: 26,
-  },
-  addBtnLabel: { fontSize: 11, color: "#A5D6A7", fontWeight: "600" },
-
-  // Stats grid
-  statsGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    padding: 12,
-    gap: 10,
     backgroundColor: "#FFFFFF",
-    borderBottomWidth: 1,
-    borderBottomColor: "#F0F0F0",
-  },
-  statCard: {
-    flex: 1,
-    minWidth: "45%",
-    borderRadius: 14,
-    padding: 14,
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    flexDirection: "row",
     alignItems: "center",
-    borderWidth: 1,
+    gap: 4,
   },
-  statCardGreen: { backgroundColor: "#E8F5E9", borderColor: "#C8E6C9" },
-  statCardBlue: { backgroundColor: "#E3F2FD", borderColor: "#BBDEFB" },
-  statCardAmber: { backgroundColor: "#FFF8E1", borderColor: "#FFE082" },
-  statCardPurple: { backgroundColor: "#F3E5F5", borderColor: "#CE93D8" },
-  statEmoji: { fontSize: 22, marginBottom: 6 },
+  addBtnLabel: { fontSize: 13, color: "#1B5E20", fontWeight: "700" },
+
+  // Stats row
+  statsRow: {
+    flexDirection: "row",
+    backgroundColor: "#E8F5E9",
+    borderBottomWidth: 1,
+    borderBottomColor: "#A5D6A7",
+    paddingVertical: 14,
+  },
+  statItem: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  statItemDivider: {
+    width: 1,
+    backgroundColor: "#A5D6A7",
+    marginVertical: 4,
+  },
   statNum: {
-    fontSize: 20,
-    fontWeight: "800",
+    fontSize: 17,
+    fontWeight: "700",
     color: "#1B5E20",
-    marginBottom: 2,
+    marginBottom: 3,
+    textAlign: "center",
   },
-  statLabel: { fontSize: 11, color: "#888780", textAlign: "center" },
+  statLabel: { fontSize: 11, color: "#4CAF50", textAlign: "center" },
 
   // Section header
   sectionHeader: {
     flexDirection: "row",
-    justifyContent: "space-between",
+    justifyContent: "center",
     alignItems: "center",
-    padding: 16,
-    paddingBottom: 8,
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    backgroundColor: "#FFFFFF",
+    borderBottomWidth: 1,
+    borderBottomColor: "#DBDBDB",
+    gap: 8,
   },
-  sectionTitle: { fontSize: 16, fontWeight: "800", color: "#1B5E20" },
-  sectionCount: { fontSize: 13, color: "#888780" },
+  sectionTitle: { fontSize: 15, fontWeight: "700", color: "#0F0F0F", textAlign: "center" },
+  sectionCount: { fontSize: 13, color: "#737373" },
 
   // List
-  list: { paddingHorizontal: 16, paddingBottom: 32 },
+  list: { paddingHorizontal: 0, paddingTop: 0, paddingBottom: 32 },
 
   // Bag card
   bagCard: {
     backgroundColor: "#FFFFFF",
-    borderRadius: 16,
+    borderRadius: 14,
+    marginHorizontal: 12,
+    marginBottom: 12,
     padding: 16,
-    marginBottom: 14,
-    borderWidth: 1,
-    borderColor: "#E8F5E9",
-    shadowColor: "#1B5E20",
+    borderLeftWidth: 4,
+    borderLeftColor: "#2E7D32",
+    shadowColor: "#000",
     shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.07,
+    shadowOpacity: 0.09,
     shadowRadius: 8,
-    elevation: 3,
+    elevation: 4,
+    overflow: "hidden",
   },
-  bagCardSoldOut: { opacity: 0.75 },
+  bagCardSoldOut: { opacity: 0.7, borderLeftColor: "#B8B8B8" },
   bagCardHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -657,57 +769,52 @@ const styles = StyleSheet.create({
     gap: 10,
     flex: 1,
   },
-  bagStatusDot: { width: 10, height: 10, borderRadius: 5, marginTop: 4 },
+  bagStatusDot: { width: 8, height: 8, borderRadius: 4, marginTop: 5 },
   bagCardTitle: {
-    fontSize: 16,
-    fontWeight: "700",
-    color: "#1B5E20",
+    fontSize: 15,
+    fontWeight: "600",
+    color: "#0F0F0F",
     marginBottom: 2,
   },
-  textMuted: { color: "#888780" },
-  bagCardMeta: { fontSize: 12, color: "#888780" },
-  bagStatusBadge: {
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 20,
-    marginLeft: 8,
-  },
-  bagStatusAvailable: { backgroundColor: "#E8F5E9" },
-  bagStatusSoldOut: { backgroundColor: "#FFEBEE" },
-  bagStatusText: { fontSize: 11, fontWeight: "700" },
+  textMuted: { color: "#B8B8B8" },
+  bagCardMeta: { fontSize: 12, color: "#737373" },
+  bagStatusBadge: { marginLeft: 8 },
+  bagStatusText: { fontSize: 11, fontWeight: "600" },
   bagStatusTextAvailable: { color: "#2E7D32" },
-  bagStatusTextSoldOut: { color: "#C62828" },
+  bagStatusTextSoldOut: { color: "#ED4956" },
 
   // Price row
   bagPriceRow: {
     flexDirection: "row",
-    backgroundColor: "#F8FDF8",
-    borderRadius: 12,
+    backgroundColor: "#FAFAFA",
+    borderRadius: 10,
     padding: 12,
     marginBottom: 14,
     borderWidth: 1,
-    borderColor: "#E8F5E9",
+    borderColor: "#EBEBEB",
   },
   bagPriceItem: { flex: 1, alignItems: "center" },
   bagPriceDivider: {
     width: 1,
-    backgroundColor: "#E8F5E9",
+    backgroundColor: "#EBEBEB",
     marginHorizontal: 4,
   },
   bagPriceLabel: {
     fontSize: 10,
-    color: "#888780",
+    color: "#737373",
     marginBottom: 4,
     fontWeight: "500",
+    textTransform: "uppercase",
+    letterSpacing: 0.3,
   },
-  bagPriceValue: { fontSize: 16, fontWeight: "800", color: "#2E7D32" },
+  bagPriceValue: { fontSize: 15, fontWeight: "700", color: "#0F0F0F" },
   bagPriceOriginal: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#B4B2A9",
+    fontSize: 13,
+    fontWeight: "500",
+    color: "#B8B8B8",
     textDecorationLine: "line-through",
   },
-  bagPriceEarned: { fontSize: 16, fontWeight: "800", color: "#1565C0" },
+  bagPriceEarned: { fontSize: 15, fontWeight: "700", color: "#2E7D32" },
 
   // Progress
   progressSection: { marginBottom: 14 },
@@ -716,79 +823,69 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     marginBottom: 6,
   },
-  progressLabel: { fontSize: 12, color: "#5F5E5A", fontWeight: "500" },
-  progressPct: { fontSize: 12, fontWeight: "700", color: "#2E7D32" },
+  progressLabel: { fontSize: 12, color: "#737373", fontWeight: "500" },
+  progressPct: { fontSize: 12, fontWeight: "600", color: "#2E7D32" },
   progressBar: {
-    height: 8,
-    backgroundColor: "#E8F5E9",
-    borderRadius: 4,
+    height: 6,
+    backgroundColor: "#F0F0F0",
+    borderRadius: 3,
     overflow: "hidden",
   },
   progressFill: {
     height: "100%",
     backgroundColor: "#2E7D32",
-    borderRadius: 4,
+    borderRadius: 3,
   },
   progressFooter: { marginTop: 4 },
-  progressRemaining: { fontSize: 11, color: "#888780" },
+  progressRemaining: { fontSize: 11, color: "#B8B8B8" },
 
   // Sold out button
   soldOutBtn: {
-    borderWidth: 1.5,
-    borderColor: "#FFCDD2",
-    borderRadius: 10,
     paddingVertical: 10,
     alignItems: "center",
-    backgroundColor: "#FFF5F5",
   },
-  soldOutBtnText: { fontSize: 13, fontWeight: "700", color: "#C62828" },
+  soldOutBtnText: { fontSize: 13, fontWeight: "600", color: "#ED4956" },
 
   // Empty state
   emptyContainer: {
     alignItems: "center",
     paddingTop: 48,
     paddingHorizontal: 32,
+    gap: 10,
   },
-  emptyEmoji: { fontSize: 56, marginBottom: 16 },
   emptyTitle: {
-    fontSize: 18,
-    fontWeight: "700",
-    color: "#1B5E20",
-    marginBottom: 8,
+    fontSize: 17,
+    fontWeight: "600",
+    color: "#0F0F0F",
+    marginTop: 8,
+    textAlign: "center",
   },
   emptySubtitle: {
     fontSize: 14,
-    color: "#888780",
+    color: "#737373",
     textAlign: "center",
     lineHeight: 22,
-    marginBottom: 24,
   },
   emptyAddBtn: {
     backgroundColor: "#2E7D32",
     paddingHorizontal: 24,
     paddingVertical: 14,
-    borderRadius: 14,
-    shadowColor: "#2E7D32",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 6,
+    borderRadius: 10,
+    marginTop: 8,
   },
-  emptyAddBtnText: { color: "#FFFFFF", fontWeight: "800", fontSize: 15 },
+  emptyAddBtnText: { color: "#FFFFFF", fontWeight: "600", fontSize: 15 },
 
   // Modal
-  modal: { flex: 1, backgroundColor: "#F0F7F0" },
+  modal: { flex: 1, backgroundColor: "#FAFAFA" },
   modalHeader: {
-    backgroundColor: "#FFFFFF",
-    paddingTop: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: "#E8F5E9",
-    paddingBottom: 16,
+    backgroundColor: "#1B5E20",
+    paddingTop: 16,
+    paddingBottom: 20,
   },
   modalHandle: {
     width: 40,
     height: 4,
-    backgroundColor: "#E0E0E0",
+    backgroundColor: "rgba(255,255,255,0.35)",
     borderRadius: 2,
     alignSelf: "center",
     marginBottom: 16,
@@ -799,81 +896,112 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingHorizontal: 20,
   },
-  modalTitle: { fontSize: 20, fontWeight: "800", color: "#1B5E20" },
+  modalTitleLeft: { flexDirection: "row", alignItems: "center", gap: 10 },
+  modalTitleIcon: {
+    width: 34,
+    height: 34,
+    borderRadius: 10,
+    backgroundColor: "rgba(255,255,255,0.2)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  modalTitle: { fontSize: 18, fontWeight: "700", color: "#FFFFFF" },
   modalCloseBtn: {
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: "#F0F7F0",
+    backgroundColor: "rgba(255,255,255,0.2)",
     alignItems: "center",
     justifyContent: "center",
   },
-  modalCloseBtnText: { fontSize: 14, color: "#888780", fontWeight: "700" },
-  modalBody: { flex: 1 },
+  modalBody: { flex: 1, backgroundColor: "#FAFAFA" },
   modalSection: { padding: 20, paddingBottom: 0 },
-  modalSectionTitle: {
-    fontSize: 12,
-    fontWeight: "700",
-    color: "#888780",
-    textTransform: "uppercase",
-    letterSpacing: 0.8,
+  sectionChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
     marginBottom: 14,
+  },
+  modalSectionTitle: {
+    fontSize: 11,
+    fontWeight: "700",
+    textTransform: "uppercase",
+    letterSpacing: 1,
   },
   inputLabel: {
     fontSize: 13,
-    fontWeight: "600",
-    color: "#1B5E20",
+    fontWeight: "500",
+    color: "#0F0F0F",
     marginBottom: 8,
   },
   inputWrapper: {
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: "#FFFFFF",
-    borderWidth: 1.5,
-    borderColor: "#C8E6C9",
-    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: "#DBDBDB",
+    borderRadius: 10,
     paddingHorizontal: 14,
     marginBottom: 14,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 3,
+    elevation: 1,
   },
-  inputWrapperFocused: {
-    borderColor: "#2E7D32",
-    shadowColor: "#2E7D32",
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.15,
-    shadowRadius: 6,
-    elevation: 2,
+  inputWrapperGreen: {
+    borderColor: "#A5D6A7",
+    backgroundColor: "#F2F8F2",
   },
   inputWrapperMulti: { alignItems: "flex-start", paddingTop: 4 },
   inputPrefix: {
     fontSize: 14,
-    color: "#888780",
+    color: "#737373",
     marginRight: 8,
     fontWeight: "600",
   },
-  input: { flex: 1, paddingVertical: 14, fontSize: 15, color: "#1B5E20" },
+  inputPrefixGreen: {
+    fontSize: 14,
+    color: "#2E7D32",
+    marginRight: 8,
+    fontWeight: "700",
+  },
+  input: { flex: 1, paddingVertical: 12, fontSize: 15, color: "#0F0F0F" },
   inputMulti: { paddingTop: 8, height: 80, textAlignVertical: "top" },
   inputRow: { flexDirection: "row", gap: 12 },
   inputHalf: { flex: 1 },
   discountPreview: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
     backgroundColor: "#E8F5E9",
-    borderRadius: 12,
+    borderRadius: 10,
     padding: 12,
     marginBottom: 14,
     borderWidth: 1,
-    borderColor: "#C8E6C9",
+    borderColor: "#A5D6A7",
   },
-  discountPreviewText: { fontSize: 13, color: "#2E7D32", fontWeight: "600" },
+  discountBadge: {
+    backgroundColor: "#F57F17",
+    borderRadius: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  discountBadgeText: { fontSize: 12, fontWeight: "700", color: "#FFFFFF" },
+  discountPreviewText: { fontSize: 13, color: "#2E7D32", flex: 1 },
+  discountHighlight: { fontWeight: "700", color: "#1B5E20" },
   saveBtn: {
-    backgroundColor: "#2E7D32",
-    borderRadius: 16,
+    backgroundColor: "#1B5E20",
+    borderRadius: 12,
     paddingVertical: 16,
     alignItems: "center",
-    shadowColor: "#2E7D32",
+    marginTop: 4,
+    shadowColor: "#1B5E20",
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
-    elevation: 6,
+    elevation: 5,
   },
   saveBtnDisabled: { opacity: 0.6 },
-  saveBtnText: { color: "#FFFFFF", fontSize: 16, fontWeight: "800" },
+  saveBtnText: { color: "#FFFFFF", fontSize: 16, fontWeight: "700", letterSpacing: 0.3 },
 });

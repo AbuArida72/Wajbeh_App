@@ -8,9 +8,10 @@ import {
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
-  SafeAreaView,
   ScrollView,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { Ionicons } from "@expo/vector-icons";
 import { supabase } from "../lib/supabase";
 import { useLanguage } from "../lang/LanguageContext";
 
@@ -19,7 +20,6 @@ export default function SignInScreen({ navigation, onAuthSuccess }) {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [focusedField, setFocusedField] = useState(null);
   const { t, isRTL, language, toggleLanguage } = useLanguage();
 
   const signIn = async () => {
@@ -62,56 +62,47 @@ export default function SignInScreen({ navigation, onAuthSuccess }) {
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.scroll}
         >
-          {/* Header banner */}
-          <View style={styles.banner}>
-            <View style={styles.bannerTop}>
-              <TouchableOpacity
-                style={styles.backBtn}
-                onPress={() => navigation.goBack()}
-              >
-                <Text style={styles.backText}>{isRTL ? "→" : "←"}</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.langBtn} onPress={toggleLanguage}>
-                <Text style={styles.langBtnText}>
-                  {language === "en" ? "🇯🇴 AR" : "🇬🇧 EN"}
-                </Text>
-              </TouchableOpacity>
-            </View>
-
-            <View style={styles.bannerContent}>
-              <Text style={styles.bannerEmoji}>🌿</Text>
-              <Text style={styles.bannerTitle}>{t("welcomeBack")}</Text>
-              <Text style={styles.bannerSubtitle}>{t("signInSubtitle")}</Text>
-            </View>
-
-            {/* Wave shape */}
-            <View style={styles.wave} />
+          {/* Top row */}
+          <View style={styles.topRow}>
+            <TouchableOpacity
+              style={styles.backBtn}
+              onPress={() => navigation.goBack()}
+            >
+              <Ionicons name="arrow-back" size={20} color="#0F0F0F" />
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.langBtn} onPress={toggleLanguage}>
+              <Text style={styles.langBtnText}>
+                {language === "en" ? "AR" : "EN"}
+              </Text>
+            </TouchableOpacity>
           </View>
 
-          {/* Form card */}
-          <View style={styles.formCard}>
+          {/* Brand + heading */}
+          <View style={styles.headingSection}>
+            <Text style={styles.brandText}>Wajbeh</Text>
+            <Text style={[styles.heading, isRTL && styles.rtl]}>Sign in</Text>
+            <Text style={[styles.subHeading, isRTL && styles.rtl]}>
+              {t("signInSubtitle")}
+            </Text>
+          </View>
+
+          {/* Form */}
+          <View style={styles.form}>
             {/* Email */}
             <View style={styles.fieldGroup}>
               <Text style={[styles.label, isRTL && styles.rtl]}>
                 {t("emailAddress")}
               </Text>
-              <View
-                style={[
-                  styles.inputWrapper,
-                  focusedField === "email" && styles.inputWrapperFocused,
-                ]}
-              >
-                <Text style={styles.inputIcon}>✉️</Text>
+              <View style={styles.inputWrapper}>
+                <Ionicons name="mail-outline" size={16} color="#B8B8B8" style={styles.inputIcon} />
                 <TextInput
                   style={[styles.input, isRTL && styles.inputRTL]}
                   placeholder="you@email.com"
-                  placeholderTextColor="#B4D4B4"
+                  placeholderTextColor="#B8B8B8"
                   keyboardType="email-address"
                   autoCapitalize="none"
                   value={email}
                   onChangeText={setEmail}
-                  onFocus={() => setFocusedField("email")}
-                  onBlur={() => setFocusedField(null)}
                 />
               </View>
             </View>
@@ -121,22 +112,15 @@ export default function SignInScreen({ navigation, onAuthSuccess }) {
               <Text style={[styles.label, isRTL && styles.rtl]}>
                 {t("password")}
               </Text>
-              <View
-                style={[
-                  styles.inputWrapper,
-                  focusedField === "password" && styles.inputWrapperFocused,
-                ]}
-              >
-                <Text style={styles.inputIcon}>🔒</Text>
+              <View style={styles.inputWrapper}>
+                <Ionicons name="lock-closed-outline" size={16} color="#B8B8B8" style={styles.inputIcon} />
                 <TextInput
                   style={[styles.input, isRTL && styles.inputRTL]}
                   placeholder={isRTL ? "كلمة المرور" : "Your password"}
-                  placeholderTextColor="#B4D4B4"
+                  placeholderTextColor="#B8B8B8"
                   secureTextEntry
                   value={password}
                   onChangeText={setPassword}
-                  onFocus={() => setFocusedField("password")}
-                  onBlur={() => setFocusedField(null)}
                 />
               </View>
             </View>
@@ -144,7 +128,7 @@ export default function SignInScreen({ navigation, onAuthSuccess }) {
             {/* Error */}
             {error ? (
               <View style={styles.errorBox}>
-                <Text style={styles.errorIcon}>⚠️</Text>
+                <Ionicons name="warning-outline" size={16} color="#ED4956" />
                 <Text style={[styles.errorText, isRTL && styles.rtl]}>
                   {error}
                 </Text>
@@ -186,17 +170,14 @@ export default function SignInScreen({ navigation, onAuthSuccess }) {
 
           {/* Trust badges */}
           <View style={styles.trustRow}>
-            <View style={styles.trustItem}>
-              <Text style={styles.trustIcon}>🔒</Text>
-              <Text style={styles.trustText}>Secure</Text>
+            <View style={styles.trustBadge}>
+              <Text style={styles.trustBadgeText}>Secure</Text>
             </View>
-            <View style={styles.trustItem}>
-              <Text style={styles.trustIcon}>🌿</Text>
-              <Text style={styles.trustText}>Eco-friendly</Text>
+            <View style={styles.trustBadge}>
+              <Text style={styles.trustBadgeText}>Eco-friendly</Text>
             </View>
-            <View style={styles.trustItem}>
-              <Text style={styles.trustIcon}>💚</Text>
-              <Text style={styles.trustText}>Local</Text>
+            <View style={styles.trustBadge}>
+              <Text style={styles.trustBadgeText}>Local</Text>
             </View>
           </View>
         </ScrollView>
@@ -206,160 +187,123 @@ export default function SignInScreen({ navigation, onAuthSuccess }) {
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: "#F0F7F0" },
+  safe: { flex: 1, backgroundColor: "#FFFFFF" },
   container: { flex: 1 },
-  scroll: { flexGrow: 1 },
+  scroll: { flexGrow: 1, padding: 20 },
+  rtl: { textAlign: "right", writingDirection: "rtl" },
 
-  // Banner
-  banner: {
-    backgroundColor: "#2E7D32",
-    paddingBottom: 48,
-    position: "relative",
-  },
-  bannerTop: {
+  // Top row
+  topRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    padding: 16,
-    paddingTop: 12,
+    marginBottom: 32,
   },
   backBtn: {
     width: 38,
     height: 38,
-    borderRadius: 19,
-    backgroundColor: "rgba(255,255,255,0.15)",
+    borderRadius: 10,
+    backgroundColor: "#F5F5F5",
     alignItems: "center",
     justifyContent: "center",
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.25)",
   },
-  backText: { fontSize: 18, color: "#FFFFFF", fontWeight: "700" },
   langBtn: {
-    backgroundColor: "rgba(255,255,255,0.15)",
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.25)",
+    backgroundColor: "#F5F5F5",
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 10,
   },
-  langBtnText: { color: "#FFFFFF", fontWeight: "600", fontSize: 13 },
-  bannerContent: { alignItems: "center", paddingVertical: 20 },
-  bannerEmoji: { fontSize: 48, marginBottom: 12 },
-  bannerTitle: {
-    fontSize: 28,
-    fontWeight: "800",
-    color: "#FFFFFF",
-    marginBottom: 6,
-  },
-  bannerSubtitle: { fontSize: 15, color: "rgba(255,255,255,0.75)" },
-  wave: {
-    position: "absolute",
-    bottom: 0,
-    left: 0,
-    right: 0,
-    height: 40,
-    backgroundColor: "#F0F7F0",
-    borderTopLeftRadius: 40,
-    borderTopRightRadius: 40,
-  },
+  langBtnText: { color: "#737373", fontWeight: "600", fontSize: 13 },
 
-  // Form card
-  formCard: {
-    backgroundColor: "#FFFFFF",
-    marginHorizontal: 20,
-    borderRadius: 24,
-    padding: 24,
-    marginTop: -8,
-    shadowColor: "#1B5E20",
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.1,
-    shadowRadius: 20,
-    elevation: 8,
-    borderWidth: 1,
-    borderColor: "#E8F5E9",
-  },
-  fieldGroup: { marginBottom: 18 },
-  label: {
+  // Heading
+  headingSection: { marginBottom: 32, alignItems: "center" },
+  brandText: {
     fontSize: 13,
     fontWeight: "700",
-    color: "#1B5E20",
+    color: "#2E7D32",
+    marginBottom: 12,
+    letterSpacing: 0.5,
+    textTransform: "uppercase",
+    textAlign: "center",
+  },
+  heading: { fontSize: 28, fontWeight: "700", color: "#0F0F0F", marginBottom: 8, textAlign: "center" },
+  subHeading: { fontSize: 14, color: "#737373", lineHeight: 20, textAlign: "center" },
+
+  // Form
+  form: {
+    backgroundColor: "#FFFFFF",
+    marginBottom: 32,
+  },
+  fieldGroup: { marginBottom: 16 },
+  label: {
+    fontSize: 13,
+    fontWeight: "500",
+    color: "#0F0F0F",
     marginBottom: 8,
   },
-  rtl: { textAlign: "right", writingDirection: "rtl" },
   inputWrapper: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#F8FDF8",
-    borderWidth: 1.5,
-    borderColor: "#C8E6C9",
-    borderRadius: 14,
+    backgroundColor: "#FAFAFA",
+    borderWidth: 1,
+    borderColor: "#DBDBDB",
+    borderRadius: 10,
     paddingHorizontal: 14,
-    overflow: "hidden",
   },
-  inputWrapperFocused: {
-    borderColor: "#2E7D32",
-    backgroundColor: "#FFFFFF",
-    shadowColor: "#2E7D32",
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.15,
-    shadowRadius: 6,
-    elevation: 2,
-  },
-  inputIcon: { fontSize: 16, marginRight: 10 },
+  inputIcon: { marginRight: 8 },
   input: {
     flex: 1,
-    paddingVertical: 14,
+    paddingVertical: 12,
     fontSize: 15,
-    color: "#1B5E20",
+    color: "#0F0F0F",
   },
   inputRTL: { textAlign: "right" },
   errorBox: {
     flexDirection: "row",
     alignItems: "flex-start",
     gap: 8,
-    backgroundColor: "#FFEBEE",
-    borderRadius: 12,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 10,
     padding: 12,
     marginBottom: 16,
     borderWidth: 1,
-    borderColor: "#FFCDD2",
+    borderColor: "#ED4956",
   },
-  errorIcon: { fontSize: 14 },
-  errorText: { color: "#C62828", fontSize: 13, flex: 1, lineHeight: 18 },
+  errorText: { color: "#ED4956", fontSize: 13, flex: 1, lineHeight: 18 },
   btn: {
     backgroundColor: "#2E7D32",
-    paddingVertical: 16,
-    borderRadius: 14,
+    paddingVertical: 14,
+    borderRadius: 10,
     alignItems: "center",
     marginBottom: 20,
-    shadowColor: "#2E7D32",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 10,
-    elevation: 6,
   },
   btnDisabled: { opacity: 0.6 },
-  btnText: { color: "#FFFFFF", fontSize: 16, fontWeight: "800" },
+  btnText: { color: "#FFFFFF", fontSize: 15, fontWeight: "600" },
   dividerRow: {
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
     marginBottom: 20,
   },
-  dividerLine: { flex: 1, height: 1, backgroundColor: "#E8F5E9" },
-  dividerText: { fontSize: 12, color: "#B4B2A9" },
+  dividerLine: { flex: 1, height: 1, backgroundColor: "#DBDBDB" },
+  dividerText: { fontSize: 12, color: "#B8B8B8" },
   signUpLink: { alignItems: "center" },
-  signUpLinkText: { fontSize: 14, color: "#888780" },
-  signUpLinkHighlight: { color: "#2E7D32", fontWeight: "800" },
+  signUpLinkText: { fontSize: 14, color: "#737373" },
+  signUpLinkHighlight: { color: "#2E7D32", fontWeight: "600" },
 
   // Trust badges
   trustRow: {
     flexDirection: "row",
     justifyContent: "center",
-    gap: 24,
-    paddingVertical: 24,
+    gap: 10,
   },
-  trustItem: { alignItems: "center", gap: 4 },
-  trustIcon: { fontSize: 22 },
-  trustText: { fontSize: 11, color: "#B4B2A9", fontWeight: "500" },
+  trustBadge: {
+    backgroundColor: "#FAFAFA",
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: "#EBEBEB",
+  },
+  trustBadgeText: { fontSize: 12, color: "#737373", fontWeight: "500" },
 });

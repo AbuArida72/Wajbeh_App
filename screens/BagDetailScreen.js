@@ -6,10 +6,12 @@ import {
   Image,
   ScrollView,
   TouchableOpacity,
-  SafeAreaView,
   ActivityIndicator,
+  Alert,
 } from "react-native";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { useState } from "react";
+import { Ionicons } from "@expo/vector-icons";
 import { supabase } from "../lib/supabase";
 import { useLanguage } from "../lang/LanguageContext";
 
@@ -20,13 +22,14 @@ export default function BagDetailScreen({ route, navigation }) {
   const [reserving, setReserving] = useState(false);
   const [reserved, setReserved] = useState(false);
   const { t, isRTL } = useLanguage();
+  const insets = useSafeAreaInsets();
 
   const handleReserve = async () => {
     setReserving(true);
     try {
       const { data: authData } = await supabase.auth.getUser();
       if (!authData?.user) {
-        window.alert("Please sign in to reserve a bag.");
+        Alert.alert("Sign In Required", "Please sign in to reserve a bag.");
         setReserving(false);
         return;
       }
@@ -42,22 +45,22 @@ export default function BagDetailScreen({ route, navigation }) {
           bag,
         });
       } else {
-        window.alert(data.error || "Could not reserve bag");
+        Alert.alert("Could Not Reserve", data.error || "Could not reserve bag");
       }
     } catch (err) {
-      window.alert("Something went wrong. Please try again.");
+      Alert.alert("Error", "Something went wrong. Please try again.");
       console.log(err);
     }
     setReserving(false);
   };
 
   const expectItems = [
-    { icon: "🌿", key: "freshFood" },
-    { icon: "🎁", key: "surpriseContents" },
-    { icon: "📱", key: "showApp" },
-    { icon: "♻️", key: "fightWaste" },
-    { icon: "💚", key: "supportLocal" },
-    { icon: "🚫", key: "noRefunds" },
+    { iconName: "checkmark-circle-outline", key: "freshFood" },
+    { iconName: "checkmark-circle-outline", key: "surpriseContents" },
+    { iconName: "checkmark-circle-outline", key: "showApp" },
+    { iconName: "checkmark-circle-outline", key: "fightWaste" },
+    { iconName: "checkmark-circle-outline", key: "supportLocal" },
+    { iconName: "close-circle-outline", key: "noRefunds" },
   ];
 
   return (
@@ -77,10 +80,10 @@ export default function BagDetailScreen({ route, navigation }) {
               style={styles.backBtn}
               onPress={() => navigation.goBack()}
             >
-              <Text style={styles.backArrow}>{isRTL ? "→" : "←"}</Text>
+              <Ionicons name="arrow-back" size={20} color="#0F0F0F" />
             </TouchableOpacity>
             <View style={styles.discountPill}>
-              <Text style={styles.discountText}>🏷️ {discount}% off</Text>
+              <Text style={styles.discountText}>-{discount}%</Text>
             </View>
           </SafeAreaView>
 
@@ -91,9 +94,12 @@ export default function BagDetailScreen({ route, navigation }) {
               <Text style={[styles.heroName, isRTL && styles.rtl]}>
                 {bag.restaurant}
               </Text>
-              <Text style={[styles.heroArea, isRTL && styles.rtl]}>
-                📍 {bag.area} · {bag.category}
-              </Text>
+              <View style={[styles.heroAreaRow, isRTL && styles.rtlRow]}>
+                <Ionicons name="location-outline" size={12} color="rgba(255,255,255,0.8)" />
+                <Text style={[styles.heroArea, isRTL && styles.rtl]}>
+                  {bag.area} · {bag.category}
+                </Text>
+              </View>
             </View>
             <View
               style={[
@@ -125,14 +131,7 @@ export default function BagDetailScreen({ route, navigation }) {
             <View
               style={[styles.categoryPill, isRTL && { alignSelf: "flex-end" }]}
             >
-              <Text style={styles.categoryPillText}>
-                {bag.category === "Bakery"
-                  ? "🥐"
-                  : bag.category === "Restaurant"
-                    ? "🍽️"
-                    : "☕"}{" "}
-                {bag.category}
-              </Text>
+              <Text style={styles.categoryPillText}>{bag.category}</Text>
             </View>
           </View>
 
@@ -166,7 +165,7 @@ export default function BagDetailScreen({ route, navigation }) {
 
           {/* Pickup window */}
           <View style={styles.section}>
-            <Text style={[styles.sectionTitle, isRTL && styles.rtl]}>
+            <Text style={[styles.sectionLabel, isRTL && styles.rtl]}>
               {t("pickupWindow")}
             </Text>
             <View style={styles.pickupCard}>
@@ -187,14 +186,15 @@ export default function BagDetailScreen({ route, navigation }) {
                 <Text style={styles.pickupTime}>{bag.pickup_end}</Text>
               </View>
               <View style={styles.todayPill}>
-                <Text style={styles.todayText}>📅 {t("todayOnly")}</Text>
+                <Ionicons name="calendar-outline" size={12} color="#2E7D32" />
+                <Text style={styles.todayText}>{t("todayOnly")}</Text>
               </View>
             </View>
           </View>
 
           {/* About */}
           <View style={styles.section}>
-            <Text style={[styles.sectionTitle, isRTL && styles.rtl]}>
+            <Text style={[styles.sectionLabel, isRTL && styles.rtl]}>
               {t("aboutBag")}
             </Text>
             <View style={styles.aboutCard}>
@@ -208,18 +208,25 @@ export default function BagDetailScreen({ route, navigation }) {
 
           {/* What to expect */}
           <View style={styles.section}>
-            <Text style={[styles.sectionTitle, isRTL && styles.rtl]}>
+            <Text style={[styles.sectionLabel, isRTL && styles.rtl]}>
               {t("whatToExpect")}
             </Text>
             <View style={styles.expectGrid}>
-              {expectItems.map((item, i) => (
-                <View key={i} style={styles.expectItem}>
-                  <Text style={styles.expectIcon}>{item.icon}</Text>
-                  <Text style={[styles.expectText, isRTL && styles.rtl]}>
-                    {t(item.key)}
-                  </Text>
-                </View>
-              ))}
+              {expectItems.map((item, i) => {
+                const isNo = item.iconName.includes("close");
+                return (
+                  <View key={i} style={[styles.expectItem, isNo && styles.expectItemNo]}>
+                    <Ionicons
+                      name={item.iconName}
+                      size={18}
+                      color={isNo ? "#ED4956" : "#2E7D32"}
+                    />
+                    <Text style={[styles.expectText, isNo && styles.expectTextNo, isRTL && styles.rtl]}>
+                      {t(item.key)}
+                    </Text>
+                  </View>
+                );
+              })}
             </View>
           </View>
 
@@ -228,7 +235,7 @@ export default function BagDetailScreen({ route, navigation }) {
       </ScrollView>
 
       {/* Sticky footer */}
-      <View style={[styles.footer, isRTL && styles.rtlRow]}>
+      <View style={[styles.footer, isRTL && styles.rtlRow, { paddingBottom: insets.bottom + 8 }]}>
         <View style={styles.footerPrices}>
           <Text style={[styles.footerLabel, isRTL && styles.rtl]}>
             {t("total")}
@@ -268,16 +275,16 @@ export default function BagDetailScreen({ route, navigation }) {
 }
 
 const styles = StyleSheet.create({
-  wrapper: { flex: 1, backgroundColor: "#F0F7F0" },
+  wrapper: { flex: 1, backgroundColor: "#FFFFFF" },
   scroll: { flex: 1 },
   rtl: { textAlign: "right", writingDirection: "rtl" },
   rtlRow: { flexDirection: "row-reverse" },
 
   // Hero
-  hero: { height: 340, justifyContent: "space-between" },
+  hero: { height: 300, justifyContent: "space-between" },
   heroGradient: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(0,0,0,0.25)",
+    backgroundColor: "rgba(0,0,0,0.3)",
   },
   heroTopBar: {
     flexDirection: "row",
@@ -289,25 +296,17 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: "rgba(255,255,255,0.9)",
+    backgroundColor: "#FFFFFF",
     alignItems: "center",
     justifyContent: "center",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
-    shadowRadius: 4,
-    elevation: 3,
   },
-  backArrow: { fontSize: 20, color: "#1B5E20", fontWeight: "800" },
   discountPill: {
-    backgroundColor: "#2E7D32",
+    backgroundColor: "#F57F17",
     paddingHorizontal: 14,
     paddingVertical: 8,
     borderRadius: 20,
-    borderWidth: 1.5,
-    borderColor: "rgba(255,255,255,0.3)",
   },
-  discountText: { color: "#FFFFFF", fontWeight: "800", fontSize: 14 },
+  discountText: { color: "#FFFFFF", fontWeight: "700", fontSize: 14 },
   heroBottom: {
     flexDirection: "row",
     alignItems: "center",
@@ -316,22 +315,21 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(0,0,0,0.5)",
   },
   heroLogo: {
-    width: 46,
-    height: 46,
-    borderRadius: 23,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     borderWidth: 2,
     borderColor: "#FFFFFF",
+    backgroundColor: "#F0F0F0",
   },
   heroInfo: { flex: 1 },
   heroName: {
-    fontSize: 16,
-    fontWeight: "800",
+    fontSize: 15,
+    fontWeight: "700",
     color: "#FFFFFF",
-    textShadowColor: "rgba(0,0,0,0.3)",
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 3,
     marginBottom: 2,
   },
+  heroAreaRow: { flexDirection: "row", alignItems: "center", gap: 4 },
   heroArea: { fontSize: 12, color: "rgba(255,255,255,0.8)" },
   qtyBadge: {
     backgroundColor: "rgba(255,255,255,0.9)",
@@ -341,104 +339,103 @@ const styles = StyleSheet.create({
   },
   qtyBadgeUrgent: { backgroundColor: "#FFEBEE" },
   qtyText: { fontSize: 12, fontWeight: "700", color: "#2E7D32" },
-  qtyTextUrgent: { color: "#C62828" },
+  qtyTextUrgent: { color: "#ED4956" },
 
   // Content
-  content: { padding: 20 },
-  titleSection: { marginBottom: 16 },
+  content: { paddingHorizontal: 20, paddingTop: 20 },
+  titleSection: { marginBottom: 16, alignItems: "center" },
   bagTitle: {
-    fontSize: 26,
-    fontWeight: "800",
-    color: "#1B5E20",
+    fontSize: 22,
+    fontWeight: "700",
+    color: "#0F0F0F",
     marginBottom: 8,
+    textAlign: "center",
   },
   categoryPill: {
-    alignSelf: "flex-start",
+    alignSelf: "center",
     backgroundColor: "#E8F5E9",
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: "#C8E6C9",
+    borderColor: "#A5D6A7",
   },
   categoryPillText: { fontSize: 13, color: "#2E7D32", fontWeight: "600" },
 
   // Price card
   priceCard: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: 18,
+    backgroundColor: "#E8F5E9",
+    borderRadius: 12,
     padding: 20,
     flexDirection: "row",
     alignItems: "center",
     marginBottom: 20,
-    shadowColor: "#1B5E20",
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.08,
-    shadowRadius: 10,
-    elevation: 3,
     borderWidth: 1,
-    borderColor: "#E8F5E9",
+    borderColor: "#A5D6A7",
   },
   priceCol: { flex: 1, alignItems: "center" },
-  priceDivider: { width: 1, height: 44, backgroundColor: "#E8F5E9" },
+  priceDivider: { width: 1, height: 44, backgroundColor: "#A5D6A7" },
   priceLabel: {
     fontSize: 11,
-    color: "#888780",
+    color: "#4CAF50",
     marginBottom: 6,
-    fontWeight: "500",
-  },
-  priceMain: { fontSize: 22, fontWeight: "800", color: "#2E7D32" },
-  priceOriginal: {
-    fontSize: 16,
     fontWeight: "600",
-    color: "#B4B2A9",
+    textTransform: "uppercase",
+    letterSpacing: 0.3,
+  },
+  priceMain: { fontSize: 20, fontWeight: "700", color: "#0F0F0F" },
+  priceOriginal: {
+    fontSize: 15,
+    fontWeight: "500",
+    color: "#B8B8B8",
     textDecorationLine: "line-through",
   },
-  priceSavings: { fontSize: 20, fontWeight: "800", color: "#C62828" },
+  priceSavings: { fontSize: 20, fontWeight: "700", color: "#1B5E20" },
 
   // Sections
   section: { marginBottom: 20 },
-  sectionTitle: {
-    fontSize: 16,
+  sectionLabel: {
+    fontSize: 11,
     fontWeight: "700",
-    color: "#1B5E20",
+    color: "#B8B8B8",
     marginBottom: 10,
+    textTransform: "uppercase",
+    letterSpacing: 1,
+    textAlign: "center",
   },
 
   // Pickup
   pickupCard: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: 16,
+    backgroundColor: "#F1F8E9",
+    borderRadius: 12,
     padding: 16,
     flexDirection: "row",
     alignItems: "center",
     borderWidth: 1,
-    borderColor: "#E8F5E9",
-    shadowColor: "#1B5E20",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 6,
-    elevation: 2,
+    borderColor: "#C5E1A5",
   },
   pickupTimeBlock: { flex: 1, alignItems: "center" },
-  pickupLabel: { fontSize: 11, color: "#888780", marginBottom: 6 },
-  pickupTime: { fontSize: 24, fontWeight: "800", color: "#1B5E20" },
+  pickupLabel: { fontSize: 11, color: "#737373", marginBottom: 6, textAlign: "center" },
+  pickupTime: { fontSize: 22, fontWeight: "700", color: "#1B5E20", textAlign: "center" },
   pickupArrowBlock: {
     paddingHorizontal: 12,
     alignItems: "center",
     justifyContent: "center",
   },
-  pickupArrowLine: { width: 30, height: 2, backgroundColor: "#C8E6C9" },
+  pickupArrowLine: { width: 30, height: 1, backgroundColor: "#DBDBDB" },
   pickupArrowDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
+    width: 6,
+    height: 6,
+    borderRadius: 3,
     backgroundColor: "#2E7D32",
-    marginTop: -5,
+    marginTop: -3.5,
     alignSelf: "flex-end",
   },
   todayPill: {
-    backgroundColor: "#E8F5E9",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    backgroundColor: "#F2F8F2",
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: 12,
@@ -448,12 +445,12 @@ const styles = StyleSheet.create({
   // About
   aboutCard: {
     backgroundColor: "#FFFFFF",
-    borderRadius: 16,
+    borderRadius: 12,
     padding: 16,
     borderWidth: 1,
-    borderColor: "#E8F5E9",
+    borderColor: "#EBEBEB",
   },
-  aboutText: { fontSize: 14, color: "#5F5E5A", lineHeight: 22 },
+  aboutText: { fontSize: 14, color: "#737373", lineHeight: 22, textAlign: "center" },
 
   // Expect grid
   expectGrid: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
@@ -461,17 +458,21 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: "#F9FBE7",
     paddingHorizontal: 14,
     paddingVertical: 12,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: "#E8F5E9",
+    borderColor: "#DCEDC8",
     minWidth: "45%",
     flex: 1,
   },
-  expectIcon: { fontSize: 18 },
-  expectText: { fontSize: 13, color: "#2C2C2A", fontWeight: "500", flex: 1 },
+  expectItemNo: {
+    backgroundColor: "#FEF2F2",
+    borderColor: "#FECACA",
+  },
+  expectText: { fontSize: 13, color: "#33691E", fontWeight: "500", flex: 1 },
+  expectTextNo: { color: "#B71C1C" },
 
   // Footer
   footer: {
@@ -481,30 +482,21 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
     borderTopWidth: 1,
-    borderTopColor: "#E8F5E9",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: -4 },
-    shadowOpacity: 0.08,
-    shadowRadius: 12,
-    elevation: 12,
+    borderTopColor: "#DBDBDB",
+    gap: 16,
   },
-  footerPrices: { gap: 2 },
-  footerLabel: { fontSize: 11, color: "#888780" },
-  footerPrice: { fontSize: 28, fontWeight: "800", color: "#2E7D32" },
-  footerSave: { fontSize: 12, color: "#C62828", fontWeight: "600" },
+  footerPrices: { gap: 1 },
+  footerLabel: { fontSize: 11, color: "#737373" },
+  footerPrice: { fontSize: 24, fontWeight: "700", color: "#0F0F0F", lineHeight: 28 },
+  footerSave: { fontSize: 12, color: "#2E7D32", fontWeight: "600" },
   reserveBtn: {
     backgroundColor: "#2E7D32",
-    paddingHorizontal: 28,
+    paddingHorizontal: 24,
     paddingVertical: 16,
-    borderRadius: 16,
-    shadowColor: "#2E7D32",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 10,
-    elevation: 6,
-    minWidth: 160,
+    borderRadius: 12,
+    flex: 1,
     alignItems: "center",
   },
-  reserveBtnDisabled: { backgroundColor: "#B4B2A9", shadowOpacity: 0 },
-  reserveBtnText: { color: "#FFFFFF", fontSize: 16, fontWeight: "800" },
+  reserveBtnDisabled: { backgroundColor: "#B8B8B8" },
+  reserveBtnText: { color: "#FFFFFF", fontSize: 16, fontWeight: "700" },
 });

@@ -1,413 +1,296 @@
+import { useState, useEffect, useRef } from "react";
 import {
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
-  ScrollView,
+  ActivityIndicator,
+  Alert,
+  Platform,
 } from "react-native";
+import MapView, { Marker } from "react-native-maps";
+import * as Location from "expo-location";
+import { Ionicons } from "@expo/vector-icons";
+import { supabase } from "../lib/supabase";
+
+const AMMAN_REGION = {
+  latitude: 31.9539,
+  longitude: 35.9106,
+  latitudeDelta: 0.05,
+  longitudeDelta: 0.05,
+};
 
 export default function MapScreen() {
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [restaurant, setRestaurant] = useState(null);
+  const [marker, setMarker] = useState(null);
+  const [savedMarker, setSavedMarker] = useState(null);
+  const [region, setRegion] = useState(AMMAN_REGION);
+  const mapRef = useRef(null);
+
+  useEffect(() => {
+    loadRestaurantAndLocation();
+  }, []);
+
+  const loadRestaurantAndLocation = async () => {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    const { data } = await supabase
+      .from("restaurants")
+      .select("id, name, latitude, longitude")
+      .eq("owner_id", user.id)
+      .single();
+
+    if (data) {
+      setRestaurant(data);
+      if (data.latitude && data.longitude) {
+        const coord = { latitude: data.latitude, longitude: data.longitude };
+        setMarker(coord);
+        setSavedMarker(coord);
+        setRegion({ ...coord, latitudeDelta: 0.01, longitudeDelta: 0.01 });
+      } else {
+        await centerOnDeviceLocation();
+      }
+    } else {
+      await centerOnDeviceLocation();
+    }
+
+    setLoading(false);
+  };
+
+  const centerOnDeviceLocation = async () => {
+    const { status } = await Location.requestForegroundPermissionsAsync();
+    if (status === "granted") {
+      const loc = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.Balanced,
+      });
+      setRegion({
+        latitude: loc.coords.latitude,
+        longitude: loc.coords.longitude,
+        latitudeDelta: 0.01,
+        longitudeDelta: 0.01,
+      });
+    }
+  };
+
+  const handleMapPress = (e) => {
+    setMarker(e.nativeEvent.coordinate);
+  };
+
+  const saveLocation = async () => {
+    if (!marker || !restaurant) return;
+    setSaving(true);
+    const { error } = await supabase
+      .from("restaurants")
+      .update({ latitude: marker.latitude, longitude: marker.longitude })
+      .eq("id", restaurant.id);
+
+    if (error) {
+      Alert.alert("Error", "Could not save location. Please try again.");
+    } else {
+      setSavedMarker({ ...marker });
+      Alert.alert("Location Saved!", "Customers can now find your restaurant on the map.");
+    }
+    setSaving(false);
+  };
+
+  const cancelChanges = () => {
+    setMarker(savedMarker);
+  };
+
+  const useMyLocation = async () => {
+    const { status } = await Location.requestForegroundPermissionsAsync();
+    if (status !== "granted") {
+      Alert.alert(
+        "Permission Needed",
+        "Please allow location access to use this feature.",
+      );
+      return;
+    }
+    const loc = await Location.getCurrentPositionAsync({
+      accuracy: Location.Accuracy.High,
+    });
+    const coord = {
+      latitude: loc.coords.latitude,
+      longitude: loc.coords.longitude,
+    };
+    setMarker(coord);
+    mapRef.current?.animateToRegion(
+      { ...coord, latitudeDelta: 0.005, longitudeDelta: 0.005 },
+      600,
+    );
+  };
+
+  const hasChanges =
+    marker &&
+    (!savedMarker ||
+      marker.latitude !== savedMarker.latitude ||
+      marker.longitude !== savedMarker.longitude);
+
+  if (loading) {
+    return (
+      <View style={styles.center}>
+        <ActivityIndicator size="large" color="#2E7D32" />
+        <Text style={styles.loadingText}>Loading map...</Text>
+      </View>
+    );
+  }
+
   return (
-    <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
-      {/* Hero banner */}
-      <View style={styles.hero}>
-        <View style={styles.heroPattern}>
-          {["📍", "🗺️", "📌", "🧭", "📡"].map((e, i) => (
-            <Text
-              key={i}
-              style={[
-                styles.patternItem,
-                {
-                  opacity: 0.08 + i * 0.03,
-                  fontSize: 32 + i * 8,
-                  top: `${10 + i * 15}%`,
-                  left: i % 2 === 0 ? `${5 + i * 10}%` : undefined,
-                  right: i % 2 !== 0 ? `${5 + i * 8}%` : undefined,
-                },
-              ]}
-            >
-              {e}
+    <View style={styles.container}>
+      {/* Instruction bar */}
+      {savedMarker ? (
+        <View style={styles.instructionBar}>
+          <Ionicons name="location" size={20} color="#2E7D32" />
+          <View style={{ flex: 1 }}>
+            <Text style={styles.instructionTitle}>Location confirmed</Text>
+            <Text style={styles.instructionSub}>Contact support to update your location</Text>
+          </View>
+        </View>
+      ) : (
+        <View style={styles.instructionBar}>
+          <Ionicons name="location-outline" size={20} color="#737373" />
+          <View style={{ flex: 1 }}>
+            <Text style={styles.instructionTitle}>Pin your restaurant</Text>
+            <Text style={styles.instructionSub}>
+              {marker
+                ? "Tap anywhere to move the pin, then save"
+                : "Tap on the map to place your pin"}
             </Text>
-          ))}
-        </View>
-        <View style={styles.heroContent}>
-          <View style={styles.heroIconCircle}>
-            <Text style={styles.heroIcon}>🗺️</Text>
           </View>
-          <Text style={styles.heroTitle}>Restaurant Location</Text>
-          <Text style={styles.heroSubtitle}>
-            Help customers find you on the map
+          <TouchableOpacity style={styles.myLocationBtn} onPress={useMyLocation}>
+            <Ionicons name="navigate-outline" size={18} color="#2E7D32" />
+          </TouchableOpacity>
+        </View>
+      )}
+
+      {/* Map */}
+      <MapView
+        ref={mapRef}
+        style={styles.map}
+        initialRegion={region}
+        onPress={savedMarker ? undefined : handleMapPress}
+        showsUserLocation
+        showsMyLocationButton={false}
+        mapType="standard"
+      >
+        {marker && (
+          <Marker
+            coordinate={marker}
+            title={restaurant?.name || "My Restaurant"}
+            description="Your restaurant location"
+          />
+        )}
+      </MapView>
+
+      {/* Coordinates display */}
+      {marker && (
+        <View style={styles.coordBar}>
+          <Text style={styles.coordText}>
+            {marker.latitude.toFixed(5)}°N, {marker.longitude.toFixed(5)}°E
           </Text>
         </View>
-        <View style={styles.wave} />
-      </View>
+      )}
 
-      <View style={styles.content}>
-        {/* Mobile only banner */}
-        <View style={styles.mobileBanner}>
-          <View style={styles.mobileBannerLeft}>
-            <Text style={styles.mobileBannerIcon}>📱</Text>
-            <View>
-              <Text style={styles.mobileBannerTitle}>Mobile Only Feature</Text>
-              <Text style={styles.mobileBannerSub}>
-                Not available in web browser
-              </Text>
-            </View>
-          </View>
-          <View style={styles.mobileBannerBadge}>
-            <Text style={styles.mobileBannerBadgeText}>Coming soon</Text>
-          </View>
+      {/* Save / Cancel bar — only when no savedMarker and hasChanges */}
+      {!savedMarker && hasChanges && (
+        <View style={styles.actionBar}>
+          <TouchableOpacity
+            style={styles.cancelBtn}
+            onPress={cancelChanges}
+            disabled={saving}
+          >
+            <Text style={styles.cancelBtnText}>Cancel</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.saveBtn, saving && styles.saveBtnDisabled]}
+            onPress={saveLocation}
+            disabled={saving}
+          >
+            {saving ? (
+              <ActivityIndicator color="#FFFFFF" size="small" />
+            ) : (
+              <Text style={styles.saveBtnText}>Save Location</Text>
+            )}
+          </TouchableOpacity>
         </View>
-
-        {/* What this does */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>What this feature does</Text>
-          <View style={styles.featureCard}>
-            {[
-              {
-                icon: "📍",
-                title: "Pin your location",
-                desc: "Tap exactly where your restaurant is on the map of Amman",
-              },
-              {
-                icon: "👥",
-                title: "Reach nearby customers",
-                desc: "Customers searching near your area will see your bags first",
-              },
-              {
-                icon: "🧭",
-                title: "Get directions",
-                desc: "Customers can get turn-by-turn directions to your restaurant",
-              },
-            ].map((item, i, arr) => (
-              <View key={i}>
-                <View style={styles.featureItem}>
-                  <View style={styles.featureIconBox}>
-                    <Text style={styles.featureItemIcon}>{item.icon}</Text>
-                  </View>
-                  <View style={styles.featureItemRight}>
-                    <Text style={styles.featureItemTitle}>{item.title}</Text>
-                    <Text style={styles.featureItemDesc}>{item.desc}</Text>
-                  </View>
-                </View>
-                {i < arr.length - 1 && <View style={styles.featureDivider} />}
-              </View>
-            ))}
-          </View>
-        </View>
-
-        {/* How it will work */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>How it will work on mobile</Text>
-          {[
-            {
-              step: "1",
-              text: "Download Wajbeh on your iPhone or Android",
-              icon: "📲",
-            },
-            {
-              step: "2",
-              text: "Sign in with your restaurant account",
-              icon: "🔐",
-            },
-            { step: "3", text: "Go to the Location tab", icon: "🗺️" },
-            {
-              step: "4",
-              text: "Tap your restaurant's location on the map",
-              icon: "📍",
-            },
-            {
-              step: "5",
-              text: "Save — customers nearby will find you!",
-              icon: "✅",
-            },
-          ].map((item, i) => (
-            <View key={i} style={styles.stepItem}>
-              <View style={styles.stepBadge}>
-                <Text style={styles.stepBadgeText}>{item.step}</Text>
-              </View>
-              <Text style={styles.stepIcon}>{item.icon}</Text>
-              <Text style={styles.stepText}>{item.text}</Text>
-            </View>
-          ))}
-        </View>
-
-        {/* Why it matters */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Why location matters</Text>
-          <View style={styles.statsRow}>
-            <View style={styles.statCard}>
-              <Text style={styles.statEmoji}>📈</Text>
-              <Text style={styles.statNum}>3x</Text>
-              <Text style={styles.statLabel}>
-                More visibility with location pinned
-              </Text>
-            </View>
-            <View style={styles.statCard}>
-              <Text style={styles.statEmoji}>🎯</Text>
-              <Text style={styles.statNum}>Local</Text>
-              <Text style={styles.statLabel}>
-                Only show to nearby customers
-              </Text>
-            </View>
-          </View>
-        </View>
-
-        {/* CTA */}
-        <View style={styles.ctaCard}>
-          <Text style={styles.ctaEmoji}>🚀</Text>
-          <Text style={styles.ctaTitle}>Coming with the mobile app</Text>
-          <Text style={styles.ctaText}>
-            We're working on deploying Wajbeh to the App Store and Google Play.
-            Location features will be fully available then.
-          </Text>
-          <View style={styles.ctaBadgeRow}>
-            <View style={styles.ctaBadge}>
-              <Text style={styles.ctaBadgeText}>🍎 App Store</Text>
-            </View>
-            <View style={styles.ctaBadge}>
-              <Text style={styles.ctaBadgeText}>🤖 Google Play</Text>
-            </View>
-          </View>
-        </View>
-
-        <View style={{ height: 32 }} />
-      </View>
-    </ScrollView>
+      )}
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#F0F7F0" },
+  container: { flex: 1, backgroundColor: "#FFFFFF" },
 
-  // Hero
-  hero: {
-    backgroundColor: "#2E7D32",
-    paddingBottom: 48,
-    overflow: "hidden",
-  },
-  heroPattern: {
-    ...StyleSheet.absoluteFillObject,
-  },
-  patternItem: { position: "absolute" },
-  heroContent: {
-    alignItems: "center",
-    paddingTop: 36,
-    paddingBottom: 12,
-  },
-  heroIconCircle: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: "rgba(255,255,255,0.15)",
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 16,
-    borderWidth: 2,
-    borderColor: "rgba(255,255,255,0.25)",
-  },
-  heroIcon: { fontSize: 38 },
-  heroTitle: {
-    fontSize: 24,
-    fontWeight: "800",
-    color: "#FFFFFF",
-    marginBottom: 6,
-  },
-  heroSubtitle: { fontSize: 14, color: "#A5D6A7", textAlign: "center" },
-  wave: {
-    position: "absolute",
-    bottom: 0,
-    left: 0,
-    right: 0,
-    height: 32,
-    backgroundColor: "#F0F7F0",
-    borderTopLeftRadius: 32,
-    borderTopRightRadius: 32,
-  },
+  center: { flex: 1, justifyContent: "center", alignItems: "center", gap: 12 },
+  loadingText: { fontSize: 14, color: "#737373" },
 
-  content: { padding: 20 },
-
-  // Mobile banner
-  mobileBanner: {
-    backgroundColor: "#FFF3E0",
-    borderRadius: 16,
-    padding: 16,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    marginBottom: 20,
-    borderWidth: 1,
-    borderColor: "#FFE082",
-  },
-  mobileBannerLeft: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-    flex: 1,
-  },
-  mobileBannerIcon: { fontSize: 28 },
-  mobileBannerTitle: {
-    fontSize: 14,
-    fontWeight: "700",
-    color: "#E65100",
-    marginBottom: 2,
-  },
-  mobileBannerSub: { fontSize: 12, color: "#F57C00" },
-  mobileBannerBadge: {
-    backgroundColor: "#FF6F00",
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 20,
-  },
-  mobileBannerBadgeText: { fontSize: 11, color: "#FFFFFF", fontWeight: "700" },
-
-  // Sections
-  section: { marginBottom: 20 },
-  sectionTitle: {
-    fontSize: 14,
-    fontWeight: "700",
-    color: "#888780",
-    textTransform: "uppercase",
-    letterSpacing: 0.8,
-    marginBottom: 12,
-  },
-
-  // Feature card
-  featureCard: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: "#E8F5E9",
-    overflow: "hidden",
-    shadowColor: "#1B5E20",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 8,
-    elevation: 2,
-  },
-  featureItem: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    gap: 14,
-    padding: 16,
-  },
-  featureIconBox: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: "#E8F5E9",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  featureItemIcon: { fontSize: 22 },
-  featureItemRight: { flex: 1 },
-  featureItemTitle: {
-    fontSize: 14,
-    fontWeight: "700",
-    color: "#1B5E20",
-    marginBottom: 4,
-  },
-  featureItemDesc: { fontSize: 13, color: "#888780", lineHeight: 18 },
-  featureDivider: {
-    height: 1,
-    backgroundColor: "#F0F7F0",
-    marginHorizontal: 16,
-  },
-
-  // Steps
-  stepItem: {
+  instructionBar: {
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
     backgroundColor: "#FFFFFF",
-    borderRadius: 14,
-    padding: 14,
-    marginBottom: 8,
-    borderWidth: 1,
-    borderColor: "#E8F5E9",
-    shadowColor: "#1B5E20",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.04,
-    shadowRadius: 4,
-    elevation: 1,
-  },
-  stepBadge: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: "#2E7D32",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  stepBadgeText: { color: "#FFFFFF", fontSize: 13, fontWeight: "800" },
-  stepIcon: { fontSize: 20 },
-  stepText: { fontSize: 13, color: "#5F5E5A", flex: 1, lineHeight: 18 },
-
-  // Stats
-  statsRow: { flexDirection: "row", gap: 12 },
-  statCard: {
-    flex: 1,
-    backgroundColor: "#FFFFFF",
-    borderRadius: 16,
-    padding: 16,
-    alignItems: "center",
-    borderWidth: 1,
-    borderColor: "#E8F5E9",
-    shadowColor: "#1B5E20",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 6,
-    elevation: 2,
-  },
-  statEmoji: { fontSize: 28, marginBottom: 8 },
-  statNum: {
-    fontSize: 22,
-    fontWeight: "800",
-    color: "#1B5E20",
-    marginBottom: 4,
-  },
-  statLabel: {
-    fontSize: 12,
-    color: "#888780",
-    textAlign: "center",
-    lineHeight: 16,
-  },
-
-  // CTA card
-  ctaCard: {
-    backgroundColor: "#1B5E20",
-    borderRadius: 20,
-    padding: 24,
-    alignItems: "center",
-    shadowColor: "#1B5E20",
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.25,
-    shadowRadius: 14,
-    elevation: 8,
-  },
-  ctaEmoji: { fontSize: 40, marginBottom: 12 },
-  ctaTitle: {
-    fontSize: 18,
-    fontWeight: "800",
-    color: "#FFFFFF",
-    marginBottom: 8,
-    textAlign: "center",
-  },
-  ctaText: {
-    fontSize: 13,
-    color: "#A5D6A7",
-    textAlign: "center",
-    lineHeight: 20,
-    marginBottom: 16,
-  },
-  ctaBadgeRow: { flexDirection: "row", gap: 10 },
-  ctaBadge: {
-    backgroundColor: "rgba(255,255,255,0.15)",
     paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.25)",
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: "#DBDBDB",
   },
-  ctaBadgeText: { color: "#FFFFFF", fontSize: 13, fontWeight: "700" },
+  instructionTitle: { fontSize: 14, fontWeight: "600", color: "#0F0F0F", marginBottom: 2 },
+  instructionSub: { fontSize: 12, color: "#737373" },
+  myLocationBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 10,
+    backgroundColor: "#F2F8F2",
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: "#DBDBDB",
+  },
+
+  map: { flex: 1 },
+
+  coordBar: {
+    position: "absolute",
+    bottom: 90,
+    alignSelf: "center",
+    backgroundColor: "rgba(0,0,0,0.6)",
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    borderRadius: 20,
+  },
+  coordText: { fontSize: 12, color: "#FFFFFF", fontFamily: Platform.OS === "ios" ? "Courier" : "monospace" },
+
+  actionBar: {
+    flexDirection: "row",
+    gap: 12,
+    padding: 16,
+    backgroundColor: "#FFFFFF",
+    borderTopWidth: 1,
+    borderTopColor: "#DBDBDB",
+  },
+  saveBtn: {
+    flex: 1,
+    backgroundColor: "#2E7D32",
+    paddingVertical: 14,
+    borderRadius: 10,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  saveBtnDisabled: { backgroundColor: "#B8B8B8" },
+  saveBtnText: { color: "#FFFFFF", fontWeight: "600", fontSize: 15 },
+  cancelBtn: {
+    paddingHorizontal: 20,
+    paddingVertical: 14,
+    borderRadius: 10,
+    backgroundColor: "#FAFAFA",
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: "#DBDBDB",
+  },
+  cancelBtnText: { color: "#737373", fontWeight: "500", fontSize: 15 },
 });

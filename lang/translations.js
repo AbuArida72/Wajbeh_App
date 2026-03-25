@@ -71,7 +71,7 @@ export const translations = {
     bagsSaved: "Bags saved",
     foodSaved: "Food saved",
     moneySaved: "Money saved",
-    signOut: "🚪 Sign Out",
+    signOut: "Sign Out",
     signOutConfirm: "Are you sure you want to sign out?",
 
     // Auth
@@ -227,7 +227,7 @@ export const translations = {
     bagsSaved: "أكياس محفوظة",
     foodSaved: "طعام محفوظ",
     moneySaved: "مال موفّر",
-    signOut: "🚪 تسجيل الخروج",
+    signOut: "تسجيل الخروج",
     signOutConfirm: "هل أنت متأكد أنك تريد تسجيل الخروج؟",
 
     // Auth
