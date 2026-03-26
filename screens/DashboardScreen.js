@@ -733,6 +733,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: "#DBDBDB",
     gap: 8,
+    marginBottom: 12,
   },
   sectionTitle: { fontSize: 15, fontWeight: "700", color: "#0F0F0F", textAlign: "center" },
   sectionCount: { fontSize: 13, color: "#737373" },
@@ -754,7 +755,6 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.09,
     shadowRadius: 8,
     elevation: 4,
-    overflow: "hidden",
   },
   bagCardSoldOut: { opacity: 0.7, borderLeftColor: "#B8B8B8" },
   bagCardHeader: {

@@ -53,13 +53,18 @@ export default function SearchScreen({ navigation }) {
   }, [query, bags]);
 
   const fetchBags = async () => {
+    const now = new Date();
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
+    const todayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1).toISOString();
     const { data, error } = await supabase
       .from("bags")
       .select(
         `*, restaurants (name, category, area, logo_url)`,
       )
       .eq("status", "available")
-      .gt("quantity_remaining", 0);
+      .gt("quantity_remaining", 0)
+      .gte("created_at", todayStart)
+      .lt("created_at", todayEnd);
     if (!error) {
       setBags(data);
       setFiltered(data);
@@ -73,6 +78,7 @@ export default function SearchScreen({ navigation }) {
     const isLast = item.quantity_remaining === 1;
 
     return (
+      <View style={styles.cardWrapper}>
       <TouchableOpacity
         style={styles.card}
         activeOpacity={0.92}
@@ -143,6 +149,7 @@ export default function SearchScreen({ navigation }) {
           </View>
         </View>
       </TouchableOpacity>
+      </View>
     );
   };
 
@@ -151,7 +158,7 @@ export default function SearchScreen({ navigation }) {
       <StatusBar backgroundColor="#1B5E20" barStyle="light-content" />
       {/* Search header */}
       <View style={[styles.header, { paddingTop: insets.top + 16 }]}>
-        <Text style={styles.headerTitle}>Search</Text>
+        <Text style={styles.headerTitle}>{t("searchTitle")}</Text>
         <View style={styles.searchBar}>
           <Ionicons name="search-outline" size={18} color="rgba(255,255,255,0.7)" style={styles.searchIcon} />
           <TextInput
@@ -192,7 +199,7 @@ export default function SearchScreen({ navigation }) {
             <Text style={styles.resultsQuery}>"{query}"</Text>
           </Text>
           <TouchableOpacity onPress={() => setQuery("")}>
-            <Text style={styles.clearText}>Clear</Text>
+            <Text style={styles.clearText}>{t("clearBtn")}</Text>
           </TouchableOpacity>
         </View>
       )}
@@ -201,11 +208,11 @@ export default function SearchScreen({ navigation }) {
       {query.length === 0 && !loading && (
         <View style={styles.browseHeader}>
           <Text style={[styles.browseTitle, isRTL && styles.rtl]}>
-            All available bags today
+            {t("allBagsToday")}
           </Text>
           <Text style={[styles.browseSub, isRTL && styles.rtl]}>
-            {bags.length} bags from{" "}
-            {new Set(bags.map((b) => b.restaurants?.name)).size} restaurants
+            {bags.length} {t("bagsFrom")}{" "}
+            {new Set(bags.map((b) => b.restaurants?.name)).size} {t("restaurantsCount")}
           </Text>
         </View>
       )}
@@ -214,22 +221,22 @@ export default function SearchScreen({ navigation }) {
       {loading ? (
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color="#2E7D32" />
-          <Text style={styles.loadingText}>Searching...</Text>
+          <Text style={styles.loadingText}>{t("searchingText")}</Text>
         </View>
       ) : filtered.length === 0 ? (
         <View style={styles.noResultsContainer}>
           <Ionicons name="search-outline" size={48} color="#B8B8B8" />
           <Text style={[styles.noResultsTitle, isRTL && styles.rtl]}>
-            No results found
+            {t("noResultsTitle")}
           </Text>
           <Text style={[styles.noResultsSub, isRTL && styles.rtl]}>
-            Try searching for a restaurant name, area, or category
+            {t("noResultsSub")}
           </Text>
           <TouchableOpacity
             style={styles.clearSearchBtn}
             onPress={() => setQuery("")}
           >
-            <Text style={styles.clearSearchBtnText}>Clear search</Text>
+            <Text style={styles.clearSearchBtnText}>{t("clearSearch")}</Text>
           </TouchableOpacity>
         </View>
       ) : (
@@ -240,6 +247,7 @@ export default function SearchScreen({ navigation }) {
           contentContainerStyle={[styles.list, { paddingBottom: insets.bottom + 24 }]}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
+          ListHeaderComponent={<View style={{ height: 12 }} />}
         />
       )}
     </View>
@@ -360,19 +368,22 @@ const styles = StyleSheet.create({
   clearSearchBtnText: { color: "#FFFFFF", fontWeight: "600", fontSize: 15 },
 
   // List
-  list: { paddingHorizontal: 0, paddingTop: 12, paddingBottom: 32 },
+  list: { paddingHorizontal: 0, paddingTop: 0, paddingBottom: 32 },
 
   // Card
-  card: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: 14,
+  cardWrapper: {
     marginHorizontal: 12,
     marginBottom: 12,
+    borderRadius: 14,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.09,
     shadowRadius: 8,
     elevation: 4,
+  },
+  card: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 14,
     overflow: "hidden",
   },
   imageWrapper: { position: "relative" },

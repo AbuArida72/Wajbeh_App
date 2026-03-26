@@ -9,6 +9,7 @@ import {
   RefreshControl,
   Alert,
   StatusBar,
+  Platform,
 } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
@@ -65,7 +66,7 @@ export default function OrdersScreen({ navigation }) {
     const { data, error } = await supabase
       .from("orders")
       .select(
-        `*, bags (title, image_url, price, restaurants (name, area, pickup_start, pickup_end))`,
+        `*, bags (title, image_url, price, pickup_start, pickup_end, restaurants (name, area, pickup_start, pickup_end))`,
       )
       .eq("user_id", user.id)
       .gte("reserved_at", monthAgo.toISOString())
@@ -95,7 +96,7 @@ export default function OrdersScreen({ navigation }) {
   });
   const historyOrders = orders.filter((o) => {
     const d = new Date(o.reserved_at);
-    return d.toLocaleDateString("en-CA") !== localToday;
+    return d.toLocaleDateString("en-CA") !== localToday && o.status === "picked_up";
   });
 
   const confirmPickup = async (orderId) => {
@@ -149,7 +150,12 @@ export default function OrdersScreen({ navigation }) {
     const restaurant = bag?.restaurants;
     const config = getStatusConfig(item.status);
     const isPast = item.status === "picked_up" || item.status === "cancelled";
-    const codeVisible = isPickupTimeActive(restaurant?.pickup_start);
+    // Effective pickup time: order snapshot → bag override → restaurant default
+    const effectiveStart =
+      item.pickup_start ?? bag?.pickup_start ?? restaurant?.pickup_start;
+    const effectiveEnd =
+      item.pickup_end ?? bag?.pickup_end ?? restaurant?.pickup_end;
+    const codeVisible = isPickupTimeActive(effectiveStart);
 
     return (
       <View style={[styles.card, isPast && styles.cardPast]}>
@@ -191,8 +197,8 @@ export default function OrdersScreen({ navigation }) {
         <View style={[styles.pickupRow, isRTL && styles.rtlRow]}>
           <Ionicons name="time-outline" size={12} color="#B8B8B8" />
           <Text style={[styles.pickupTime, isRTL && styles.rtl]}>
-            {t("pickupToday")} {restaurant?.pickup_start?.slice(0, 5)} –{" "}
-            {restaurant?.pickup_end?.slice(0, 5)}
+            {t("pickupToday")} {effectiveStart?.slice(0, 5)} –{" "}
+            {effectiveEnd?.slice(0, 5)}
           </Text>
         </View>
 
@@ -207,7 +213,7 @@ export default function OrdersScreen({ navigation }) {
                 <View style={styles.codeLockContent}>
                   <Ionicons name="lock-closed-outline" size={20} color="#B8B8B8" />
                   <Text style={styles.codeLockText}>
-                    Available at {restaurant?.pickup_start?.slice(0, 5)}
+                    Available at {effectiveStart?.slice(0, 5)}
                   </Text>
                 </View>
               )}
@@ -290,24 +296,24 @@ export default function OrdersScreen({ navigation }) {
     <View style={styles.container}>
       <StatusBar backgroundColor="#1B5E20" barStyle="light-content" />
       {/* Header */}
-      <View style={[styles.summaryHeader, { paddingTop: insets.top + 16 }]}>
-        <Text style={styles.summaryTitle}>My Orders</Text>
+      <View style={[styles.summaryHeader, { paddingTop: (insets.top > 0 ? insets.top : (Platform.OS === "android" ? (StatusBar.currentHeight ?? 0) : 0)) + 16 }]}>
+        <Text style={styles.summaryTitle}>{t("myOrders")}</Text>
         <View style={styles.summaryStats}>
           <View style={styles.summaryItem}>
             <Text style={styles.summaryNum}>{todayOrders.length}</Text>
-            <Text style={styles.summaryLabel}>Today</Text>
+            <Text style={styles.summaryLabel}>{t("today")}</Text>
           </View>
           <View style={styles.summaryDivider} />
           <View style={styles.summaryItem}>
             <Text style={styles.summaryNum}>{historyOrders.length}</Text>
-            <Text style={styles.summaryLabel}>This Month</Text>
+            <Text style={styles.summaryLabel}>{t("pastMonth")}</Text>
           </View>
           <View style={styles.summaryDivider} />
           <View style={styles.summaryItem}>
             <Text style={styles.summaryNum}>
               JD {orders.reduce((s, o) => s + parseFloat(o.amount_paid || 0), 0).toFixed(2)}
             </Text>
-            <Text style={styles.summaryLabel}>Spent</Text>
+            <Text style={styles.summaryLabel}>{t("spent")}</Text>
           </View>
         </View>
       </View>
@@ -318,7 +324,7 @@ export default function OrdersScreen({ navigation }) {
           style={[styles.tab, activeTab === "today" && styles.tabActive]}
           onPress={() => setActiveTab("today")}
         >
-          <Text style={[styles.tabText, activeTab === "today" && styles.tabTextActive]}>Today</Text>
+          <Text style={[styles.tabText, activeTab === "today" && styles.tabTextActive]}>{t("today")}</Text>
           {todayOrders.length > 0 && (
             <View style={styles.tabBadge}>
               <Text style={styles.tabBadgeText}>{todayOrders.length}</Text>
@@ -329,7 +335,7 @@ export default function OrdersScreen({ navigation }) {
           style={[styles.tab, activeTab === "history" && styles.tabActive]}
           onPress={() => setActiveTab("history")}
         >
-          <Text style={[styles.tabText, activeTab === "history" && styles.tabTextActive]}>Past Month</Text>
+          <Text style={[styles.tabText, activeTab === "history" && styles.tabTextActive]}>{t("pastMonth")}</Text>
         </TouchableOpacity>
       </View>
 
@@ -349,16 +355,15 @@ export default function OrdersScreen({ navigation }) {
             tintColor="#2E7D32"
           />
         }
+        ListHeaderComponent={<View style={{ height: 12 }} />}
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
             <Ionicons name="bag-handle-outline" size={44} color="#B8B8B8" />
             <Text style={styles.emptyTitle}>
-              {activeTab === "today" ? "No orders today" : "No orders this month"}
+              {activeTab === "today" ? t("noOrdersToday") : t("noOrdersPastMonth")}
             </Text>
             <Text style={styles.emptySubtitle}>
-              {activeTab === "today"
-                ? "Bags you reserve today will appear here"
-                : "Orders from the past 30 days will show here"}
+              {activeTab === "today" ? t("noOrdersTodaySub") : t("noOrdersPastMonthSub")}
             </Text>
             {activeTab === "today" && (
               <TouchableOpacity style={styles.browseBtn} onPress={() => navigation.navigate("Home")}>
@@ -475,7 +480,7 @@ const styles = StyleSheet.create({
   browseBtnText: { color: "#FFFFFF", fontWeight: "600", fontSize: 15 },
 
   // List
-  list: { paddingHorizontal: 0, paddingTop: 12, paddingBottom: 32 },
+  list: { paddingHorizontal: 0, paddingTop: 0, paddingBottom: 32 },
 
   // Card
   card: {
@@ -491,7 +496,6 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.09,
     shadowRadius: 8,
     elevation: 4,
-    overflow: "hidden",
   },
   cardPast: { opacity: 0.7, borderLeftColor: "#B8B8B8" },
   cardTop: {

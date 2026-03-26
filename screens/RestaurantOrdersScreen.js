@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef } from "react";
 import {
   View,
   Text,
@@ -14,10 +14,12 @@ import {
 import { useFocusEffect } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
 import { supabase } from "../lib/supabase";
+import { useLanguage } from "../lang/LanguageContext";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function RestaurantOrdersScreen() {
   const insets = useSafeAreaInsets();
+  const { t } = useLanguage();
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -27,6 +29,7 @@ export default function RestaurantOrdersScreen() {
   const [confirming, setConfirming] = useState(false);
   const [restaurantId, setRestaurantId] = useState(null);
   const [activeTab, setActiveTab] = useState("active");
+  const codeInputRef = useRef(null);
 
   useFocusEffect(
     useCallback(() => {
@@ -118,11 +121,11 @@ export default function RestaurantOrdersScreen() {
   const getStatusConfig = (status) => {
     switch (status) {
       case "reserved":
-        return { label: "Pending", color: "#2E7D32", bg: "#F2F8F2" };
+        return { label: t("pendingLabel"), color: "#2E7D32", bg: "#F2F8F2" };
       case "arriving":
-        return { label: "Arriving", color: "#E65100", bg: "#FFF3E0" };
+        return { label: t("pendingPickupConf"), color: "#E65100", bg: "#FFF3E0" };
       case "picked_up":
-        return { label: "Fulfilled", color: "#737373", bg: "#F0F0F0" };
+        return { label: t("fulfilledLabel"), color: "#737373", bg: "#F0F0F0" };
       default:
         return { label: status, color: "#737373", bg: "#F5F5F5" };
     }
@@ -166,7 +169,7 @@ export default function RestaurantOrdersScreen() {
           {item.status === "arriving" && (
             <View style={styles.awaitingBadge}>
               <Text style={styles.awaitingText}>
-                Awaiting customer confirmation
+                Pending pickup confirmation
               </Text>
             </View>
           )}
@@ -210,7 +213,11 @@ export default function RestaurantOrdersScreen() {
                 Enter the code shown by the customer
               </Text>
 
-              <View style={styles.codeInputRow}>
+              <TouchableOpacity
+                style={styles.codeInputRow}
+                onPress={() => codeInputRef.current?.focus()}
+                activeOpacity={1}
+              >
                 {[0, 1, 2, 3, 4, 5].map((i) => (
                   <View
                     key={i}
@@ -219,16 +226,15 @@ export default function RestaurantOrdersScreen() {
                     <Text style={styles.codeBoxChar}>{code[i] || ""}</Text>
                   </View>
                 ))}
-              </View>
+              </TouchableOpacity>
 
               <TextInput
+                ref={codeInputRef}
                 style={styles.hiddenInput}
                 value={code}
                 onChangeText={(t) => setCode(t.toUpperCase().slice(0, 6))}
                 maxLength={6}
                 autoCapitalize="characters"
-                placeholder="Tap to enter code"
-                placeholderTextColor="#B8B8B8"
               />
 
               <TouchableOpacity
@@ -441,16 +447,10 @@ const styles = StyleSheet.create({
   },
   codeBoxChar: { fontSize: 22, fontWeight: "700", color: "#FFFFFF" },
   hiddenInput: {
-    backgroundColor: "rgba(255,255,255,0.12)",
-    borderRadius: 10,
-    padding: 12,
-    fontSize: 15,
-    color: "#FFFFFF",
-    textAlign: "center",
-    letterSpacing: 4,
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.3)",
+    position: "absolute",
+    opacity: 0,
+    width: 1,
+    height: 1,
   },
   checkBtn: {
     backgroundColor: "#FFFFFF",
@@ -536,6 +536,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#FFFFFF",
     borderBottomWidth: 1,
     borderBottomColor: "#DBDBDB",
+    marginBottom: 12,
   },
   tab: {
     flex: 1,
@@ -563,7 +564,6 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.09,
     shadowRadius: 8,
     elevation: 4,
-    overflow: "hidden",
   },
   orderCardFulfilled: { opacity: 0.7, borderLeftColor: "#B8B8B8" },
   orderTop: {

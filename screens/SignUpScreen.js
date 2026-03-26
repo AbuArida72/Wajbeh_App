@@ -66,21 +66,13 @@ export default function SignUpScreen({ navigation, onAuthSuccess }) {
           <View style={styles.doneIconCircle}>
             <Ionicons name="mail-outline" size={36} color="#2E7D32" />
           </View>
-          <Text style={styles.doneTitle}>
-            {isRTL ? "تحقق من بريدك!" : "Check your email!"}
-          </Text>
+          <Text style={styles.doneTitle}>{t("checkYourEmail")}</Text>
           <Text style={[styles.doneSubtitle, isRTL && styles.rtl]}>
-            {isRTL
-              ? "أرسلنا رابط التأكيد إلى"
-              : "We sent a confirmation link to"}
+            {t("weSentLink")}
           </Text>
           <Text style={styles.doneEmail}>{email}</Text>
           <View style={styles.doneSteps}>
-            {[
-              isRTL ? "افتح بريدك الإلكتروني" : "Open your email",
-              isRTL ? "اضغط على رابط التأكيد" : "Click the confirmation link",
-              isRTL ? "عد وسجّل دخولك" : "Come back and sign in",
-            ].map((step, i) => (
+            {[t("openEmail"), t("clickLink"), t("comeBackSignIn")].map((step, i) => (
               <View key={i} style={styles.doneStep}>
                 <View style={styles.doneStepNum}>
                   <Text style={styles.doneStepNumText}>{i + 1}</Text>
@@ -95,9 +87,7 @@ export default function SignUpScreen({ navigation, onAuthSuccess }) {
             style={styles.goSignInBtn}
             onPress={() => navigation.navigate("SignIn")}
           >
-            <Text style={styles.goSignInBtnText}>
-              {isRTL ? "الذهاب لتسجيل الدخول" : "Go to Sign In"}
-            </Text>
+            <Text style={styles.goSignInBtnText}>{t("goToSignIn")}</Text>
           </TouchableOpacity>
         </View>
       </SafeAreaView>
@@ -124,7 +114,7 @@ export default function SignUpScreen({ navigation, onAuthSuccess }) {
             </TouchableOpacity>
             <TouchableOpacity style={styles.langBtn} onPress={toggleLanguage}>
               <Text style={styles.langBtnText}>
-                {language === "en" ? "AR" : "EN"}
+                {language === "en" ? t("switchToArabic") : t("switchToEnglish")}
               </Text>
             </TouchableOpacity>
           </View>
@@ -151,7 +141,7 @@ export default function SignUpScreen({ navigation, onAuthSuccess }) {
                 <Ionicons name="person-outline" size={16} color="#B8B8B8" style={styles.inputIcon} />
                 <TextInput
                   style={[styles.input, isRTL && styles.inputRTL]}
-                  placeholder={isRTL ? "اسمك الكامل" : "Your full name"}
+                  placeholder={t("yourFullName")}
                   placeholderTextColor="#B8B8B8"
                   value={fullName}
                   onChangeText={setFullName}
@@ -188,9 +178,7 @@ export default function SignUpScreen({ navigation, onAuthSuccess }) {
                 <Ionicons name="lock-closed-outline" size={16} color="#B8B8B8" style={styles.inputIcon} />
                 <TextInput
                   style={[styles.input, isRTL && styles.inputRTL]}
-                  placeholder={
-                    isRTL ? "٦ أحرف على الأقل" : "At least 6 characters"
-                  }
+                  placeholder={t("atLeast6Chars")}
                   placeholderTextColor="#B8B8B8"
                   secureTextEntry
                   value={password}
@@ -208,9 +196,7 @@ export default function SignUpScreen({ navigation, onAuthSuccess }) {
                 <Ionicons name="lock-closed-outline" size={16} color="#B8B8B8" style={styles.inputIcon} />
                 <TextInput
                   style={[styles.input, isRTL && styles.inputRTL]}
-                  placeholder={
-                    isRTL ? "أعد كلمة المرور" : "Repeat your password"
-                  }
+                  placeholder={t("repeatPassword")}
                   placeholderTextColor="#B8B8B8"
                   secureTextEntry
                   value={confirmPassword}

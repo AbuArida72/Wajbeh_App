@@ -25,23 +25,17 @@ import { SafeAreaProvider, useSafeAreaInsets } from "react-native-safe-area-cont
 const Tab = createBottomTabNavigator();
 const Stack = createStackNavigator();
 
-const TabIcon = ({ iconName, label, focused }) => (
-  <View style={{ alignItems: "center", justifyContent: "center", paddingTop: 8, gap: 3 }}>
+const TabIcon = ({ iconName, focused }) => (
+  <View style={{ alignItems: "center", justifyContent: "center" }}>
     <Ionicons
       name={focused ? iconName : `${iconName}-outline`}
-      size={23}
+      size={24}
       color={focused ? "#2E7D32" : "#8E8E8E"}
     />
-    <Text style={{
-      fontSize: 10,
-      fontWeight: focused ? "600" : "400",
-      color: focused ? "#2E7D32" : "#8E8E8E",
-    }}>{label}</Text>
   </View>
 );
 
 function UserTabs() {
-  const { t } = useLanguage();
   const insets = useSafeAreaInsets();
   return (
     <Tab.Navigator
@@ -53,7 +47,7 @@ function UserTabs() {
           borderTopColor: "#DBDBDB",
           elevation: 0,
           shadowOpacity: 0,
-          height: 56 + (insets.bottom > 0 ? insets.bottom : 8),
+          height: 50 + (insets.bottom > 0 ? insets.bottom : 8),
           paddingBottom: insets.bottom > 0 ? insets.bottom : 8,
           paddingTop: 4,
         },
@@ -65,7 +59,7 @@ function UserTabs() {
         component={HomeScreen}
         options={{
           tabBarIcon: ({ focused }) => (
-            <TabIcon iconName="home" label={t("discover")} focused={focused} />
+            <TabIcon iconName="home" focused={focused} />
           ),
         }}
       />
@@ -74,7 +68,7 @@ function UserTabs() {
         component={SearchScreen}
         options={{
           tabBarIcon: ({ focused }) => (
-            <TabIcon iconName="search" label={t("search")} focused={focused} />
+            <TabIcon iconName="search" focused={focused} />
           ),
         }}
       />
@@ -83,7 +77,7 @@ function UserTabs() {
         component={OrdersScreen}
         options={{
           tabBarIcon: ({ focused }) => (
-            <TabIcon iconName="bag-handle" label={t("orders")} focused={focused} />
+            <TabIcon iconName="bag-handle" focused={focused} />
           ),
         }}
       />
@@ -92,7 +86,7 @@ function UserTabs() {
         component={ProfileScreen}
         options={{
           tabBarIcon: ({ focused }) => (
-            <TabIcon iconName="person" label={t("profile")} focused={focused} />
+            <TabIcon iconName="person" focused={focused} />
           ),
         }}
       />
@@ -101,7 +95,6 @@ function UserTabs() {
 }
 
 function RestaurantTabs() {
-  const { t } = useLanguage();
   const insets = useSafeAreaInsets();
   return (
     <Tab.Navigator
@@ -113,7 +106,7 @@ function RestaurantTabs() {
           borderTopColor: "#DBDBDB",
           elevation: 0,
           shadowOpacity: 0,
-          height: 56 + (insets.bottom > 0 ? insets.bottom : 8),
+          height: 50 + (insets.bottom > 0 ? insets.bottom : 8),
           paddingBottom: insets.bottom > 0 ? insets.bottom : 8,
           paddingTop: 4,
         },
@@ -121,20 +114,20 @@ function RestaurantTabs() {
       }}
     >
       <Tab.Screen
-        name="Reservations"
-        component={RestaurantOrdersScreen}
-        options={{
-          tabBarIcon: ({ focused }) => (
-            <TabIcon iconName="calendar" label={t("reservations")} focused={focused} />
-          ),
-        }}
-      />
-      <Tab.Screen
         name="Dashboard"
         component={DashboardScreen}
         options={{
           tabBarIcon: ({ focused }) => (
-            <TabIcon iconName="grid" label={t("dashboard")} focused={focused} />
+            <TabIcon iconName="grid" focused={focused} />
+          ),
+        }}
+      />
+      <Tab.Screen
+        name="Reservations"
+        component={RestaurantOrdersScreen}
+        options={{
+          tabBarIcon: ({ focused }) => (
+            <TabIcon iconName="calendar" focused={focused} />
           ),
         }}
       />
@@ -143,7 +136,7 @@ function RestaurantTabs() {
         component={MapScreen}
         options={{
           tabBarIcon: ({ focused }) => (
-            <TabIcon iconName="location" label="Map" focused={focused} />
+            <TabIcon iconName="location" focused={focused} />
           ),
         }}
       />
@@ -152,7 +145,7 @@ function RestaurantTabs() {
         component={ProfileScreen}
         options={{
           tabBarIcon: ({ focused }) => (
-            <TabIcon iconName="person" label={t("profile")} focused={focused} />
+            <TabIcon iconName="person" focused={focused} />
           ),
         }}
       />

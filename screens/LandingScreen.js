@@ -41,9 +41,9 @@ export default function LandingScreen({ navigation }) {
           {/* Hero text centered */}
           <View style={styles.heroCenter}>
             <View style={styles.tagPill}>
-              <Text style={styles.tagPillText}>Amman, Jordan</Text>
+              <Text style={styles.tagPillText}>{t("ammanJordan")}</Text>
             </View>
-            <Text style={styles.heroTitle}>Save food. Save money.</Text>
+            <Text style={styles.heroTitle}>{t("heroTitle")}</Text>
             <Text style={styles.heroSub}>{t("landingSubtitle")}</Text>
           </View>
 
@@ -51,17 +51,17 @@ export default function LandingScreen({ navigation }) {
           <View style={styles.statsRow}>
             <View style={styles.statItem}>
               <Text style={styles.statNumber}>70%</Text>
-              <Text style={styles.statLabel}>Off retail</Text>
+              <Text style={styles.statLabel}>{t("offRetail")}</Text>
             </View>
             <View style={styles.statDivider} />
             <View style={styles.statItem}>
               <Text style={styles.statNumber}>5+</Text>
-              <Text style={styles.statLabel}>Restaurants</Text>
+              <Text style={styles.statLabel}>{t("restaurantsLabel")}</Text>
             </View>
             <View style={styles.statDivider} />
             <View style={styles.statItem}>
               <Text style={styles.statNumber}>Daily</Text>
-              <Text style={styles.statLabel}>Fresh bags</Text>
+              <Text style={styles.statLabel}>{t("freshBagsLabel")}</Text>
             </View>
           </View>
         </SafeAreaView>
@@ -71,11 +71,8 @@ export default function LandingScreen({ navigation }) {
       <View style={[styles.sheet, { paddingBottom: insets.bottom + 16 }]}>
         <View style={styles.sheetHandle} />
 
-        <Text style={styles.sheetTitle}>Join the movement</Text>
-        <Text style={styles.sheetSubtitle}>
-          Get restaurant-quality food at a fraction of the price — while helping
-          reduce food waste in Jordan
-        </Text>
+        <Text style={styles.sheetTitle}>{t("joinMovement")}</Text>
+        <Text style={styles.sheetSubtitle}>{t("joinMovementDesc")}</Text>
 
         <View style={styles.btnGroup}>
           <TouchableOpacity
@@ -100,7 +97,7 @@ export default function LandingScreen({ navigation }) {
         <View style={styles.sheetFooter}>
           <View style={styles.footerDivider}>
             <View style={styles.footerLine} />
-            <Text style={styles.footerDividerText}>for restaurant owners</Text>
+            <Text style={styles.footerDividerText}>{t("forRestaurantOwners")}</Text>
             <View style={styles.footerLine} />
           </View>
           <Text style={styles.footerNote}>

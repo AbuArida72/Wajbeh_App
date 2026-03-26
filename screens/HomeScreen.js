@@ -75,13 +75,18 @@ export default function HomeScreen({ navigation }) {
 
   const fetchBags = async () => {
     setLoading(true);
+    const now = new Date();
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
+    const todayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1).toISOString();
     const { data, error } = await supabase
       .from("bags")
       .select(
         `*, restaurants (name, category, area, logo_url, pickup_start, pickup_end, latitude, longitude)`,
       )
       .eq("status", "available")
-      .gt("quantity_remaining", 0);
+      .gt("quantity_remaining", 0)
+      .gte("created_at", todayStart)
+      .lt("created_at", todayEnd);
     if (!error) setBags(data);
     setLoading(false);
   };
@@ -125,6 +130,7 @@ export default function HomeScreen({ navigation }) {
     const dist = item._distance;
 
     return (
+      <View style={styles.cardWrapper}>
       <TouchableOpacity
         style={styles.card}
         activeOpacity={0.93}
@@ -215,6 +221,7 @@ export default function HomeScreen({ navigation }) {
           </View>
         </View>
       </TouchableOpacity>
+      </View>
     );
   };
 
@@ -301,6 +308,7 @@ export default function HomeScreen({ navigation }) {
           showsVerticalScrollIndicator={false}
           onRefresh={fetchBags}
           refreshing={loading}
+          ListHeaderComponent={<View style={{ height: 12 }} />}
         />
       )}
     </View>
@@ -373,7 +381,7 @@ const styles = StyleSheet.create({
   filterTextActive: { color: "#1B5E20", fontWeight: "700" },
 
   // List
-  list: { paddingHorizontal: 0, paddingTop: 12, paddingBottom: 32 },
+  list: { paddingHorizontal: 0, paddingTop: 0, paddingBottom: 32 },
   loadingContainer: {
     flex: 1,
     justifyContent: "center",
@@ -406,16 +414,19 @@ const styles = StyleSheet.create({
   refreshBtnText: { color: "#FFFFFF", fontWeight: "600", fontSize: 15 },
 
   // Card
-  card: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: 14,
+  cardWrapper: {
     marginHorizontal: 12,
     marginBottom: 12,
+    borderRadius: 14,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.09,
     shadowRadius: 8,
     elevation: 4,
+  },
+  card: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 14,
     overflow: "hidden",
   },
   imageWrapper: {

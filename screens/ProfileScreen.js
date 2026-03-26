@@ -197,8 +197,8 @@ export default function ProfileScreen({ navigation }) {
   );
 
   const editModalTitle =
-    editModal.type === "name" ? "Edit Name" :
-    editModal.type === "email" ? "Change Email" : "Change Password";
+    editModal.type === "name" ? t("editName") :
+    editModal.type === "email" ? t("changeEmail") : t("changePassword");
 
   return (
     <>
@@ -211,7 +211,7 @@ export default function ProfileScreen({ navigation }) {
       >
         {/* Header + Avatar hero */}
         <View style={[styles.header, { paddingTop: insets.top + 16 }]}>
-          <Text style={styles.headerTitle}>Profile</Text>
+          <Text style={styles.headerTitle}>{t("profileTitle")}</Text>
           <View style={styles.avatarSection}>
             {/* Avatar */}
             {isRestaurant ? (
@@ -242,7 +242,7 @@ export default function ProfileScreen({ navigation }) {
             <Text style={styles.displayName}>{displayName}</Text>
             <Text style={styles.emailText}>{user?.email}</Text>
             {isRestaurant && (
-              <Text style={styles.restaurantBadge}>Restaurant Account</Text>
+              <Text style={styles.restaurantBadge}>{t("restaurantAccount")}</Text>
             )}
           </View>
         </View>
@@ -251,24 +251,24 @@ export default function ProfileScreen({ navigation }) {
         <View style={styles.statsRow}>
           <View style={styles.statItem}>
             <Text style={styles.statNum}>{orderStats.total}</Text>
-            <Text style={styles.statLabel}>{isRestaurant ? "Orders" : "Orders"}</Text>
+            <Text style={styles.statLabel}>{t("ordersCount")}</Text>
           </View>
           <View style={styles.statDivider} />
           <View style={styles.statItem}>
             <Text style={styles.statNum}>JD {orderStats.spent.toFixed(0)}</Text>
-            <Text style={styles.statLabel}>{isRestaurant ? "Earned" : "Saved"}</Text>
+            <Text style={styles.statLabel}>{isRestaurant ? t("earned") : t("spent")}</Text>
           </View>
           <View style={styles.statDivider} />
           <View style={styles.statItem}>
             <Text style={styles.statNum}>{memberSince}</Text>
-            <Text style={styles.statLabel}>Member</Text>
+            <Text style={styles.statLabel}>{t("memberBadge")}</Text>
           </View>
         </View>
 
         <View style={styles.sectionDivider} />
 
         {/* Account Settings */}
-        <Text style={styles.sectionLabel}>Account Settings</Text>
+        <Text style={styles.sectionLabel}>{t("accountSettings")}</Text>
         <View style={styles.menuSection}>
           <TouchableOpacity
             style={[styles.menuRow, isRTL && styles.rtlRow]}
@@ -280,7 +280,7 @@ export default function ProfileScreen({ navigation }) {
                 <Ionicons name="person-outline" size={18} color="#2E7D32" />
               </View>
               <View>
-                <Text style={styles.menuLabel}>Name</Text>
+                <Text style={styles.menuLabel}>{t("name")}</Text>
                 <Text style={styles.menuSubValue} numberOfLines={1}>{displayName}</Text>
               </View>
             </View>
@@ -299,7 +299,7 @@ export default function ProfileScreen({ navigation }) {
                 <Ionicons name="mail-outline" size={18} color="#1565C0" />
               </View>
               <View>
-                <Text style={styles.menuLabel}>Email</Text>
+                <Text style={styles.menuLabel}>{t("email")}</Text>
                 <Text style={styles.menuSubValue} numberOfLines={1}>{user?.email}</Text>
               </View>
             </View>
@@ -318,7 +318,7 @@ export default function ProfileScreen({ navigation }) {
                 <Ionicons name="lock-closed-outline" size={18} color="#7B1FA2" />
               </View>
               <View>
-                <Text style={styles.menuLabel}>Password</Text>
+                <Text style={styles.menuLabel}>{t("password")}</Text>
                 <Text style={styles.menuSubValue}>••••••••</Text>
               </View>
             </View>
@@ -329,7 +329,7 @@ export default function ProfileScreen({ navigation }) {
         <View style={styles.sectionDivider} />
 
         {/* Preferences */}
-        <Text style={styles.sectionLabel}>Preferences</Text>
+        <Text style={styles.sectionLabel}>{t("preferences")}</Text>
         <View style={styles.menuSection}>
           <TouchableOpacity
             style={[styles.menuRow, isRTL && styles.rtlRow]}
@@ -340,7 +340,7 @@ export default function ProfileScreen({ navigation }) {
               <View style={[styles.menuIconBox, { backgroundColor: "#E0F7FA" }]}>
                 <Ionicons name="globe-outline" size={18} color="#00838F" />
               </View>
-              <Text style={styles.menuLabel}>Language</Text>
+              <Text style={styles.menuLabel}>{t("language")}</Text>
             </View>
             <View style={styles.menuRight}>
               <Text style={styles.menuValue}>{language === "en" ? "English" : "العربية"}</Text>
@@ -359,7 +359,7 @@ export default function ProfileScreen({ navigation }) {
               <View style={[styles.menuIconBox, { backgroundColor: "#F3E5F5" }]}>
                 <Ionicons name="chatbubble-ellipses-outline" size={18} color="#7B1FA2" />
               </View>
-              <Text style={styles.menuLabel}>Contact Us</Text>
+              <Text style={styles.menuLabel}>{t("contactUs")}</Text>
             </View>
             <Ionicons name="chevron-forward" size={16} color="#B8B8B8" />
           </TouchableOpacity>
@@ -382,7 +382,7 @@ export default function ProfileScreen({ navigation }) {
 
         {/* Version */}
         <View style={styles.versionRow}>
-          <Text style={styles.versionText}>Wajbeh v1.0.0</Text>
+          <Text style={styles.versionText}>{t("appVersion")}</Text>
         </View>
       </ScrollView>
 
@@ -408,30 +408,30 @@ export default function ProfileScreen({ navigation }) {
 
             {editModal.type === "password" ? (
               <>
-                <Text style={styles.inputLabel}>New Password</Text>
+                <Text style={styles.inputLabel}>{t("newPassword")}</Text>
                 <TextInput
                   style={styles.input}
                   value={editValue}
                   onChangeText={setEditValue}
                   secureTextEntry
-                  placeholder="Min. 6 characters"
+                  placeholder={t("atLeast6Chars")}
                   placeholderTextColor="#B8B8B8"
                   autoFocus
                 />
-                <Text style={styles.inputLabel}>Confirm Password</Text>
+                <Text style={styles.inputLabel}>{t("confirmPassword")}</Text>
                 <TextInput
                   style={styles.input}
                   value={editValue2}
                   onChangeText={setEditValue2}
                   secureTextEntry
-                  placeholder="Re-enter password"
+                  placeholder={t("repeatPassword")}
                   placeholderTextColor="#B8B8B8"
                 />
               </>
             ) : (
               <>
                 <Text style={styles.inputLabel}>
-                  {editModal.type === "name" ? "Full Name" : "Email Address"}
+                  {editModal.type === "name" ? t("fullName") : t("emailAddress")}
                 </Text>
                 <TextInput
                   style={styles.input}
@@ -439,14 +439,12 @@ export default function ProfileScreen({ navigation }) {
                   onChangeText={setEditValue}
                   keyboardType={editModal.type === "email" ? "email-address" : "default"}
                   autoCapitalize={editModal.type === "email" ? "none" : "words"}
-                  placeholder={editModal.type === "name" ? "Your name" : "email@example.com"}
+                  placeholder={editModal.type === "name" ? t("yourName") : "email@example.com"}
                   placeholderTextColor="#B8B8B8"
                   autoFocus
                 />
                 {editModal.type === "email" && (
-                  <Text style={styles.inputHint}>
-                    A confirmation link will be sent to your new email.
-                  </Text>
+                  <Text style={styles.inputHint}>{t("confirmEmailHint")}</Text>
                 )}
               </>
             )}
@@ -456,7 +454,7 @@ export default function ProfileScreen({ navigation }) {
                 style={styles.modalCancelBtn}
                 onPress={() => setEditModal({ visible: false, type: null })}
               >
-                <Text style={styles.modalCancelText}>Cancel</Text>
+                <Text style={styles.modalCancelText}>{t("cancel")}</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={[styles.modalSaveBtn, saving && { opacity: 0.6 }]}
@@ -466,7 +464,7 @@ export default function ProfileScreen({ navigation }) {
                 {saving ? (
                   <ActivityIndicator color="#FFFFFF" size="small" />
                 ) : (
-                  <Text style={styles.modalSaveText}>Save</Text>
+                  <Text style={styles.modalSaveText}>{t("saveChanges")}</Text>
                 )}
               </TouchableOpacity>
             </View>
@@ -570,6 +568,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#FFFFFF",
     borderRadius: 14,
     marginHorizontal: 12,
+    marginBottom: 8,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.09,

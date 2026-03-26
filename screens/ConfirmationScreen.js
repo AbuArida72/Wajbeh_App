@@ -34,7 +34,7 @@ export default function ConfirmationScreen({ route, navigation }) {
     },
     {
       iconName: "calendar-outline",
-      label: "Date",
+      label: t("dateLabel"),
       value: new Date().toLocaleDateString("en-JO", {
         day: "numeric",
         month: "long",
@@ -43,18 +43,9 @@ export default function ConfirmationScreen({ route, navigation }) {
   ];
 
   const nextSteps = [
-    {
-      step: "1",
-      text: `Head to ${bag.restaurant} during ${bag.pickup_start} – ${bag.pickup_end}`,
-    },
-    {
-      step: "2",
-      text: "Show the pickup code in your Orders tab to the staff",
-    },
-    {
-      step: "3",
-      text: "Collect your surprise bag and enjoy",
-    },
+    { step: "1", text: t("step1Confirm", { restaurant: bag.restaurant, start: bag.pickup_start, end: bag.pickup_end }) },
+    { step: "2", text: t("step2Confirm") },
+    { step: "3", text: t("step3Confirm") },
   ];
 
   return (
@@ -76,7 +67,7 @@ export default function ConfirmationScreen({ route, navigation }) {
           </Text>
           <View style={styles.savingsPill}>
             <Text style={styles.savingsPillText}>
-              You saved JD {savings}
+              {t("youSavedAmount")} JD {savings}
             </Text>
           </View>
         </View>
@@ -96,19 +87,19 @@ export default function ConfirmationScreen({ route, navigation }) {
             ) : (
               <View style={styles.codeLockedContent}>
                 <Ionicons name="lock-closed-outline" size={28} color="#B8B8B8" />
-                <Text style={styles.codeLockTitle}>Code Hidden</Text>
-                <Text style={styles.codeLockSub}>Available at {bag.pickup_start}</Text>
+                <Text style={styles.codeLockTitle}>{t("codeHidden")}</Text>
+                <Text style={styles.codeLockSub}>{t("availableAt")} {bag.pickup_start}</Text>
               </View>
             )}
             <Text style={styles.codeHint}>
-              {codeVisible ? "Show at counter" : "Check your orders when pickup time arrives"}
+              {codeVisible ? t("showAtCounter") : t("checkOrdersWhenReady")}
             </Text>
           </View>
         </View>
 
         {/* Order summary */}
         <View style={styles.detailsCard}>
-          <Text style={styles.detailsHeader}>Order Summary</Text>
+          <Text style={styles.detailsHeader}>{t("orderSummary")}</Text>
 
           {orderDetails.map((item, i, arr) => (
             <View key={i}>
@@ -146,7 +137,7 @@ export default function ConfirmationScreen({ route, navigation }) {
 
         {/* What's next */}
         <View style={styles.nextSection}>
-          <Text style={styles.nextTitle}>What's next?</Text>
+          <Text style={styles.nextTitle}>{t("whatsNext")}</Text>
           {nextSteps.map((item, i) => (
             <View key={i} style={styles.nextItem}>
               <View style={styles.nextStepBadge}>

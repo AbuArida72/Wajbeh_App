@@ -35,7 +35,7 @@ export default function SignInScreen({ navigation, onAuthSuccess }) {
     });
     if (error) {
       if (error.message.toLowerCase().includes("email not confirmed")) {
-        setError("Please confirm your email first. Check your inbox.");
+        setError(t("emailNotConfirmed"));
       } else {
         setError(error.message);
       }
@@ -43,7 +43,7 @@ export default function SignInScreen({ navigation, onAuthSuccess }) {
       return;
     }
     if (!data.user.email_confirmed_at) {
-      setError("Please confirm your email before signing in.");
+      setError(t("confirmEmailFirst"));
       await supabase.auth.signOut();
       setLoading(false);
       return;
@@ -72,7 +72,7 @@ export default function SignInScreen({ navigation, onAuthSuccess }) {
             </TouchableOpacity>
             <TouchableOpacity style={styles.langBtn} onPress={toggleLanguage}>
               <Text style={styles.langBtnText}>
-                {language === "en" ? "AR" : "EN"}
+                {language === "en" ? t("switchToArabic") : t("switchToEnglish")}
               </Text>
             </TouchableOpacity>
           </View>
@@ -80,7 +80,7 @@ export default function SignInScreen({ navigation, onAuthSuccess }) {
           {/* Brand + heading */}
           <View style={styles.headingSection}>
             <Text style={styles.brandText}>Wajbeh</Text>
-            <Text style={[styles.heading, isRTL && styles.rtl]}>Sign in</Text>
+            <Text style={[styles.heading, isRTL && styles.rtl]}>{t("signInTitle")}</Text>
             <Text style={[styles.subHeading, isRTL && styles.rtl]}>
               {t("signInSubtitle")}
             </Text>
@@ -97,7 +97,7 @@ export default function SignInScreen({ navigation, onAuthSuccess }) {
                 <Ionicons name="mail-outline" size={16} color="#B8B8B8" style={styles.inputIcon} />
                 <TextInput
                   style={[styles.input, isRTL && styles.inputRTL]}
-                  placeholder="you@email.com"
+                  placeholder={t("emailPlaceholder")}
                   placeholderTextColor="#B8B8B8"
                   keyboardType="email-address"
                   autoCapitalize="none"
@@ -116,7 +116,7 @@ export default function SignInScreen({ navigation, onAuthSuccess }) {
                 <Ionicons name="lock-closed-outline" size={16} color="#B8B8B8" style={styles.inputIcon} />
                 <TextInput
                   style={[styles.input, isRTL && styles.inputRTL]}
-                  placeholder={isRTL ? "كلمة المرور" : "Your password"}
+                  placeholder={t("passwordPlaceholder")}
                   placeholderTextColor="#B8B8B8"
                   secureTextEntry
                   value={password}
@@ -152,7 +152,7 @@ export default function SignInScreen({ navigation, onAuthSuccess }) {
             {/* Divider */}
             <View style={styles.dividerRow}>
               <View style={styles.dividerLine} />
-              <Text style={styles.dividerText}>or</Text>
+              <Text style={styles.dividerText}>{t("orDivider")}</Text>
               <View style={styles.dividerLine} />
             </View>
 
@@ -171,13 +171,13 @@ export default function SignInScreen({ navigation, onAuthSuccess }) {
           {/* Trust badges */}
           <View style={styles.trustRow}>
             <View style={styles.trustBadge}>
-              <Text style={styles.trustBadgeText}>Secure</Text>
+              <Text style={styles.trustBadgeText}>{t("secureBadge")}</Text>
             </View>
             <View style={styles.trustBadge}>
-              <Text style={styles.trustBadgeText}>Eco-friendly</Text>
+              <Text style={styles.trustBadgeText}>{t("ecoFriendlyBadge")}</Text>
             </View>
             <View style={styles.trustBadge}>
-              <Text style={styles.trustBadgeText}>Local</Text>
+              <Text style={styles.trustBadgeText}>{t("localBadge")}</Text>
             </View>
           </View>
         </ScrollView>
