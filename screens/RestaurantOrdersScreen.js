@@ -82,7 +82,7 @@ export default function RestaurantOrdersScreen() {
     if (data && data.bags?.restaurant_id === restaurantId) {
       setFoundOrder(data);
     } else {
-      Alert.alert("Not Found", "No active reservation found with this code.");
+      Alert.alert(t("noReservationsTitle"), t("noReservationFound"));
     }
     setSearching(false);
   };

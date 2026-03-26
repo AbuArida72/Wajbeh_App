@@ -150,6 +150,14 @@ export default function ConfirmationScreen({ route, navigation }) {
           ))}
         </View>
 
+        {/* Bag disclaimer */}
+        <View style={styles.disclaimerBox}>
+          <Ionicons name="information-circle-outline" size={16} color="#F57F17" />
+          <Text style={[styles.disclaimerText, isRTL && styles.rtl]}>
+            {t("bagDisclaimerText")}
+          </Text>
+        </View>
+
         {/* Buttons */}
         <View style={styles.btnGroup}>
           <TouchableOpacity
@@ -367,6 +375,21 @@ const styles = StyleSheet.create({
   },
   nextStepNum: { color: "#FFFFFF", fontSize: 12, fontWeight: "700" },
   nextText: { fontSize: 13, color: "#737373", flex: 1, lineHeight: 19 },
+
+  // Disclaimer
+  disclaimerBox: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 10,
+    backgroundColor: "#FFF8E1",
+    borderRadius: 12,
+    padding: 14,
+    marginHorizontal: 20,
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: "#FFE082",
+  },
+  disclaimerText: { fontSize: 12, color: "#795548", lineHeight: 18, flex: 1 },
 
   // Buttons
   btnGroup: { paddingHorizontal: 20, gap: 10 },

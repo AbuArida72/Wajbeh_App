@@ -26,6 +26,15 @@ const isPickupTimeActive = (pickupStart) => {
   return now >= start;
 };
 
+const isPickupWindowExpired = (pickupEnd) => {
+  if (!pickupEnd) return false;
+  const now = new Date();
+  const [h, m] = pickupEnd.slice(0, 5).split(":").map(Number);
+  const end = new Date();
+  end.setHours(h, m, 0, 0);
+  return now > end;
+};
+
 export default function OrdersScreen({ navigation }) {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -96,7 +105,7 @@ export default function OrdersScreen({ navigation }) {
   });
   const historyOrders = orders.filter((o) => {
     const d = new Date(o.reserved_at);
-    return d.toLocaleDateString("en-CA") !== localToday && o.status === "picked_up";
+    return d.toLocaleDateString("en-CA") !== localToday;
   });
 
   const confirmPickup = async (orderId) => {
@@ -148,7 +157,6 @@ export default function OrdersScreen({ navigation }) {
   const renderOrder = ({ item }) => {
     const bag = item.bags;
     const restaurant = bag?.restaurants;
-    const config = getStatusConfig(item.status);
     const isPast = item.status === "picked_up" || item.status === "cancelled";
     // Effective pickup time: order snapshot → bag override → restaurant default
     const effectiveStart =
@@ -156,6 +164,15 @@ export default function OrdersScreen({ navigation }) {
     const effectiveEnd =
       item.pickup_end ?? bag?.pickup_end ?? restaurant?.pickup_end;
     const codeVisible = isPickupTimeActive(effectiveStart);
+    const windowExpired = isPickupWindowExpired(effectiveEnd);
+    // Incomplete = pickup window passed and not yet picked up
+    const isIncomplete =
+      windowExpired &&
+      item.status !== "picked_up" &&
+      item.status !== "cancelled";
+    const config = isIncomplete
+      ? { color: "#B8B8B8", bg: "#F5F5F5", label: t("statusIncomplete") }
+      : getStatusConfig(item.status);
 
     return (
       <View style={[styles.card, isPast && styles.cardPast]}>
@@ -202,8 +219,28 @@ export default function OrdersScreen({ navigation }) {
           </Text>
         </View>
 
-        {/* Code + price — only for active orders */}
-        {!isPast && (
+        {/* Incomplete pickup notice */}
+        {isIncomplete && (
+          <>
+            <View style={styles.incompleteBox}>
+              <Ionicons name="alert-circle-outline" size={15} color="#B8B8B8" />
+              <Text style={[styles.incompleteText, isRTL && styles.rtl]}>
+                {t("incompletePickup")}
+              </Text>
+            </View>
+            <View style={[styles.fulfilledRow, isRTL && styles.rtlRow]}>
+              <View style={styles.paidSmall}>
+                <Text style={styles.paidSmallLabel}>{t("paid")}</Text>
+                <Text style={styles.paidSmallValue}>
+                  JD {parseFloat(item.amount_paid).toFixed(2)}
+                </Text>
+              </View>
+            </View>
+          </>
+        )}
+
+        {/* Code + price — active orders that are not incomplete */}
+        {!isPast && !isIncomplete && (
           <View style={[styles.codeRow, isRTL && styles.rtlRow]}>
             <View style={[styles.codeCard, !codeVisible && styles.codeCardLocked]}>
               <Text style={styles.codeLabel}>{t("pickupCode")}</Text>
@@ -213,7 +250,7 @@ export default function OrdersScreen({ navigation }) {
                 <View style={styles.codeLockContent}>
                   <Ionicons name="lock-closed-outline" size={20} color="#B8B8B8" />
                   <Text style={styles.codeLockText}>
-                    Available at {effectiveStart?.slice(0, 5)}
+                    {t("availableAt")} {effectiveStart?.slice(0, 5)}
                   </Text>
                 </View>
               )}
@@ -227,8 +264,8 @@ export default function OrdersScreen({ navigation }) {
           </View>
         )}
 
-        {/* Status-based actions */}
-        {item.status === "reserved" && (
+        {/* Status-based actions — only when not incomplete */}
+        {item.status === "reserved" && !isIncomplete && (
           <View style={styles.infoBox}>
             <Ionicons name="phone-portrait-outline" size={14} color="#737373" />
             <Text style={[styles.infoBoxText, isRTL && styles.rtl]}>
@@ -237,7 +274,7 @@ export default function OrdersScreen({ navigation }) {
           </View>
         )}
 
-        {item.status === "arriving" && (
+        {item.status === "arriving" && !isIncomplete && (
           <TouchableOpacity
             style={styles.confirmBtn}
             onPress={() => confirmPickup(item.id)}
@@ -595,6 +632,19 @@ const styles = StyleSheet.create({
   priceValue: { fontSize: 18, fontWeight: "700", color: "#0F0F0F" },
 
   // Info box
+  incompleteBox: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    backgroundColor: "#F5F5F5",
+    borderRadius: 10,
+    padding: 10,
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: "#E0E0E0",
+  },
+  incompleteText: { fontSize: 12, color: "#B8B8B8", flex: 1 },
+
   infoBox: {
     flexDirection: "row",
     alignItems: "center",

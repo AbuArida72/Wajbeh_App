@@ -53,18 +53,15 @@ export default function SearchScreen({ navigation }) {
   }, [query, bags]);
 
   const fetchBags = async () => {
-    const now = new Date();
-    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
-    const todayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1).toISOString();
+    const todayDate = new Date().toLocaleDateString("en-CA"); // YYYY-MM-DD in local time
     const { data, error } = await supabase
       .from("bags")
       .select(
         `*, restaurants (name, category, area, logo_url)`,
       )
       .eq("status", "available")
-      .gt("quantity_remaining", 0)
-      .gte("created_at", todayStart)
-      .lt("created_at", todayEnd);
+      .eq("available_date", todayDate)
+      .gt("quantity_remaining", 0);
     if (!error) {
       setBags(data);
       setFiltered(data);

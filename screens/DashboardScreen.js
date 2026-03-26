@@ -18,6 +18,24 @@ import { useFocusEffect } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
 import { supabase } from "../lib/supabase";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useLanguage } from "../lang/LanguageContext";
+
+const BAG_CONTENTS = [
+  { key: "contentsBread", icon: "bread-outline" },
+  { key: "contentsPastries", icon: "cafe-outline" },
+  { key: "contentsSandwiches", icon: "fast-food-outline" },
+  { key: "contentsSalads", icon: "leaf-outline" },
+  { key: "contentsMainDishes", icon: "restaurant-outline" },
+  { key: "contentsDesserts", icon: "ice-cream-outline" },
+  { key: "contentsDrinks", icon: "water-outline" },
+  { key: "contentsSnacks", icon: "pizza-outline" },
+  { key: "contentsWraps", icon: "layers-outline" },
+  { key: "contentsPizza", icon: "pizza-outline" },
+  { key: "contentsSoup", icon: "flame-outline" },
+  { key: "contentsRice", icon: "server-outline" },
+  { key: "contentsGrilled", icon: "bonfire-outline" },
+  { key: "contentsSweets", icon: "heart-outline" },
+];
 
 const TIMES = (() => {
   const t = [];
@@ -112,6 +130,7 @@ const dpStyles = StyleSheet.create({
 
 export default function DashboardScreen() {
   const insets = useSafeAreaInsets();
+  const { t, isRTL } = useLanguage();
   const [bags, setBags] = useState([]);
   const [restaurant, setRestaurant] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -124,6 +143,7 @@ export default function DashboardScreen() {
   const [pickupStart, setPickupStart] = useState(null);
   const [pickupEnd, setPickupEnd] = useState(null);
   const [description, setDescription] = useState("");
+  const [selectedContents, setSelectedContents] = useState([]);
   const [openDropdown, setOpenDropdown] = useState(null); // 'qty' | 'start' | 'end'
 
   const toggleDropdown = (key) => setOpenDropdown((prev) => (prev === key ? null : key));
@@ -159,11 +179,11 @@ export default function DashboardScreen() {
 
   const addBag = async () => {
     if (!title || !price || !originalValue || !quantity || !pickupStart || !pickupEnd) {
-      Alert.alert("Missing Fields", "Please fill in all required fields including pickup times and quantity");
+      Alert.alert(t("fillAllFields"), "");
       return;
     }
     if (pickupStart >= pickupEnd) {
-      Alert.alert("Invalid Times", "Pickup end time must be after start time");
+      Alert.alert(t("pickupWindow"), "");
       return;
     }
     setSaving(true);
@@ -180,6 +200,7 @@ export default function DashboardScreen() {
         status: "available",
         pickup_start: pickupStart + ":00",
         pickup_end: pickupEnd + ":00",
+        possible_contents: selectedContents,
         image_url:
           "https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=600",
       }),
@@ -196,6 +217,7 @@ export default function DashboardScreen() {
       setPickupStart(null);
       setPickupEnd(null);
       setDescription("");
+      setSelectedContents([]);
       setOpenDropdown(null);
       fetchDashboard();
     }
@@ -271,7 +293,7 @@ export default function DashboardScreen() {
                   : styles.bagStatusTextSoldOut,
               ]}
             >
-              {isAvailable ? "Active" : "Sold out"}
+              {isAvailable ? t("active") : t("soldOutStatus").replace("🔴 ", "")}
             </Text>
           </View>
         </View>
@@ -279,21 +301,21 @@ export default function DashboardScreen() {
         {/* Price row */}
         <View style={styles.bagPriceRow}>
           <View style={styles.bagPriceItem}>
-            <Text style={styles.bagPriceLabel}>Your price</Text>
+            <Text style={styles.bagPriceLabel}>{t("yourPrice").replace(" (JD) *", "")}</Text>
             <Text style={styles.bagPriceValue}>
               JD {parseFloat(item.price).toFixed(2)}
             </Text>
           </View>
           <View style={styles.bagPriceDivider} />
           <View style={styles.bagPriceItem}>
-            <Text style={styles.bagPriceLabel}>Original</Text>
+            <Text style={styles.bagPriceLabel}>{t("originalValue")}</Text>
             <Text style={styles.bagPriceOriginal}>
               JD {parseFloat(item.original_value).toFixed(2)}
             </Text>
           </View>
           <View style={styles.bagPriceDivider} />
           <View style={styles.bagPriceItem}>
-            <Text style={styles.bagPriceLabel}>Earned</Text>
+            <Text style={styles.bagPriceLabel}>{t("earnedLabel")}</Text>
             <Text style={styles.bagPriceEarned}>
               JD {(parseFloat(item.price) * reserved).toFixed(2)}
             </Text>
@@ -304,7 +326,7 @@ export default function DashboardScreen() {
         <View style={styles.progressSection}>
           <View style={styles.progressHeader}>
             <Text style={styles.progressLabel}>
-              {reserved} of {item.quantity_total} reserved
+              {reserved} / {item.quantity_total}
             </Text>
             <Text style={styles.progressPct}>{Math.round(fillPct)}%</Text>
           </View>
@@ -313,7 +335,7 @@ export default function DashboardScreen() {
           </View>
           <View style={styles.progressFooter}>
             <Text style={styles.progressRemaining}>
-              {item.quantity_remaining} remaining
+              {item.quantity_remaining} {t("remaining")}
             </Text>
           </View>
         </View>
@@ -325,7 +347,7 @@ export default function DashboardScreen() {
             onPress={() => markSoldOut(item.id)}
             activeOpacity={0.88}
           >
-            <Text style={styles.soldOutBtnText}>Mark as sold out</Text>
+            <Text style={styles.soldOutBtnText}>{t("markSoldOut")}</Text>
           </TouchableOpacity>
         )}
       </View>
@@ -384,7 +406,7 @@ export default function DashboardScreen() {
                 activeOpacity={0.88}
               >
                 <Ionicons name="add" size={16} color="#1B5E20" />
-                <Text style={styles.addBtnLabel}>Add Bag</Text>
+                <Text style={styles.addBtnLabel}>{t("addBag").replace("+ ", "")}</Text>
               </TouchableOpacity>
             </View>
 
@@ -392,44 +414,42 @@ export default function DashboardScreen() {
             <View style={styles.statsRow}>
               <View style={styles.statItem}>
                 <Text style={styles.statNum}>{totalBags}</Text>
-                <Text style={styles.statLabel}>Posted</Text>
+                <Text style={styles.statLabel}>{t("todayBags")}</Text>
               </View>
               <View style={styles.statItemDivider} />
               <View style={styles.statItem}>
                 <Text style={styles.statNum}>{totalReserved}</Text>
-                <Text style={styles.statLabel}>Reserved</Text>
+                <Text style={styles.statLabel}>{t("statusReserved")}</Text>
               </View>
               <View style={styles.statItemDivider} />
               <View style={styles.statItem}>
                 <Text style={styles.statNum}>JD {totalEarned.toFixed(0)}</Text>
-                <Text style={styles.statLabel}>Earned</Text>
+                <Text style={styles.statLabel}>{t("earnedLabel")}</Text>
               </View>
               <View style={styles.statItemDivider} />
               <View style={styles.statItem}>
                 <Text style={styles.statNum}>{availableBags}</Text>
-                <Text style={styles.statLabel}>Active</Text>
+                <Text style={styles.statLabel}>{t("active")}</Text>
               </View>
             </View>
 
             {/* Section title */}
             <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Today's Bags</Text>
-              <Text style={styles.sectionCount}>{bags.length} total</Text>
+              <Text style={styles.sectionTitle}>{t("todayBags")}</Text>
+              <Text style={styles.sectionCount}>{bags.length}</Text>
             </View>
           </View>
         }
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
             <Ionicons name="bag-handle-outline" size={40} color="#B8B8B8" />
-            <Text style={styles.emptyTitle}>No bags posted today</Text>
-            <Text style={styles.emptySubtitle}>
-              Tap "Add Bag" to post your first bag and start getting reservations
-            </Text>
+            <Text style={styles.emptyTitle}>{t("noBagsPosted")}</Text>
+            <Text style={styles.emptySubtitle}>{t("noBagsPostedSub")}</Text>
             <TouchableOpacity
               style={styles.emptyAddBtn}
               onPress={() => setModalVisible(true)}
             >
-              <Text style={styles.emptyAddBtnText}>Post Your First Bag</Text>
+              <Text style={styles.emptyAddBtnText}>{t("addNewBag")}</Text>
             </TouchableOpacity>
           </View>
         }
@@ -450,7 +470,7 @@ export default function DashboardScreen() {
                 <View style={styles.modalTitleIcon}>
                   <Ionicons name="bag-handle" size={18} color="#FFFFFF" />
                 </View>
-                <Text style={styles.modalTitle}>Add New Bag</Text>
+                <Text style={styles.modalTitle}>{t("addNewBag")}</Text>
               </View>
               <TouchableOpacity
                 style={styles.modalCloseBtn}
@@ -474,7 +494,7 @@ export default function DashboardScreen() {
                   <Text style={[styles.modalSectionTitle, { color: "#1565C0" }]}>BAG DETAILS</Text>
                 </View>
 
-                <Text style={styles.inputLabel}>Bag title *</Text>
+                <Text style={styles.inputLabel}>{t("bagTitle")}</Text>
                 <View style={styles.inputWrapper}>
                   <Ionicons name="pricetag-outline" size={15} color="#B8B8B8" style={{ marginRight: 8 }} />
                   <TextInput
@@ -486,7 +506,7 @@ export default function DashboardScreen() {
                   />
                 </View>
 
-                <Text style={styles.inputLabel}>Description</Text>
+                <Text style={styles.inputLabel}>{t("description")}</Text>
                 <View style={[styles.inputWrapper, styles.inputWrapperMulti]}>
                   <TextInput
                     style={[styles.input, styles.inputMulti]}
@@ -500,6 +520,43 @@ export default function DashboardScreen() {
                 </View>
               </View>
 
+              {/* POSSIBLE CONTENTS */}
+              <View style={styles.modalSection}>
+                <View style={styles.sectionChip}>
+                  <Ionicons name="list-outline" size={13} color="#2E7D32" />
+                  <Text style={[styles.modalSectionTitle, { color: "#2E7D32" }]}>{t("possibleContentsSection")}</Text>
+                </View>
+                <Text style={[styles.inputLabel, { marginBottom: 10 }]}>{t("tapToSelect")}</Text>
+                <View style={styles.contentsGrid}>
+                  {BAG_CONTENTS.map((item) => {
+                    const selected = selectedContents.includes(item.key);
+                    return (
+                      <TouchableOpacity
+                        key={item.key}
+                        style={[styles.contentChip, selected && styles.contentChipSelected]}
+                        onPress={() =>
+                          setSelectedContents((prev) =>
+                            prev.includes(item.key)
+                              ? prev.filter((k) => k !== item.key)
+                              : [...prev, item.key]
+                          )
+                        }
+                        activeOpacity={0.7}
+                      >
+                        <Ionicons
+                          name={item.icon}
+                          size={14}
+                          color={selected ? "#FFFFFF" : "#2E7D32"}
+                        />
+                        <Text style={[styles.contentChipText, selected && styles.contentChipTextSelected]}>
+                          {t(item.key)}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              </View>
+
               {/* PRICING */}
               <View style={styles.modalSection}>
                 <View style={styles.sectionChip}>
@@ -509,7 +566,7 @@ export default function DashboardScreen() {
 
                 <View style={styles.inputRow}>
                   <View style={styles.inputHalf}>
-                    <Text style={styles.inputLabel}>Your price (JD) *</Text>
+                    <Text style={styles.inputLabel}>{t("yourPrice")}</Text>
                     <View style={[styles.inputWrapper, styles.inputWrapperGreen]}>
                       <Text style={styles.inputPrefixGreen}>JD</Text>
                       <TextInput
@@ -523,7 +580,7 @@ export default function DashboardScreen() {
                     </View>
                   </View>
                   <View style={styles.inputHalf}>
-                    <Text style={styles.inputLabel}>Original value (JD) *</Text>
+                    <Text style={styles.inputLabel}>{t("originalValueInput")}</Text>
                     <View style={styles.inputWrapper}>
                       <Text style={styles.inputPrefix}>JD</Text>
                       <TextInput
@@ -546,11 +603,10 @@ export default function DashboardScreen() {
                       </Text>
                     </View>
                     <Text style={styles.discountPreviewText}>
-                      Customers save{" "}
+                      {t("youSave")}{" "}
                       <Text style={styles.discountHighlight}>
                         JD {(parseFloat(originalValue) - parseFloat(price)).toFixed(2)}
                       </Text>
-                      {" "}per bag — great deal!
                     </Text>
                   </View>
                 )}
@@ -560,7 +616,7 @@ export default function DashboardScreen() {
               <View style={styles.modalSection}>
                 <View style={styles.sectionChip}>
                   <Ionicons name="layers-outline" size={13} color="#6A1B9A" />
-                  <Text style={[styles.modalSectionTitle, { color: "#6A1B9A" }]}>QUANTITY</Text>
+                  <Text style={[styles.modalSectionTitle, { color: "#6A1B9A" }]}>{t("quantity").replace(" *", "")}</Text>
                 </View>
                 <DropdownPicker
                   placeholder="Select number of bags"
@@ -581,7 +637,7 @@ export default function DashboardScreen() {
                 </View>
                 <View style={styles.inputRow}>
                   <View style={styles.inputHalf}>
-                    <Text style={styles.inputLabel}>Start time *</Text>
+                    <Text style={styles.inputLabel}>{t("from")} *</Text>
                     <DropdownPicker
                       placeholder="From"
                       value={pickupStart}
@@ -596,7 +652,7 @@ export default function DashboardScreen() {
                     />
                   </View>
                   <View style={styles.inputHalf}>
-                    <Text style={styles.inputLabel}>End time *</Text>
+                    <Text style={styles.inputLabel}>{t("until")} *</Text>
                     <DropdownPicker
                       placeholder="Until"
                       value={pickupEnd}
@@ -619,7 +675,7 @@ export default function DashboardScreen() {
                   {saving ? (
                     <ActivityIndicator color="#fff" />
                   ) : (
-                    <Text style={styles.saveBtnText}>Post Bag</Text>
+                    <Text style={styles.saveBtnText}>{t("postBag")}</Text>
                   )}
                 </TouchableOpacity>
               </View>
@@ -1004,4 +1060,24 @@ const styles = StyleSheet.create({
   },
   saveBtnDisabled: { opacity: 0.6 },
   saveBtnText: { color: "#FFFFFF", fontSize: 16, fontWeight: "700", letterSpacing: 0.3 },
+
+  // Contents picker
+  contentsGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  contentChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    borderWidth: 1.5,
+    borderColor: "#A5D6A7",
+    backgroundColor: "#F9FBE7",
+    borderRadius: 20,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  contentChipSelected: {
+    backgroundColor: "#2E7D32",
+    borderColor: "#2E7D32",
+  },
+  contentChipText: { fontSize: 13, color: "#2E7D32", fontWeight: "600" },
+  contentChipTextSelected: { color: "#FFFFFF" },
 });

@@ -10,7 +10,7 @@ import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context"
 import { useLanguage } from "../lang/LanguageContext";
 
 export default function LandingScreen({ navigation }) {
-  const { t, language, toggleLanguage } = useLanguage();
+  const { t, language, toggleLanguage, isRTL } = useLanguage();
   const insets = useSafeAreaInsets();
 
   return (
@@ -29,7 +29,7 @@ export default function LandingScreen({ navigation }) {
 
         <SafeAreaView style={styles.heroContent}>
           {/* Top bar */}
-          <View style={styles.topBar}>
+          <View style={[styles.topBar, isRTL && styles.rtlRow]}>
             <Text style={styles.logoText}>Wajbeh</Text>
             <TouchableOpacity style={styles.langBtn} onPress={toggleLanguage}>
               <Text style={styles.langBtnText}>
@@ -43,8 +43,8 @@ export default function LandingScreen({ navigation }) {
             <View style={styles.tagPill}>
               <Text style={styles.tagPillText}>{t("ammanJordan")}</Text>
             </View>
-            <Text style={styles.heroTitle}>{t("heroTitle")}</Text>
-            <Text style={styles.heroSub}>{t("landingSubtitle")}</Text>
+            <Text style={[styles.heroTitle, isRTL && styles.rtl]}>{t("heroTitle")}</Text>
+            <Text style={[styles.heroSub, isRTL && styles.rtl]}>{t("landingSubtitle")}</Text>
           </View>
 
           {/* Stats floating at bottom of hero */}
@@ -60,7 +60,7 @@ export default function LandingScreen({ navigation }) {
             </View>
             <View style={styles.statDivider} />
             <View style={styles.statItem}>
-              <Text style={styles.statNumber}>Daily</Text>
+              <Text style={styles.statNumber}>{t("daily")}</Text>
               <Text style={styles.statLabel}>{t("freshBagsLabel")}</Text>
             </View>
           </View>
@@ -71,8 +71,8 @@ export default function LandingScreen({ navigation }) {
       <View style={[styles.sheet, { paddingBottom: insets.bottom + 16 }]}>
         <View style={styles.sheetHandle} />
 
-        <Text style={styles.sheetTitle}>{t("joinMovement")}</Text>
-        <Text style={styles.sheetSubtitle}>{t("joinMovementDesc")}</Text>
+        <Text style={[styles.sheetTitle, isRTL && styles.rtl]}>{t("joinMovement")}</Text>
+        <Text style={[styles.sheetSubtitle, isRTL && styles.rtl]}>{t("joinMovementDesc")}</Text>
 
         <View style={styles.btnGroup}>
           <TouchableOpacity
@@ -112,6 +112,8 @@ export default function LandingScreen({ navigation }) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#0D2B0D" },
+  rtl: { textAlign: "right", writingDirection: "rtl" },
+  rtlRow: { flexDirection: "row-reverse" },
 
   // Hero
   hero: { flex: 1 },

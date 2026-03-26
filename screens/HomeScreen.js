@@ -75,18 +75,15 @@ export default function HomeScreen({ navigation }) {
 
   const fetchBags = async () => {
     setLoading(true);
-    const now = new Date();
-    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
-    const todayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1).toISOString();
+    const todayDate = new Date().toLocaleDateString("en-CA"); // YYYY-MM-DD in local time
     const { data, error } = await supabase
       .from("bags")
       .select(
         `*, restaurants (name, category, area, logo_url, pickup_start, pickup_end, latitude, longitude)`,
       )
       .eq("status", "available")
-      .gt("quantity_remaining", 0)
-      .gte("created_at", todayStart)
-      .lt("created_at", todayEnd);
+      .eq("available_date", todayDate)
+      .gt("quantity_remaining", 0);
     if (!error) setBags(data);
     setLoading(false);
   };
@@ -130,7 +127,6 @@ export default function HomeScreen({ navigation }) {
     const dist = item._distance;
 
     return (
-      <View style={styles.cardWrapper}>
       <TouchableOpacity
         style={styles.card}
         activeOpacity={0.93}
@@ -142,8 +138,8 @@ export default function HomeScreen({ navigation }) {
               area: r?.area,
               category: r?.category,
               logo: r?.logo_url,
-              pickup_start: (item.pickup_start || r?.pickup_start)?.slice(0, 5),
-              pickup_end: (item.pickup_end || r?.pickup_end)?.slice(0, 5),
+              pickup_start: r?.pickup_start?.slice(0, 5),
+              pickup_end: r?.pickup_end?.slice(0, 5),
               image: item.image_url,
             },
           })
@@ -201,7 +197,7 @@ export default function HomeScreen({ navigation }) {
           <View style={[styles.pickupRow, isRTL && styles.rtlRow]}>
             <Ionicons name="time-outline" size={12} color="#B8B8B8" />
             <Text style={styles.pickupText}>
-              {(item.pickup_start || r?.pickup_start)?.slice(0, 5)} – {(item.pickup_end || r?.pickup_end)?.slice(0, 5)}
+              {r?.pickup_start?.slice(0, 5)} – {r?.pickup_end?.slice(0, 5)}
             </Text>
           </View>
 
@@ -221,7 +217,6 @@ export default function HomeScreen({ navigation }) {
           </View>
         </View>
       </TouchableOpacity>
-      </View>
     );
   };
 
@@ -231,16 +226,11 @@ export default function HomeScreen({ navigation }) {
       {/* Header */}
       <View style={[styles.header, { paddingTop: insets.top + 16 }]}>
         <View style={styles.headerTop}>
-          <View style={{ flex: 1 }} />
-          <View style={styles.headerCenter}>
-            <Text style={styles.brand}>Wajbeh</Text>
-            <Text style={styles.brandSub}>Today's available bags</Text>
-          </View>
-          <View style={{ flex: 1, alignItems: "flex-end" }}>
-            <View style={styles.countBadge}>
-              <Text style={styles.countNum}>{bags.length}</Text>
-              <Text style={styles.countLabel}>bags</Text>
-            </View>
+          <Text style={styles.brand}>Wajbeh</Text>
+          <Text style={[styles.brandSub, isRTL && styles.rtl]}>{t("todaysAvailableBags")}</Text>
+          <View style={[styles.countBadge, isRTL ? styles.countBadgeLeft : styles.countBadgeRight]}>
+            <Text style={styles.countNum}>{bags.length}</Text>
+            <Text style={styles.countLabel}>{t("bagsUnit")}</Text>
           </View>
         </View>
 
@@ -248,7 +238,7 @@ export default function HomeScreen({ navigation }) {
         {userLocation && (
           <View style={styles.locationBar}>
             <Ionicons name="location-outline" size={12} color="#B8B8B8" />
-            <Text style={styles.locationBarText}>Showing nearest first</Text>
+            <Text style={[styles.locationBarText, isRTL && styles.rtl]}>{t("nearestFirst")}</Text>
           </View>
         )}
 
@@ -284,7 +274,7 @@ export default function HomeScreen({ navigation }) {
       {loading ? (
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color="#2E7D32" />
-          <Text style={styles.loadingText}>Finding fresh bags...</Text>
+          <Text style={[styles.loadingText, isRTL && styles.rtl]}>{t("findingBags")}</Text>
         </View>
       ) : filtered.length === 0 ? (
         <View style={styles.emptyContainer}>
@@ -308,7 +298,6 @@ export default function HomeScreen({ navigation }) {
           showsVerticalScrollIndicator={false}
           onRefresh={fetchBags}
           refreshing={loading}
-          ListHeaderComponent={<View style={{ height: 12 }} />}
         />
       )}
     </View>
@@ -329,11 +318,11 @@ const styles = StyleSheet.create({
   headerTop: {
     flexDirection: "row",
     alignItems: "center",
-    paddingBottom: 4,
+    justifyContent: "space-between",
+    paddingBottom: 8,
   },
-  headerCenter: { flex: 2, alignItems: "center" },
-  brand: { fontSize: 24, fontWeight: "700", color: "#FFFFFF", textAlign: "center" },
-  brandSub: { fontSize: 13, color: "rgba(255,255,255,0.7)", marginTop: 2, textAlign: "center" },
+  brand: { fontSize: 22, fontWeight: "700", color: "#FFFFFF" },
+  brandSub: { fontSize: 12, color: "rgba(255,255,255,0.7)", marginTop: 2 },
   countBadge: {
     alignItems: "center",
     backgroundColor: "rgba(255,255,255,0.15)",
@@ -349,7 +338,6 @@ const styles = StyleSheet.create({
   locationBar: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "center",
     gap: 4,
     paddingBottom: 6,
   },
@@ -381,7 +369,7 @@ const styles = StyleSheet.create({
   filterTextActive: { color: "#1B5E20", fontWeight: "700" },
 
   // List
-  list: { paddingHorizontal: 0, paddingTop: 0, paddingBottom: 32 },
+  list: { paddingHorizontal: 0, paddingTop: 12, paddingBottom: 32 },
   loadingContainer: {
     flex: 1,
     justifyContent: "center",
@@ -414,19 +402,16 @@ const styles = StyleSheet.create({
   refreshBtnText: { color: "#FFFFFF", fontWeight: "600", fontSize: 15 },
 
   // Card
-  cardWrapper: {
+  card: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 14,
     marginHorizontal: 12,
     marginBottom: 12,
-    borderRadius: 14,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.09,
     shadowRadius: 8,
     elevation: 4,
-  },
-  card: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: 14,
     overflow: "hidden",
   },
   imageWrapper: {

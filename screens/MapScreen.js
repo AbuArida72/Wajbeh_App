@@ -12,6 +12,7 @@ import MapView, { Marker } from "react-native-maps";
 import * as Location from "expo-location";
 import { Ionicons } from "@expo/vector-icons";
 import { supabase } from "../lib/supabase";
+import { useLanguage } from "../lang/LanguageContext";
 
 const AMMAN_REGION = {
   latitude: 31.9539,
@@ -21,6 +22,7 @@ const AMMAN_REGION = {
 };
 
 export default function MapScreen() {
+  const { t, isRTL } = useLanguage();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [restaurant, setRestaurant] = useState(null);
@@ -89,10 +91,10 @@ export default function MapScreen() {
       .eq("id", restaurant.id);
 
     if (error) {
-      Alert.alert("Error", "Could not save location. Please try again.");
+      Alert.alert(t("error") || "Error", t("locationSaveError"));
     } else {
       setSavedMarker({ ...marker });
-      Alert.alert("Location Saved!", "Customers can now find your restaurant on the map.");
+      Alert.alert(t("locationSaved"), t("locationSavedMsg"));
     }
     setSaving(false);
   };
@@ -104,10 +106,7 @@ export default function MapScreen() {
   const useMyLocation = async () => {
     const { status } = await Location.requestForegroundPermissionsAsync();
     if (status !== "granted") {
-      Alert.alert(
-        "Permission Needed",
-        "Please allow location access to use this feature.",
-      );
+      Alert.alert(t("permissionNeeded"), t("locationPermissionMsg"));
       return;
     }
     const loc = await Location.getCurrentPositionAsync({
@@ -134,7 +133,7 @@ export default function MapScreen() {
     return (
       <View style={styles.center}>
         <ActivityIndicator size="large" color="#2E7D32" />
-        <Text style={styles.loadingText}>Loading map...</Text>
+        <Text style={styles.loadingText}>{t("loadingMap")}</Text>
       </View>
     );
   }
@@ -143,22 +142,20 @@ export default function MapScreen() {
     <View style={styles.container}>
       {/* Instruction bar */}
       {savedMarker ? (
-        <View style={styles.instructionBar}>
+        <View style={[styles.instructionBar, isRTL && styles.rtlRow]}>
           <Ionicons name="location" size={20} color="#2E7D32" />
           <View style={{ flex: 1 }}>
-            <Text style={styles.instructionTitle}>Location confirmed</Text>
-            <Text style={styles.instructionSub}>Contact support to update your location</Text>
+            <Text style={[styles.instructionTitle, isRTL && styles.rtl]}>{t("locationConfirmed")}</Text>
+            <Text style={[styles.instructionSub, isRTL && styles.rtl]}>{t("contactSupportLocation")}</Text>
           </View>
         </View>
       ) : (
-        <View style={styles.instructionBar}>
+        <View style={[styles.instructionBar, isRTL && styles.rtlRow]}>
           <Ionicons name="location-outline" size={20} color="#737373" />
           <View style={{ flex: 1 }}>
-            <Text style={styles.instructionTitle}>Pin your restaurant</Text>
-            <Text style={styles.instructionSub}>
-              {marker
-                ? "Tap anywhere to move the pin, then save"
-                : "Tap on the map to place your pin"}
+            <Text style={[styles.instructionTitle, isRTL && styles.rtl]}>{t("pinRestaurant")}</Text>
+            <Text style={[styles.instructionSub, isRTL && styles.rtl]}>
+              {marker ? t("tapToMovePin") : t("tapToPlacePin")}
             </Text>
           </View>
           <TouchableOpacity style={styles.myLocationBtn} onPress={useMyLocation}>
@@ -180,8 +177,8 @@ export default function MapScreen() {
         {marker && (
           <Marker
             coordinate={marker}
-            title={restaurant?.name || "My Restaurant"}
-            description="Your restaurant location"
+            title={restaurant?.name || t("myRestaurant")}
+            description={t("yourRestaurantLocation")}
           />
         )}
       </MapView>
@@ -197,13 +194,13 @@ export default function MapScreen() {
 
       {/* Save / Cancel bar — only when no savedMarker and hasChanges */}
       {!savedMarker && hasChanges && (
-        <View style={styles.actionBar}>
+        <View style={[styles.actionBar, isRTL && styles.rtlRow]}>
           <TouchableOpacity
             style={styles.cancelBtn}
             onPress={cancelChanges}
             disabled={saving}
           >
-            <Text style={styles.cancelBtnText}>Cancel</Text>
+            <Text style={styles.cancelBtnText}>{t("cancel")}</Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={[styles.saveBtn, saving && styles.saveBtnDisabled]}
@@ -213,7 +210,7 @@ export default function MapScreen() {
             {saving ? (
               <ActivityIndicator color="#FFFFFF" size="small" />
             ) : (
-              <Text style={styles.saveBtnText}>Save Location</Text>
+              <Text style={styles.saveBtnText}>{t("saveLocation")}</Text>
             )}
           </TouchableOpacity>
         </View>
@@ -224,6 +221,8 @@ export default function MapScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#FFFFFF" },
+  rtl: { textAlign: "right", writingDirection: "rtl" },
+  rtlRow: { flexDirection: "row-reverse" },
 
   center: { flex: 1, justifyContent: "center", alignItems: "center", gap: 12 },
   loadingText: { fontSize: 14, color: "#737373" },

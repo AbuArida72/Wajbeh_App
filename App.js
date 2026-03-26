@@ -20,6 +20,7 @@ import LandingScreen from "./screens/LandingScreen";
 import SignInScreen from "./screens/SignInScreen";
 import SignUpScreen from "./screens/SignUpScreen";
 import ContactScreen from "./screens/ContactScreen";
+import PaymentScreen from "./screens/PaymentScreen";
 import { SafeAreaProvider, useSafeAreaInsets } from "react-native-safe-area-context";
 
 const Tab = createBottomTabNavigator();
@@ -160,6 +161,7 @@ function UserStack() {
       <Stack.Screen name="BagDetail" component={BagDetailScreen} />
       <Stack.Screen name="Confirmation" component={ConfirmationScreen} />
       <Stack.Screen name="Contact" component={ContactScreen} />
+      <Stack.Screen name="Payment" component={PaymentScreen} />
     </Stack.Navigator>
   );
 }

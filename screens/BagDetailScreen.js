@@ -8,6 +8,7 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   Alert,
+  Modal,
 } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { useState } from "react";
@@ -19,20 +20,58 @@ export default function BagDetailScreen({ route, navigation }) {
   const { bag } = route.params;
   const discount = Math.round((1 - bag.price / bag.original_value) * 100);
   const savings = (bag.original_value - bag.price).toFixed(2);
+  const [checking, setChecking] = useState(false);
   const [reserving, setReserving] = useState(false);
   const [reserved, setReserved] = useState(false);
+  const [confirmModal, setConfirmModal] = useState(false);
+  const [paymentMethod, setPaymentMethod] = useState(null);
   const { t, isRTL } = useLanguage();
   const insets = useSafeAreaInsets();
 
-  const handleReserve = async () => {
-    setReserving(true);
+  // Step 1: tap Reserve — check for payment method first
+  const handleReserveTap = async () => {
+    setChecking(true);
     try {
       const { data: authData } = await supabase.auth.getUser();
       if (!authData?.user) {
-        Alert.alert("Sign In Required", "Please sign in to reserve a bag.");
-        setReserving(false);
+        Alert.alert(t("signIn"), t("signInSubtitle"));
         return;
       }
+      const { data: pm } = await supabase
+        .from("payment_methods")
+        .select("*")
+        .eq("user_id", authData.user.id)
+        .single();
+
+      if (!pm) {
+        Alert.alert(t("noPaymentTitle"), t("noPaymentMessage"), [
+          {
+            text: t("goToProfile"),
+            onPress: () =>
+              navigation.reset({
+                index: 0,
+                routes: [{ name: "Tabs", params: { screen: "Profile" } }],
+              }),
+          },
+          { text: t("notNow"), style: "cancel" },
+        ]);
+        return;
+      }
+
+      setPaymentMethod(pm);
+      setConfirmModal(true);
+    } catch (err) {
+      Alert.alert("Error", "Something went wrong. Please try again.");
+    } finally {
+      setChecking(false);
+    }
+  };
+
+  // Step 2: user confirmed in modal — do the actual reservation
+  const handleConfirmReserve = async () => {
+    setReserving(true);
+    try {
+      const { data: authData } = await supabase.auth.getUser();
       const { data, error } = await supabase.rpc("reserve_bag", {
         p_bag_id: bag.id,
         p_user_id: authData.user.id,
@@ -40,6 +79,7 @@ export default function BagDetailScreen({ route, navigation }) {
       if (error) throw error;
       if (data.success) {
         setReserved(true);
+        setConfirmModal(false);
         navigation.navigate("Confirmation", {
           pickupCode: data.pickup_code,
           bag,
@@ -49,9 +89,9 @@ export default function BagDetailScreen({ route, navigation }) {
       }
     } catch (err) {
       Alert.alert("Error", "Something went wrong. Please try again.");
-      console.log(err);
+    } finally {
+      setReserving(false);
     }
-    setReserving(false);
   };
 
   const expectItems = [
@@ -199,12 +239,51 @@ export default function BagDetailScreen({ route, navigation }) {
             </Text>
             <View style={styles.aboutCard}>
               <Text style={[styles.aboutText, isRTL && styles.rtl]}>
-                {isRTL
-                  ? `كيس مفاجئ من ${bag.restaurant}! تتغير المحتويات يومياً بناءً على ما هو متاح عند الإغلاق. طعام عالي الجودة كان سيُهدر — بجزء من السعر.`
-                  : `A surprise bag from ${bag.restaurant}! Contents vary daily based on what's freshly available at closing time. Quality food that would otherwise go to waste — at a fraction of the price.`}
+                {t("aboutBagDesc", { restaurant: bag.restaurant })}
               </Text>
             </View>
           </View>
+
+          {/* Possible Contents */}
+          {bag.possible_contents && bag.possible_contents.length > 0 && (
+            <View style={styles.section}>
+              <Text style={[styles.sectionLabel, isRTL && styles.rtl]}>
+                {t("possibleContents")}
+              </Text>
+              <View style={styles.contentsCard}>
+                <View style={styles.contentTagsRow}>
+                  {bag.possible_contents.map((key, i) => (
+                    <View key={i} style={styles.contentTag}>
+                      <Text style={styles.contentTagText}>{t(key)}</Text>
+                    </View>
+                  ))}
+                </View>
+                <View style={styles.disclaimerBanner}>
+                  <Ionicons name="information-circle-outline" size={15} color="#F57F17" />
+                  <Text style={[styles.disclaimerText, isRTL && styles.rtl]}>
+                    {t("bagDisclaimerText")}
+                  </Text>
+                </View>
+              </View>
+            </View>
+          )}
+
+          {/* Bag is random disclaimer — shown when no contents selected too */}
+          {(!bag.possible_contents || bag.possible_contents.length === 0) && (
+            <View style={styles.section}>
+              <View style={styles.disclaimerCardStandalone}>
+                <Ionicons name="information-circle-outline" size={18} color="#F57F17" />
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.disclaimerTitleText, isRTL && styles.rtl]}>
+                    {t("bagDisclaimerTitle")}
+                  </Text>
+                  <Text style={[styles.disclaimerBodyText, isRTL && styles.rtl]}>
+                    {t("bagDisclaimerText")}
+                  </Text>
+                </View>
+              </View>
+            </View>
+          )}
 
           {/* What to expect */}
           <View style={styles.section}>
@@ -250,14 +329,13 @@ export default function BagDetailScreen({ route, navigation }) {
         <TouchableOpacity
           style={[
             styles.reserveBtn,
-            (bag.quantity_remaining === 0 || reserved) &&
-              styles.reserveBtnDisabled,
+            (bag.quantity_remaining === 0 || reserved) && styles.reserveBtnDisabled,
           ]}
-          onPress={handleReserve}
-          disabled={bag.quantity_remaining === 0 || reserved || reserving}
+          onPress={handleReserveTap}
+          disabled={bag.quantity_remaining === 0 || reserved || checking}
           activeOpacity={0.88}
         >
-          {reserving ? (
+          {checking ? (
             <ActivityIndicator color="#FFFFFF" />
           ) : (
             <Text style={styles.reserveBtnText}>
@@ -270,6 +348,111 @@ export default function BagDetailScreen({ route, navigation }) {
           )}
         </TouchableOpacity>
       </View>
+
+      {/* Reservation confirmation modal */}
+      <Modal
+        visible={confirmModal}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setConfirmModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalSheet, { paddingBottom: insets.bottom + 16 }]}>
+            {/* Handle */}
+            <View style={styles.modalHandle} />
+
+            {/* Header */}
+            <View style={styles.modalHeader}>
+              <Text style={[styles.modalTitle, isRTL && styles.rtl]}>
+                {t("confirmReservation")}
+              </Text>
+              <TouchableOpacity
+                style={styles.modalCloseBtn}
+                onPress={() => setConfirmModal(false)}
+                activeOpacity={0.7}
+              >
+                <Ionicons name="close" size={18} color="#737373" />
+              </TouchableOpacity>
+            </View>
+
+            {/* Order summary */}
+            <View style={styles.modalSection}>
+              <Text style={styles.modalSectionLabel}>{t("orderSummaryLabel")}</Text>
+              <View style={styles.summaryCard}>
+                <View style={[styles.summaryRow, isRTL && styles.rtlRow]}>
+                  <Text style={[styles.summaryLabel, isRTL && styles.rtl]}>{t("restaurant")}</Text>
+                  <Text style={[styles.summaryValue, isRTL && styles.rtl]} numberOfLines={1}>{bag.restaurant}</Text>
+                </View>
+                <View style={styles.summaryDivider} />
+                <View style={[styles.summaryRow, isRTL && styles.rtlRow]}>
+                  <Text style={[styles.summaryLabel, isRTL && styles.rtl]}>{t("bag")}</Text>
+                  <Text style={[styles.summaryValue, isRTL && styles.rtl]} numberOfLines={1}>{bag.title}</Text>
+                </View>
+                <View style={styles.summaryDivider} />
+                <View style={[styles.summaryRow, isRTL && styles.rtlRow]}>
+                  <Text style={[styles.summaryLabel, isRTL && styles.rtl]}>{t("from")} / {t("until")}</Text>
+                  <Text style={[styles.summaryValue, isRTL && styles.rtl]}>{bag.pickup_start} – {bag.pickup_end}</Text>
+                </View>
+                <View style={styles.summaryDivider} />
+                <View style={[styles.summaryRow, isRTL && styles.rtlRow]}>
+                  <Text style={[styles.summaryLabel, isRTL && styles.rtl]}>{t("total")}</Text>
+                  <Text style={styles.summaryTotal}>JD {parseFloat(bag.price).toFixed(2)}</Text>
+                </View>
+              </View>
+            </View>
+
+            {/* Payment method */}
+            {paymentMethod && (
+              <View style={styles.modalSection}>
+                <Text style={styles.modalSectionLabel}>{t("paymentLabel")}</Text>
+                <View style={styles.cardRow}>
+                  <View style={styles.cardIconBox}>
+                    <Ionicons name="card-outline" size={20} color="#2E7D32" />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={[styles.cardMasked, isRTL && styles.rtl]}>
+                      {paymentMethod.card_number_masked}
+                    </Text>
+                    <Text style={[styles.cardMeta, isRTL && styles.rtl]}>
+                      {paymentMethod.cardholder_name} · {paymentMethod.expiry_date}
+                    </Text>
+                  </View>
+                </View>
+              </View>
+            )}
+
+            {/* Disclaimer */}
+            <View style={styles.modalDisclaimer}>
+              <Ionicons name="information-circle-outline" size={14} color="#F57F17" />
+              <Text style={[styles.modalDisclaimerText, isRTL && styles.rtl]}>
+                {t("bagDisclaimerText")}
+              </Text>
+            </View>
+
+            {/* Actions */}
+            <TouchableOpacity
+              style={[styles.reserveModalBtn, reserving && { opacity: 0.7 }]}
+              onPress={handleConfirmReserve}
+              disabled={reserving}
+              activeOpacity={0.88}
+            >
+              {reserving ? (
+                <ActivityIndicator color="#FFFFFF" />
+              ) : (
+                <Text style={styles.reserveModalBtnText}>{t("reserveAndPay")}</Text>
+              )}
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.cancelModalBtn}
+              onPress={() => setConfirmModal(false)}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.cancelModalBtnText}>{t("cancel")}</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -442,6 +625,49 @@ const styles = StyleSheet.create({
   },
   todayText: { fontSize: 11, color: "#2E7D32", fontWeight: "600" },
 
+  // Possible contents
+  contentsCard: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 12,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: "#EBEBEB",
+    gap: 12,
+  },
+  contentTagsRow: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  contentTag: {
+    backgroundColor: "#E8F5E9",
+    borderWidth: 1,
+    borderColor: "#A5D6A7",
+    borderRadius: 20,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+  },
+  contentTagText: { fontSize: 13, color: "#2E7D32", fontWeight: "600" },
+  disclaimerBanner: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 8,
+    backgroundColor: "#FFF8E1",
+    borderRadius: 10,
+    padding: 10,
+    borderWidth: 1,
+    borderColor: "#FFE082",
+  },
+  disclaimerText: { fontSize: 12, color: "#795548", lineHeight: 18, flex: 1 },
+  disclaimerCardStandalone: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 12,
+    backgroundColor: "#FFF8E1",
+    borderRadius: 12,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: "#FFE082",
+  },
+  disclaimerTitleText: { fontSize: 13, fontWeight: "700", color: "#5D4037", marginBottom: 4 },
+  disclaimerBodyText: { fontSize: 12, color: "#795548", lineHeight: 18 },
+
   // About
   aboutCard: {
     backgroundColor: "#FFFFFF",
@@ -473,6 +699,119 @@ const styles = StyleSheet.create({
   },
   expectText: { fontSize: 13, color: "#33691E", fontWeight: "500", flex: 1 },
   expectTextNo: { color: "#B71C1C" },
+
+  // Confirmation modal
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.45)",
+    justifyContent: "flex-end",
+  },
+  modalSheet: {
+    backgroundColor: "#FFFFFF",
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    paddingTop: 12,
+    paddingHorizontal: 20,
+  },
+  modalHandle: {
+    width: 40,
+    height: 4,
+    backgroundColor: "#DBDBDB",
+    borderRadius: 2,
+    alignSelf: "center",
+    marginBottom: 16,
+  },
+  modalHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 20,
+  },
+  modalTitle: { fontSize: 17, fontWeight: "700", color: "#0F0F0F" },
+  modalCloseBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: "#F5F5F5",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  modalSection: { marginBottom: 16 },
+  modalSectionLabel: {
+    fontSize: 11,
+    fontWeight: "700",
+    color: "#B8B8B8",
+    textTransform: "uppercase",
+    letterSpacing: 1,
+    marginBottom: 10,
+  },
+  summaryCard: {
+    backgroundColor: "#FAFAFA",
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#EBEBEB",
+    overflow: "hidden",
+  },
+  summaryRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingVertical: 11,
+    paddingHorizontal: 14,
+  },
+  summaryDivider: { height: 1, backgroundColor: "#F0F0F0" },
+  summaryLabel: { fontSize: 13, color: "#737373" },
+  summaryValue: { fontSize: 13, fontWeight: "500", color: "#0F0F0F", maxWidth: "55%", textAlign: "right" },
+  summaryTotal: { fontSize: 15, fontWeight: "700", color: "#2E7D32" },
+  cardRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    backgroundColor: "#F9FBF9",
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#A5D6A7",
+    padding: 14,
+  },
+  cardIconBox: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "#E8F5E9",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  cardMasked: { fontSize: 14, fontWeight: "600", color: "#0F0F0F", letterSpacing: 1 },
+  cardMeta: { fontSize: 12, color: "#737373", marginTop: 2 },
+  modalDisclaimer: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 8,
+    backgroundColor: "#FFF8E1",
+    borderRadius: 10,
+    padding: 10,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: "#FFE082",
+  },
+  modalDisclaimerText: { fontSize: 11, color: "#795548", flex: 1, lineHeight: 16 },
+  reserveModalBtn: {
+    backgroundColor: "#2E7D32",
+    borderRadius: 12,
+    paddingVertical: 15,
+    alignItems: "center",
+    marginBottom: 10,
+  },
+  reserveModalBtnText: { color: "#FFFFFF", fontSize: 16, fontWeight: "700" },
+  cancelModalBtn: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 12,
+    paddingVertical: 14,
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "#DBDBDB",
+  },
+  cancelModalBtnText: { color: "#737373", fontSize: 15, fontWeight: "500" },
 
   // Footer
   footer: {

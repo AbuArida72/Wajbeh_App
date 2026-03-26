@@ -306,6 +306,25 @@ export default function ProfileScreen({ navigation }) {
             <Ionicons name="chevron-forward" size={16} color="#B8B8B8" />
           </TouchableOpacity>
 
+          {!isRestaurant && (
+            <>
+              <View style={styles.menuDivider} />
+              <TouchableOpacity
+                style={[styles.menuRow, isRTL && styles.rtlRow]}
+                onPress={() => navigation.navigate("Payment")}
+                activeOpacity={0.7}
+              >
+                <View style={[styles.menuLeft, isRTL && styles.rtlRow]}>
+                  <View style={[styles.menuIconBox, { backgroundColor: "#E8F5E9" }]}>
+                    <Ionicons name="card-outline" size={18} color="#2E7D32" />
+                  </View>
+                  <Text style={styles.menuLabel}>{t("paymentMethod")}</Text>
+                </View>
+                <Ionicons name="chevron-forward" size={16} color="#B8B8B8" />
+              </TouchableOpacity>
+            </>
+          )}
+
           <View style={styles.menuDivider} />
 
           <TouchableOpacity

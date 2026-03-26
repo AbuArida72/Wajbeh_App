@@ -67,6 +67,9 @@ export const translations = {
     comeBackSignIn: "Come back and sign in",
     goToSignIn: "Go to Sign In",
 
+    // Landing
+    daily: "Daily",
+
     // Home screen
     appName: "🌿 Wajbeh",
     todaysAvailableBags: "Today's available bags",
@@ -86,6 +89,7 @@ export const translations = {
     pickupToday: "Pick up today",
 
     // Bag detail
+    aboutBagDesc: "A surprise bag from {restaurant}! Contents vary daily based on what's freshly available at closing time. Quality food that would otherwise go to waste — at a fraction of the price.",
     youPay: "You pay",
     originalValue: "Original value",
     youSave: "You save",
@@ -107,6 +111,8 @@ export const translations = {
     total: "Total",
 
     // Confirmation
+    bag: "Bag",
+    restaurant: "Restaurant",
     bagReserved: "Bag Reserved!",
     showCodeAt: "Show this code at",
     toCollect: "to collect your bag",
@@ -129,12 +135,12 @@ export const translations = {
     // Orders
     myOrders: "My Orders",
     today: "Today",
-    pastMonth: "Past Month",
+    pastMonth: "Past Orders",
     spent: "Spent",
     noOrdersToday: "No orders today",
-    noOrdersPastMonth: "No orders this month",
+    noOrdersPastMonth: "No past orders",
     noOrdersTodaySub: "Bags you reserve today will appear here",
-    noOrdersPastMonthSub: "Fulfilled orders from the past 30 days will show here",
+    noOrdersPastMonthSub: "Your order history will appear here",
     noOrdersTitle: "No orders yet",
     noOrdersSubtitle: "Reserve a bag and it will appear here",
     browseBags: "Browse Bags",
@@ -147,6 +153,8 @@ export const translations = {
     statusArriving: "On my way!",
     statusPickedUp: "Picked up",
     statusCancelled: "Cancelled",
+    statusIncomplete: "Incomplete",
+    incompletePickup: "Pickup window ended without collection",
     pickedUpOn: "Picked up on",
 
     // Profile
@@ -223,6 +231,7 @@ export const translations = {
     earnedLabel: "Earned",
     activeTab: "Active ({count})",
     fulfilledTab: "Fulfilled ({count})",
+    noReservationFound: "No active reservation found with this code.",
     noActiveRes: "No active reservations",
     noFulfilled: "No fulfilled orders yet",
     noReservationsSub: "Reservations will appear here when customers reserve your bags",
@@ -252,6 +261,11 @@ export const translations = {
     myRestaurant: "My Restaurant",
     yourRestaurantLocation: "Your restaurant location",
     saveLocation: "Save Location",
+    locationSaved: "Location saved",
+    locationSavedMsg: "Customers can now find your restaurant on the map.",
+    locationSaveError: "Could not save location. Please try again.",
+    permissionNeeded: "Permission needed",
+    locationPermissionMsg: "Please allow location access to use this feature.",
 
     // Contact
     contactTitle: "Contact Us",
@@ -268,6 +282,69 @@ export const translations = {
     faqRestaurant: "How do restaurants join?",
     faqRestaurantAnswer: "Email us at hello@wajbeh.jo and we'll get your restaurant set up within 24 hours.",
     wajbehTagline: "Wajbeh · Fighting food waste in Jordan",
+
+    // Bag possible contents
+    possibleContents: "Possible Contents",
+    contentsGuide: "What might be in your bag",
+    contentsBread: "Bread",
+    contentsPastries: "Pastries",
+    contentsSandwiches: "Sandwiches",
+    contentsSalads: "Salads",
+    contentsMainDishes: "Main Dishes",
+    contentsDesserts: "Desserts",
+    contentsDrinks: "Drinks",
+    contentsSnacks: "Snacks",
+    contentsWraps: "Wraps",
+    contentsPizza: "Pizza",
+    contentsSoup: "Soup",
+    contentsRice: "Rice Dishes",
+    contentsGrilled: "Grilled",
+    contentsSweets: "Sweets",
+    contentsLabel: "May include",
+    bagDisclaimerTitle: "Surprise Bag",
+    bagDisclaimerText: "Exact contents vary daily. The items shown are what this restaurant may include — your bag is always a delightful surprise!",
+    contentDisclaimer: "Contents are random and may vary from what's shown.",
+    selectContents: "Select possible contents",
+    tapToSelect: "Tap items your bag may contain",
+
+    // Dashboard contents section
+    possibleContentsSection: "POSSIBLE CONTENTS",
+    possibleContentsNote: "Let customers know what might be in the bag",
+
+    // Payment
+    paymentTitle: "Payment Method",
+    paymentSubtitle: "Secure card details for checkout",
+    cardNumber: "Card Number",
+    cardNumberPlaceholder: "1234 5678 9012 3456",
+    cardholderName: "Cardholder Name",
+    cardholderNamePlaceholder: "Name on card",
+    expiryDate: "Expiry Date",
+    expiryPlaceholder: "MM/YY",
+    cvv: "CVV",
+    cvvPlaceholder: "•••",
+    saveCard: "Save Card",
+    paymentMethod: "Payment Method",
+    addCard: "Add / Edit Card",
+    cardAdded: "Card saved successfully!",
+    yourCard: "YOUR CARD",
+    validThru: "VALID THRU",
+    cardPreviewName: "CARDHOLDER NAME",
+    noCardSaved: "No card saved",
+    noCardSavedSub: "Add a card for quick and easy checkout",
+    cardEndingIn: "Card ending in",
+    removeCard: "Remove Card",
+    confirmRemoveCard: "Remove your saved card?",
+    cardSecureNote: "Your card details are encrypted and stored securely",
+
+    // Reservation confirmation
+    confirmReservation: "Confirm Reservation",
+    reserveAndPay: "Reserve & Pay",
+    orderSummaryLabel: "Order Summary",
+    paymentLabel: "Payment",
+    noPaymentTitle: "No Payment Method",
+    noPaymentMessage: "You need to add a payment method before reserving. Go to Profile and tap Payment Method to add a card.",
+    goToProfile: "Go to Profile",
+    notNow: "Not Now",
   },
 
   ar: {
@@ -338,6 +415,9 @@ export const translations = {
     comeBackSignIn: "عد وسجّل دخولك",
     goToSignIn: "الذهاب لتسجيل الدخول",
 
+    // Landing
+    daily: "يومياً",
+
     // Home screen
     appName: "وجبة 🌿",
     todaysAvailableBags: "أكياس اليوم المتاحة",
@@ -357,6 +437,7 @@ export const translations = {
     pickupToday: "الاستلام اليوم",
 
     // Bag detail
+    aboutBagDesc: "كيس مفاجئ من {restaurant}! تتغير المحتويات يومياً بناءً على ما هو متاح عند الإغلاق. طعام عالي الجودة كان سيُهدر — بجزء من السعر.",
     youPay: "تدفع",
     originalValue: "القيمة الأصلية",
     youSave: "توفّر",
@@ -378,6 +459,8 @@ export const translations = {
     total: "الإجمالي",
 
     // Confirmation
+    bag: "الكيس",
+    restaurant: "المطعم",
     bagReserved: "تم حجز الكيس!",
     showCodeAt: "أرِ هذا الرمز في",
     toCollect: "لاستلام كيسك",
@@ -400,12 +483,12 @@ export const translations = {
     // Orders
     myOrders: "طلباتي",
     today: "اليوم",
-    pastMonth: "الشهر الماضي",
+    pastMonth: "الطلبات السابقة",
     spent: "المنفق",
     noOrdersToday: "لا طلبات اليوم",
-    noOrdersPastMonth: "لا طلبات هذا الشهر",
+    noOrdersPastMonth: "لا طلبات سابقة",
     noOrdersTodaySub: "الأكياس التي تحجزها اليوم ستظهر هنا",
-    noOrdersPastMonthSub: "الطلبات المكتملة خلال الثلاثين يوماً الماضية ستظهر هنا",
+    noOrdersPastMonthSub: "سجل طلباتك سيظهر هنا",
     noOrdersTitle: "لا توجد طلبات بعد",
     noOrdersSubtitle: "احجز كيساً وسيظهر هنا",
     browseBags: "تصفح الأكياس",
@@ -418,6 +501,8 @@ export const translations = {
     statusArriving: "في الطريق!",
     statusPickedUp: "تم الاستلام",
     statusCancelled: "ملغي",
+    statusIncomplete: "غير مكتمل",
+    incompletePickup: "انتهى وقت الاستلام دون استلام الكيس",
     pickedUpOn: "تم الاستلام في",
 
     // Profile
@@ -494,6 +579,7 @@ export const translations = {
     earnedLabel: "المكتسب",
     activeTab: "النشطة ({count})",
     fulfilledTab: "المكتملة ({count})",
+    noReservationFound: "لا يوجد حجز نشط بهذا الرمز.",
     noActiveRes: "لا توجد حجوزات نشطة",
     noFulfilled: "لا توجد طلبات مكتملة بعد",
     noReservationsSub: "ستظهر الحجوزات هنا عندما يحجز الزبائن أكياسك",
@@ -523,6 +609,11 @@ export const translations = {
     myRestaurant: "مطعمي",
     yourRestaurantLocation: "موقع مطعمك",
     saveLocation: "حفظ الموقع",
+    locationSaved: "تم حفظ الموقع",
+    locationSavedMsg: "يمكن للزبائن الآن إيجاد مطعمك على الخريطة.",
+    locationSaveError: "تعذّر حفظ الموقع. يرجى المحاولة مجدداً.",
+    permissionNeeded: "إذن مطلوب",
+    locationPermissionMsg: "يرجى السماح بالوصول إلى موقعك لاستخدام هذه الميزة.",
 
     // Contact
     contactTitle: "تواصل معنا",
@@ -539,5 +630,68 @@ export const translations = {
     faqRestaurant: "كيف تنضم المطاعم؟",
     faqRestaurantAnswer: "أرسل لنا على hello@wajbeh.jo وسنضبط مطعمك خلال 24 ساعة.",
     wajbehTagline: "وجبة · نحارب هدر الطعام في الأردن",
+
+    // Bag possible contents
+    possibleContents: "المحتويات المحتملة",
+    contentsGuide: "ما قد يكون في كيسك",
+    contentsBread: "خبز",
+    contentsPastries: "معجنات",
+    contentsSandwiches: "ساندويتشات",
+    contentsSalads: "سلطات",
+    contentsMainDishes: "أطباق رئيسية",
+    contentsDesserts: "حلويات",
+    contentsDrinks: "مشروبات",
+    contentsSnacks: "وجبات خفيفة",
+    contentsWraps: "لفائف",
+    contentsPizza: "بيتزا",
+    contentsSoup: "حساء",
+    contentsRice: "أطباق أرز",
+    contentsGrilled: "مشويات",
+    contentsSweets: "حلويات شرقية",
+    contentsLabel: "قد يحتوي على",
+    bagDisclaimerTitle: "كيس مفاجئة",
+    bagDisclaimerText: "تتغير المحتويات يومياً. العناصر المعروضة هي ما قد يضمه الكيس — دائماً مفاجأة رائعة!",
+    contentDisclaimer: "المحتويات عشوائية وقد تختلف عما هو معروض.",
+    selectContents: "اختر المحتويات المحتملة",
+    tapToSelect: "اضغط على العناصر التي قد يحتوي عليها الكيس",
+
+    // Dashboard contents section
+    possibleContentsSection: "المحتويات المحتملة",
+    possibleContentsNote: "أخبر الزبائن بما قد يكون في الكيس",
+
+    // Payment
+    paymentTitle: "طريقة الدفع",
+    paymentSubtitle: "بيانات بطاقة آمنة للدفع",
+    cardNumber: "رقم البطاقة",
+    cardNumberPlaceholder: "١٢٣٤ ٥٦٧٨ ٩٠١٢ ٣٤٥٦",
+    cardholderName: "اسم حامل البطاقة",
+    cardholderNamePlaceholder: "الاسم على البطاقة",
+    expiryDate: "تاريخ الانتهاء",
+    expiryPlaceholder: "شش/سس",
+    cvv: "رمز الأمان",
+    cvvPlaceholder: "•••",
+    saveCard: "حفظ البطاقة",
+    paymentMethod: "طريقة الدفع",
+    addCard: "إضافة / تعديل بطاقة",
+    cardAdded: "تم حفظ البطاقة بنجاح!",
+    yourCard: "بطاقتك",
+    validThru: "صالحة حتى",
+    cardPreviewName: "اسم حامل البطاقة",
+    noCardSaved: "لا توجد بطاقة محفوظة",
+    noCardSavedSub: "أضف بطاقة للدفع السريع والسهل",
+    cardEndingIn: "بطاقة تنتهي بـ",
+    removeCard: "حذف البطاقة",
+    confirmRemoveCard: "هل تريد حذف بطاقتك المحفوظة؟",
+    cardSecureNote: "بيانات بطاقتك مشفرة ومحفوظة بأمان",
+
+    // Reservation confirmation
+    confirmReservation: "تأكيد الحجز",
+    reserveAndPay: "احجز وادفع",
+    orderSummaryLabel: "ملخص الطلب",
+    paymentLabel: "الدفع",
+    noPaymentTitle: "لا توجد طريقة دفع",
+    noPaymentMessage: "يجب إضافة طريقة دفع قبل الحجز. اذهب إلى حسابي ثم اضغط طريقة الدفع لإضافة بطاقة.",
+    goToProfile: "الذهاب للحساب",
+    notNow: "ليس الآن",
   },
 };

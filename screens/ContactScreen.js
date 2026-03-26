@@ -10,65 +10,55 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-
-const CONTACT_ITEMS = [
-  {
-    label: "Email",
-    value: "support@wajbeh.com",
-    iconName: "mail-outline",
-    iconBg: "#E3F2FD",
-    iconColor: "#1565C0",
-    action: () => Linking.openURL("mailto:support@wajbeh.com"),
-  },
-  {
-    label: "WhatsApp",
-    value: "+962 7X XXX XXXX",
-    iconName: "logo-whatsapp",
-    iconBg: "#E8F5E9",
-    iconColor: "#2E7D32",
-    action: () => Linking.openURL("https://wa.me/96270000000"),
-  },
-  {
-    label: "Instagram",
-    value: "@wajbeh.jo",
-    iconName: "logo-instagram",
-    iconBg: "#FCE4EC",
-    iconColor: "#C2185B",
-    action: () => Linking.openURL("https://instagram.com/wajbeh.jo"),
-  },
-];
-
-const FAQ_ITEMS = [
-  {
-    q: "How does Wajbeh work?",
-    a: "Restaurants list surplus food as discounted surprise bags. You reserve a bag, pay in-app, then collect it during the pickup window.",
-  },
-  {
-    q: "When does the pickup code appear?",
-    a: "Your pickup code becomes visible when the restaurant's pickup window opens. Check the Orders tab at that time.",
-  },
-  {
-    q: "Can I cancel a reservation?",
-    a: "Please contact us directly via email or WhatsApp as soon as possible if you need to cancel.",
-  },
-  {
-    q: "I'm a restaurant — how do I join?",
-    a: "Sign up with your email and select the restaurant account type. Once registered, set your location on the Map tab.",
-  },
-];
+import { useLanguage } from "../lang/LanguageContext";
 
 export default function ContactScreen({ navigation }) {
   const insets = useSafeAreaInsets();
+  const { t, isRTL } = useLanguage();
   const [expandedFaq, setExpandedFaq] = useState(null);
+
+  const CONTACT_ITEMS = [
+    {
+      label: "Email",
+      value: "support@wajbeh.com",
+      iconName: "mail-outline",
+      iconBg: "#E3F2FD",
+      iconColor: "#1565C0",
+      action: () => Linking.openURL("mailto:support@wajbeh.com"),
+    },
+    {
+      label: "WhatsApp",
+      value: "+962 7X XXX XXXX",
+      iconName: "logo-whatsapp",
+      iconBg: "#E8F5E9",
+      iconColor: "#2E7D32",
+      action: () => Linking.openURL("https://wa.me/96270000000"),
+    },
+    {
+      label: "Instagram",
+      value: "@wajbeh.jo",
+      iconName: "logo-instagram",
+      iconBg: "#FCE4EC",
+      iconColor: "#C2185B",
+      action: () => Linking.openURL("https://instagram.com/wajbeh.jo"),
+    },
+  ];
+
+  const FAQ_ITEMS = [
+    { q: t("faqAppWorks"), a: t("faqAppWorksAnswer") },
+    { q: t("faqPickupCode"), a: t("faqPickupCodeAnswer") },
+    { q: t("faqCancel"), a: t("faqCancelAnswer") },
+    { q: t("faqRestaurant"), a: t("faqRestaurantAnswer") },
+  ];
 
   return (
     <View style={styles.container}>
       <StatusBar backgroundColor="#1B5E20" barStyle="light-content" />
-      <View style={[styles.header, { paddingTop: insets.top + 12 }]}>
+      <View style={[styles.header, { paddingTop: insets.top + 12 }, isRTL && styles.rtlRow]}>
         <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
-          <Ionicons name="arrow-back" size={20} color="#FFFFFF" />
+          <Ionicons name={isRTL ? "arrow-forward" : "arrow-back"} size={20} color="#FFFFFF" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Contact Us</Text>
+        <Text style={[styles.headerTitle, isRTL && styles.rtl]}>{t("contactTitle")}</Text>
         <View style={{ width: 38 }} />
       </View>
 
@@ -77,43 +67,47 @@ export default function ContactScreen({ navigation }) {
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.introBlock}>
-          <Text style={styles.introTitle}>We're here to help</Text>
-          <Text style={styles.introSub}>
-            Reach out through any of the channels below. We typically respond within a few hours.
-          </Text>
+          <Text style={[styles.introTitle, isRTL && styles.rtl]}>{t("hereToHelp")}</Text>
+          <Text style={[styles.introSub, isRTL && styles.rtl]}>{t("reachOut")}</Text>
         </View>
 
-        <Text style={styles.sectionLabel}>GET IN TOUCH</Text>
+        <Text style={[styles.sectionLabel, isRTL && styles.rtl]}>{t("getInTouch")}</Text>
         <View style={styles.card}>
           {CONTACT_ITEMS.map((item, i) => (
             <View key={i}>
-              <TouchableOpacity style={styles.contactRow} onPress={item.action} activeOpacity={0.7}>
-                <View style={styles.contactLeft}>
+              <TouchableOpacity
+                style={[styles.contactRow, isRTL && styles.rtlRow]}
+                onPress={item.action}
+                activeOpacity={0.7}
+              >
+                <View style={[styles.contactLeft, isRTL && styles.rtlRow]}>
                   <View style={[styles.contactIconWrap, { backgroundColor: item.iconBg }]}>
                     <Ionicons name={item.iconName} size={18} color={item.iconColor} />
                   </View>
                   <View>
-                    <Text style={styles.contactLabel}>{item.label}</Text>
-                    <Text style={styles.contactValue}>{item.value}</Text>
+                    <Text style={[styles.contactLabel, isRTL && styles.rtl]}>{item.label}</Text>
+                    <Text style={[styles.contactValue, isRTL && styles.rtl]}>{item.value}</Text>
                   </View>
                 </View>
-                <Ionicons name="chevron-forward" size={16} color="#B8B8B8" />
+                <Ionicons name={isRTL ? "chevron-back" : "chevron-forward"} size={16} color="#B8B8B8" />
               </TouchableOpacity>
               {i < CONTACT_ITEMS.length - 1 && <View style={styles.divider} />}
             </View>
           ))}
         </View>
 
-        <Text style={styles.sectionLabel}>FAQ</Text>
+        <Text style={[styles.sectionLabel, isRTL && styles.rtl]}>{t("faqLabel")}</Text>
         <View style={styles.card}>
           {FAQ_ITEMS.map((item, i) => (
             <View key={i}>
               <TouchableOpacity
-                style={styles.faqRow}
+                style={[styles.faqRow, isRTL && styles.rtlRow]}
                 onPress={() => setExpandedFaq(expandedFaq === i ? null : i)}
                 activeOpacity={0.7}
               >
-                <Text style={styles.faqQuestion} numberOfLines={expandedFaq === i ? 0 : 1}>{item.q}</Text>
+                <Text style={[styles.faqQuestion, isRTL && styles.rtl]} numberOfLines={expandedFaq === i ? 0 : 1}>
+                  {item.q}
+                </Text>
                 <Ionicons
                   name={expandedFaq === i ? "chevron-up" : "chevron-down"}
                   size={16}
@@ -121,7 +115,7 @@ export default function ContactScreen({ navigation }) {
                 />
               </TouchableOpacity>
               {expandedFaq === i && (
-                <Text style={styles.faqAnswer}>{item.a}</Text>
+                <Text style={[styles.faqAnswer, isRTL && styles.rtl]}>{item.a}</Text>
               )}
               {i < FAQ_ITEMS.length - 1 && <View style={styles.divider} />}
             </View>
@@ -129,7 +123,7 @@ export default function ContactScreen({ navigation }) {
         </View>
 
         <View style={styles.footerNote}>
-          <Text style={styles.footerNoteText}>Wajbeh · Fighting food waste in Jordan</Text>
+          <Text style={styles.footerNoteText}>{t("wajbehTagline")}</Text>
           <Text style={styles.footerNoteVersion}>v1.0.0</Text>
         </View>
       </ScrollView>
@@ -139,6 +133,8 @@ export default function ContactScreen({ navigation }) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#FAFAFA" },
+  rtl: { textAlign: "right", writingDirection: "rtl" },
+  rtlRow: { flexDirection: "row-reverse" },
 
   header: {
     flexDirection: "row",
