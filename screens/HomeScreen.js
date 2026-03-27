@@ -242,32 +242,34 @@ export default function HomeScreen({ navigation }) {
           </View>
         )}
 
-        {/* Filter chips */}
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.filterContent}
-        >
-          {FILTERS.map((f) => (
-            <TouchableOpacity
-              key={f}
-              style={[
-                styles.filterBtn,
-                activeFilter === f && styles.filterBtnActive,
-              ]}
-              onPress={() => setActiveFilter(f)}
-            >
-              <Text
+        {/* Filter chips — distinct section */}
+        <View style={styles.filterSection}>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.filterContent}
+          >
+            {FILTERS.map((f) => (
+              <TouchableOpacity
+                key={f}
                 style={[
-                  styles.filterText,
-                  activeFilter === f && styles.filterTextActive,
+                  styles.filterBtn,
+                  activeFilter === f && styles.filterBtnActive,
                 ]}
+                onPress={() => setActiveFilter(f)}
               >
-                {getFilterLabel(f)}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
+                <Text
+                  style={[
+                    styles.filterText,
+                    activeFilter === f && styles.filterTextActive,
+                  ]}
+                >
+                  {getFilterLabel(f)}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        </View>
       </View>
 
       {/* Content */}
@@ -316,10 +318,8 @@ const styles = StyleSheet.create({
     paddingBottom: 0,
   },
   headerTop: {
-    flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
-    paddingBottom: 8,
+    paddingBottom: 20,
   },
   brand: { fontSize: 22, fontWeight: "700", color: "#FFFFFF" },
   brandSub: { fontSize: 12, color: "rgba(255,255,255,0.7)", marginTop: 2 },
@@ -332,6 +332,8 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "rgba(255,255,255,0.25)",
   },
+  countBadgeRight: { position: "absolute", right: 0, top: 0 },
+  countBadgeLeft: { position: "absolute", left: 0, top: 0 },
   countNum: { fontSize: 18, fontWeight: "700", color: "#FFFFFF" },
   countLabel: { fontSize: 10, color: "rgba(255,255,255,0.7)", fontWeight: "600" },
 
@@ -344,7 +346,14 @@ const styles = StyleSheet.create({
   locationBarText: { fontSize: 11, color: "rgba(255,255,255,0.65)", fontWeight: "500" },
 
   // Filters
+  filterSection: {
+    backgroundColor: "rgba(255,255,255,0.12)",
+    marginHorizontal: -20,
+    borderTopWidth: 1,
+    borderTopColor: "rgba(255,255,255,0.15)",
+  },
   filterContent: {
+    paddingHorizontal: 20,
     paddingVertical: 10,
     gap: 8,
   },

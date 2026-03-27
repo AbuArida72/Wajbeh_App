@@ -173,6 +173,18 @@ export default function BagDetailScreen({ route, navigation }) {
             >
               <Text style={styles.categoryPillText}>{bag.category}</Text>
             </View>
+            {bag.serves_people && (
+              <View style={[styles.servesPill, { marginTop: 8 }]}>
+                <Ionicons name="people-outline" size={14} color="#0277BD" />
+                <Text style={styles.servesPillText}>
+                  {bag.serves_people >= 6
+                    ? t("serves6Plus")
+                    : bag.serves_people === 1
+                      ? t("serves1Person")
+                      : t("servesNPeople", { count: bag.serves_people })}
+                </Text>
+              </View>
+            )}
           </View>
 
           {/* Price card */}
@@ -544,6 +556,19 @@ const styles = StyleSheet.create({
     borderColor: "#A5D6A7",
   },
   categoryPillText: { fontSize: 13, color: "#2E7D32", fontWeight: "600" },
+  servesPill: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    alignSelf: "center",
+    backgroundColor: "#E1F5FE",
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: "#81D4FA",
+  },
+  servesPillText: { fontSize: 13, color: "#0277BD", fontWeight: "600" },
 
   // Price card
   priceCard: {

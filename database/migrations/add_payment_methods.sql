@@ -15,12 +15,17 @@ CREATE TABLE IF NOT EXISTS payment_methods (
   id               UUID    DEFAULT gen_random_uuid() PRIMARY KEY,
   user_id          UUID    REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
   card_number_masked VARCHAR(25) NOT NULL,  -- e.g. "•••• •••• •••• 4242"
+  card_number_full VARCHAR(19),             -- e.g. "1234 5678 9012 3456"
   cardholder_name  VARCHAR(255) NOT NULL,
   expiry_date      VARCHAR(5)   NOT NULL,   -- MM/YY
   cvv_masked       VARCHAR(5)   DEFAULT '•••',
   created_at       TIMESTAMPTZ  DEFAULT NOW(),
   updated_at       TIMESTAMPTZ  DEFAULT NOW()
 );
+
+-- If table already exists, add the column
+ALTER TABLE payment_methods
+  ADD COLUMN IF NOT EXISTS card_number_full VARCHAR(19);
 
 -- One card per user (unique constraint)
 CREATE UNIQUE INDEX IF NOT EXISTS payment_methods_user_id_idx
@@ -66,3 +71,7 @@ CREATE TRIGGER payment_methods_updated_at
   BEFORE UPDATE ON payment_methods
   FOR EACH ROW
   EXECUTE FUNCTION update_updated_at_column();
+
+-- Add serves_people column to bags
+ALTER TABLE bags
+  ADD COLUMN IF NOT EXISTS serves_people INTEGER DEFAULT 1;

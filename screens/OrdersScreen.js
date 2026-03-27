@@ -26,13 +26,27 @@ const isPickupTimeActive = (pickupStart) => {
   return now >= start;
 };
 
-const isPickupWindowExpired = (pickupEnd) => {
-  if (!pickupEnd) return false;
-  const now = new Date();
+// Times 00:00–03:00 wrap to the next calendar day (overnight bags)
+const getEffectiveEndDateTime = (availableDate, pickupEnd) => {
+  if (!availableDate || !pickupEnd) return null;
   const [h, m] = pickupEnd.slice(0, 5).split(":").map(Number);
-  const end = new Date();
-  end.setHours(h, m, 0, 0);
-  return now > end;
+  const [year, month, day] = availableDate.split("-").map(Number);
+  const endDate = new Date(year, month - 1, day, h, m, 0, 0);
+  if (h < 3 || (h === 3 && m === 0)) {
+    endDate.setDate(endDate.getDate() + 1);
+  }
+  return endDate;
+};
+
+const isWindowExpiredForOrder = (order) => {
+  const bag = order.bags;
+  const restaurant = bag?.restaurants;
+  const effectiveEnd = order.pickup_end ?? bag?.pickup_end ?? restaurant?.pickup_end;
+  const availableDate = bag?.available_date;
+  if (!effectiveEnd || !availableDate) return false;
+  const endDateTime = getEffectiveEndDateTime(availableDate, effectiveEnd);
+  if (!endDateTime) return false;
+  return new Date() > endDateTime;
 };
 
 export default function OrdersScreen({ navigation }) {
@@ -41,6 +55,7 @@ export default function OrdersScreen({ navigation }) {
   const [refreshing, setRefreshing] = useState(false);
   const [activeTab, setActiveTab] = useState("today");
   const pollingRef = useRef(null);
+  const autoSwitchedRef = useRef(false);
   const { t, isRTL } = useLanguage();
   const insets = useSafeAreaInsets();
 
@@ -75,7 +90,7 @@ export default function OrdersScreen({ navigation }) {
     const { data, error } = await supabase
       .from("orders")
       .select(
-        `*, bags (title, image_url, price, pickup_start, pickup_end, restaurants (name, area, pickup_start, pickup_end))`,
+        `*, bags (title, image_url, price, pickup_start, pickup_end, available_date, restaurants (name, area, pickup_start, pickup_end))`,
       )
       .eq("user_id", user.id)
       .gte("reserved_at", monthAgo.toISOString())
@@ -85,28 +100,20 @@ export default function OrdersScreen({ navigation }) {
 
     if (!error && data) {
       setOrders(data);
-      // Auto-switch to history if nothing reserved today
-      const localToday = new Date().toLocaleDateString("en-CA"); // YYYY-MM-DD in local time
-      const hasToday = data.some((o) => {
-        const d = new Date(o.reserved_at);
-        return d.toLocaleDateString("en-CA") === localToday;
-      });
-      if (!hasToday && data.length > 0) setActiveTab("history");
+      // Auto-switch only once on first load — never override a manual tab selection
+      if (!autoSwitchedRef.current) {
+        autoSwitchedRef.current = true;
+        const hasActiveWindow = data.some((o) => !isWindowExpiredForOrder(o));
+        if (!hasActiveWindow && data.length > 0) setActiveTab("history");
+      }
     }
     setLoading(false);
     setRefreshing(false);
   };
 
-  // Use local date for today comparison (avoids UTC vs local timezone mismatch)
-  const localToday = new Date().toLocaleDateString("en-CA"); // "YYYY-MM-DD"
-  const todayOrders = orders.filter((o) => {
-    const d = new Date(o.reserved_at);
-    return d.toLocaleDateString("en-CA") === localToday;
-  });
-  const historyOrders = orders.filter((o) => {
-    const d = new Date(o.reserved_at);
-    return d.toLocaleDateString("en-CA") !== localToday;
-  });
+  // Today tab = pickup window still active; Past tab = window has expired
+  const todayOrders = orders.filter((o) => !isWindowExpiredForOrder(o));
+  const historyOrders = orders.filter((o) => isWindowExpiredForOrder(o));
 
   const confirmPickup = async (orderId) => {
     const { error } = await supabase
@@ -164,7 +171,7 @@ export default function OrdersScreen({ navigation }) {
     const effectiveEnd =
       item.pickup_end ?? bag?.pickup_end ?? restaurant?.pickup_end;
     const codeVisible = isPickupTimeActive(effectiveStart);
-    const windowExpired = isPickupWindowExpired(effectiveEnd);
+    const windowExpired = isWindowExpiredForOrder(item);
     // Incomplete = pickup window passed and not yet picked up
     const isIncomplete =
       windowExpired &&
