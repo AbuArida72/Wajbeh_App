@@ -5,7 +5,6 @@ import {
   StyleSheet,
   TextInput,
   TouchableOpacity,
-  ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -14,31 +13,25 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { supabase } from "../lib/supabase";
 import { useLanguage } from "../lang/LanguageContext";
+import { GlassPanel, GlassButton, Chip, T, WallpaperBackground, TextBackdrop, ar } from "../components/Glass";
+import { haptic } from "../lib/haptics";
 
 export default function SignInScreen({ navigation, onAuthSuccess }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPw, setShowPw] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const { t, isRTL, language, toggleLanguage } = useLanguage();
 
   const signIn = async () => {
     setError("");
-    if (!email || !password) {
-      setError(t("fillAllFields"));
-      return;
-    }
+    if (!email || !password) { setError(t("fillAllFields")); haptic.error(); return; }
+    haptic.light();
     setLoading(true);
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
-    if (error) {
-      if (error.message.toLowerCase().includes("email not confirmed")) {
-        setError(t("emailNotConfirmed"));
-      } else {
-        setError(error.message);
-      }
+    const { data, error: err } = await supabase.auth.signInWithPassword({ email, password });
+    if (err) {
+      setError(err.message.toLowerCase().includes("email not confirmed") ? t("emailNotConfirmed") : err.message);
       setLoading(false);
       return;
     }
@@ -48,262 +41,168 @@ export default function SignInScreen({ navigation, onAuthSuccess }) {
       setLoading(false);
       return;
     }
+    haptic.success();
     onAuthSuccess(data.user);
     setLoading(false);
   };
 
   return (
-    <SafeAreaView style={styles.safe}>
-      <KeyboardAvoidingView
-        style={styles.container}
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
-      >
-        <ScrollView
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={styles.scroll}
-        >
-          {/* Top row */}
-          <View style={styles.topRow}>
-            <TouchableOpacity
-              style={styles.backBtn}
-              onPress={() => navigation.goBack()}
-            >
-              <Ionicons name="arrow-back" size={20} color="#0F0F0F" />
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.langBtn} onPress={toggleLanguage}>
-              <Text style={styles.langBtnText}>
-                {language === "en" ? t("switchToArabic") : t("switchToEnglish")}
-              </Text>
-            </TouchableOpacity>
-          </View>
+    <View style={styles.root}>
+      <WallpaperBackground />
 
-          {/* Brand + heading */}
-          <View style={styles.headingSection}>
-            <Text style={styles.brandText}>Wajbeh</Text>
-            <Text style={[styles.heading, isRTL && styles.rtl]}>{t("signInTitle")}</Text>
-            <Text style={[styles.subHeading, isRTL && styles.rtl]}>
-              {t("signInSubtitle")}
-            </Text>
-          </View>
+      <SafeAreaView style={styles.safe}>
+        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : "height"}>
+          <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
 
-          {/* Form */}
-          <View style={styles.form}>
-            {/* Email */}
-            <View style={styles.fieldGroup}>
-              <Text style={[styles.label, isRTL && styles.rtl]}>
-                {t("emailAddress")}
-              </Text>
-              <View style={styles.inputWrapper}>
-                <Ionicons name="mail-outline" size={16} color="#B8B8B8" style={styles.inputIcon} />
-                <TextInput
-                  style={[styles.input, isRTL && styles.inputRTL]}
-                  placeholder={t("emailPlaceholder")}
-                  placeholderTextColor="#B8B8B8"
-                  keyboardType="email-address"
-                  autoCapitalize="none"
-                  value={email}
-                  onChangeText={setEmail}
-                />
-              </View>
+            {/* Nav row */}
+            <View style={[styles.navRow, isRTL && styles.rtlRow]}>
+              <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
+                <Ionicons name={isRTL ? "arrow-forward" : "arrow-back"} size={20} color={T.ink} />
+              </TouchableOpacity>
+              <Chip onPress={toggleLanguage}>
+                {language === "en" ? "العربية" : "English"}
+              </Chip>
             </View>
 
-            {/* Password */}
-            <View style={styles.fieldGroup}>
-              <Text style={[styles.label, isRTL && styles.rtl]}>
-                {t("password")}
-              </Text>
-              <View style={styles.inputWrapper}>
-                <Ionicons name="lock-closed-outline" size={16} color="#B8B8B8" style={styles.inputIcon} />
-                <TextInput
-                  style={[styles.input, isRTL && styles.inputRTL]}
-                  placeholder={t("passwordPlaceholder")}
-                  placeholderTextColor="#B8B8B8"
-                  secureTextEntry
-                  value={password}
-                  onChangeText={setPassword}
-                />
+            {/* Heading — centered */}
+            <View style={styles.headingSection}>
+              <View style={styles.brandBadge}>
+                <Text style={[styles.brandText, ar(isRTL, "bold")]}>{t("appName")}</Text>
               </View>
+              <Text style={[styles.heading, ar(isRTL, "bold")]}>{t("welcomeBack") || "Welcome back"}</Text>
+              <Text style={styles.subHeading}>{t("signInSubtitle") || "Sign in to your account"}</Text>
             </View>
+
+            {/* Glass form card */}
+            <GlassPanel radius={22} style={{ marginBottom: 14, overflow: "hidden" }}>
+              {/* Email field */}
+              <View style={[styles.field, styles.fieldBorder, isRTL && styles.rtlRow]}>
+                <View style={styles.fieldIconWrap}>
+                  <Ionicons name="mail-outline" size={16} color={T.green} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.fieldLabel, isRTL && styles.rtl]}>{t("emailAddress") || "Email"}</Text>
+                  <TextInput
+                    style={[styles.fieldInput, isRTL && styles.rtl]}
+                    placeholder={t("emailPlaceholder") || "you@email.com"}
+                    placeholderTextColor={T.muteStrong}
+                    keyboardType="email-address"
+                    autoCapitalize="none"
+                    value={email}
+                    onChangeText={setEmail}
+                  />
+                </View>
+              </View>
+              {/* Password field */}
+              <View style={[styles.field, isRTL && styles.rtlRow]}>
+                <View style={styles.fieldIconWrap}>
+                  <Ionicons name="lock-closed-outline" size={16} color={T.green} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.fieldLabel, isRTL && styles.rtl]}>{t("password") || "Password"}</Text>
+                  <TextInput
+                    style={[styles.fieldInput, isRTL && styles.rtl]}
+                    placeholder={t("passwordPlaceholder") || "Your password"}
+                    placeholderTextColor={T.muteStrong}
+                    secureTextEntry={!showPw}
+                    value={password}
+                    onChangeText={setPassword}
+                  />
+                </View>
+                <TouchableOpacity onPress={() => setShowPw(!showPw)} style={styles.eyeBtn}>
+                  <Ionicons name={showPw ? "eye-off-outline" : "eye-outline"} size={16} color={T.muteStrong} />
+                </TouchableOpacity>
+              </View>
+            </GlassPanel>
 
             {/* Error */}
-            {error ? (
-              <View style={styles.errorBox}>
-                <Ionicons name="warning-outline" size={16} color="#ED4956" />
-                <Text style={[styles.errorText, isRTL && styles.rtl]}>
-                  {error}
-                </Text>
+            {!!error && (
+              <View style={[styles.errorBox, isRTL && styles.rtlRow]}>
+                <Ionicons name="warning-outline" size={14} color={T.urgent} />
+                <Text style={[styles.errorText, isRTL && styles.rtl]}>{error}</Text>
               </View>
-            ) : null}
+            )}
 
-            {/* Sign in button */}
-            <TouchableOpacity
-              style={[styles.btn, loading && styles.btnDisabled]}
-              onPress={signIn}
-              disabled={loading}
-              activeOpacity={0.88}
-            >
-              {loading ? (
-                <ActivityIndicator color="#fff" />
-              ) : (
-                <Text style={styles.btnText}>{t("signIn")}</Text>
-              )}
-            </TouchableOpacity>
+            <GlassButton primary onPress={signIn} loading={loading} disabled={loading}>
+              {t("signIn") || "Sign in"}
+            </GlassButton>
 
             {/* Divider */}
             <View style={styles.dividerRow}>
-              <View style={styles.dividerLine} />
-              <Text style={styles.dividerText}>{t("orDivider")}</Text>
-              <View style={styles.dividerLine} />
+              <View style={styles.divLine} />
+              <Text style={styles.divText}>{t("orDivider") || "or"}</Text>
+              <View style={styles.divLine} />
             </View>
 
-            {/* Sign up link */}
-            <TouchableOpacity
-              style={styles.signUpLink}
-              onPress={() => navigation.navigate("SignUp")}
-            >
-              <Text style={[styles.signUpLinkText, isRTL && styles.rtl]}>
-                {t("noAccount")}{" "}
-                <Text style={styles.signUpLinkHighlight}>{t("signUp")}</Text>
+            <TouchableOpacity onPress={() => navigation.navigate("SignUp")} style={{ alignItems: "center" }}>
+              <Text style={[styles.signUpText, isRTL && styles.rtl]}>
+                {t("noAccount") || "Don't have an account?"}{" "}
+                <Text style={styles.signUpLink}>{t("signUp") || "Sign up"}</Text>
               </Text>
             </TouchableOpacity>
-          </View>
 
-          {/* Trust badges */}
-          <View style={styles.trustRow}>
-            <View style={styles.trustBadge}>
-              <Text style={styles.trustBadgeText}>{t("secureBadge")}</Text>
-            </View>
-            <View style={styles.trustBadge}>
-              <Text style={styles.trustBadgeText}>{t("ecoFriendlyBadge")}</Text>
-            </View>
-            <View style={styles.trustBadge}>
-              <Text style={styles.trustBadgeText}>{t("localBadge")}</Text>
-            </View>
-          </View>
-        </ScrollView>
-      </KeyboardAvoidingView>
-    </SafeAreaView>
+          </ScrollView>
+        </KeyboardAvoidingView>
+      </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: "#FFFFFF" },
-  container: { flex: 1 },
-  scroll: { flexGrow: 1, padding: 20 },
+  root: { flex: 1 },
+  safe: { flex: 1 },
+  scroll: { flexGrow: 1, paddingHorizontal: 24, paddingVertical: 16 },
   rtl: { textAlign: "right", writingDirection: "rtl" },
+  rtlRow: { flexDirection: "row-reverse" },
 
-  // Top row
-  topRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 32,
-  },
+  navRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 36 },
   backBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: 10,
-    backgroundColor: "#F5F5F5",
-    alignItems: "center",
-    justifyContent: "center",
+    width: 44, height: 44, borderRadius: 22,
+    backgroundColor: "rgba(255,255,255,0.72)",
+    borderWidth: 1, borderColor: "rgba(255,255,255,0.90)",
+    alignItems: "center", justifyContent: "center",
   },
-  langBtn: {
-    backgroundColor: "#F5F5F5",
+
+  // Centered heading
+  headingSection: { alignItems: "center", marginBottom: 32 },
+  brandBadge: {
+    backgroundColor: "rgba(61,107,71,0.10)",
+    borderRadius: 100,
     paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 10,
-  },
-  langBtnText: { color: "#737373", fontWeight: "600", fontSize: 13 },
-
-  // Heading
-  headingSection: { marginBottom: 32, alignItems: "center" },
-  brandText: {
-    fontSize: 13,
-    fontWeight: "700",
-    color: "#2E7D32",
-    marginBottom: 12,
-    letterSpacing: 0.5,
-    textTransform: "uppercase",
-    textAlign: "center",
-  },
-  heading: { fontSize: 28, fontWeight: "700", color: "#0F0F0F", marginBottom: 8, textAlign: "center" },
-  subHeading: { fontSize: 14, color: "#737373", lineHeight: 20, textAlign: "center" },
-
-  // Form
-  form: {
-    backgroundColor: "#FFFFFF",
-    marginBottom: 32,
-  },
-  fieldGroup: { marginBottom: 16 },
-  label: {
-    fontSize: 13,
-    fontWeight: "500",
-    color: "#0F0F0F",
-    marginBottom: 8,
-  },
-  inputWrapper: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#FAFAFA",
+    paddingVertical: 5,
     borderWidth: 1,
-    borderColor: "#DBDBDB",
-    borderRadius: 10,
-    paddingHorizontal: 14,
+    borderColor: "rgba(61,107,71,0.18)",
+    marginBottom: 18,
   },
-  inputIcon: { marginRight: 8 },
-  input: {
-    flex: 1,
-    paddingVertical: 12,
-    fontSize: 15,
-    color: "#0F0F0F",
+  brandText: { fontSize: 11, fontWeight: "800", color: T.green, letterSpacing: 1.2, textTransform: "uppercase" },
+  heading: { fontSize: 34, fontWeight: "800", color: T.ink, letterSpacing: -1.2, marginBottom: 8, textAlign: "center" },
+  subHeading: { fontSize: 14, color: T.mute, textAlign: "center" },
+
+  // Fields
+  field: { flexDirection: "row", alignItems: "center", paddingHorizontal: 14, paddingVertical: 14, gap: 12 },
+  fieldBorder: { borderBottomWidth: 1, borderBottomColor: "rgba(26,34,24,0.08)" },
+  fieldIconWrap: {
+    width: 34, height: 34, borderRadius: 10,
+    backgroundColor: "rgba(61,107,71,0.10)",
+    borderWidth: 1, borderColor: "rgba(61,107,71,0.15)",
+    alignItems: "center", justifyContent: "center",
+    flexShrink: 0,
   },
-  inputRTL: { textAlign: "right" },
+  fieldLabel: { fontSize: 9, fontWeight: "700", color: T.green, textTransform: "uppercase", letterSpacing: 0.8, marginBottom: 3 },
+  fieldInput: { fontSize: 15, color: T.ink, paddingVertical: 0 },
+  eyeBtn: { padding: 6, marginLeft: 4 },
+
   errorBox: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    gap: 8,
-    backgroundColor: "#FFFFFF",
-    borderRadius: 10,
-    padding: 12,
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: "#ED4956",
+    flexDirection: "row", gap: 8, alignItems: "flex-start", marginBottom: 14,
+    backgroundColor: "rgba(224,92,74,0.08)", borderRadius: 12, padding: 12,
+    borderWidth: 1, borderColor: "rgba(224,92,74,0.22)",
   },
-  errorText: { color: "#ED4956", fontSize: 13, flex: 1, lineHeight: 18 },
-  btn: {
-    backgroundColor: "#2E7D32",
-    paddingVertical: 14,
-    borderRadius: 10,
-    alignItems: "center",
-    marginBottom: 20,
-  },
-  btnDisabled: { opacity: 0.6 },
-  btnText: { color: "#FFFFFF", fontSize: 15, fontWeight: "600" },
-  dividerRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-    marginBottom: 20,
-  },
-  dividerLine: { flex: 1, height: 1, backgroundColor: "#DBDBDB" },
-  dividerText: { fontSize: 12, color: "#B8B8B8" },
-  signUpLink: { alignItems: "center" },
-  signUpLinkText: { fontSize: 14, color: "#737373" },
-  signUpLinkHighlight: { color: "#2E7D32", fontWeight: "600" },
+  errorText: { color: T.urgent, fontSize: 13, flex: 1 },
 
-  // Trust badges
-  trustRow: {
-    flexDirection: "row",
-    justifyContent: "center",
-    gap: 10,
-  },
-  trustBadge: {
-    backgroundColor: "#FAFAFA",
-    paddingHorizontal: 14,
-    paddingVertical: 7,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: "#EBEBEB",
-  },
-  trustBadgeText: { fontSize: 12, color: "#737373", fontWeight: "500" },
+  dividerRow: { flexDirection: "row", alignItems: "center", gap: 12, marginVertical: 22 },
+  divLine: { flex: 1, height: 1, backgroundColor: "rgba(26,34,24,0.10)" },
+  divText: { fontSize: 11, color: T.muteStrong, fontWeight: "600" },
+
+  signUpText: { fontSize: 14, color: T.mute, textAlign: "center" },
+  signUpLink: { color: T.accent, fontWeight: "700" },
 });

@@ -13,14 +13,14 @@ import {
   KeyboardAvoidingView,
   Platform,
   StatusBar,
-  Image,
 } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
-import * as ImagePicker from "expo-image-picker";
 import { supabase } from "../lib/supabase";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useLanguage } from "../lang/LanguageContext";
+import { GlassPanel, T, WallpaperBackground, TextBackdrop, ar, SkeletonBox } from "../components/Glass";
+import { haptic } from "../lib/haptics";
 
 const BAG_CONTENTS = [
   { key: "contentsBread", icon: "bread-outline" },
@@ -92,7 +92,7 @@ function DropdownPicker({ placeholder, value, options, onSelect, isOpen, onToggl
         <Text style={value != null ? dpStyles.value : dpStyles.placeholder}>
           {value != null ? (format ? format(value) : String(value)) : placeholder}
         </Text>
-        <Ionicons name={isOpen ? "chevron-up" : "chevron-down"} size={16} color="#737373" />
+        <Ionicons name={isOpen ? "chevron-up" : "chevron-down"} size={16} color={T.mute} />
       </TouchableOpacity>
       {isOpen && (
         <ScrollView style={dpStyles.list} nestedScrollEnabled showsVerticalScrollIndicator={false}>
@@ -108,7 +108,7 @@ function DropdownPicker({ placeholder, value, options, onSelect, isOpen, onToggl
                 <Text style={[dpStyles.optionText, selected && dpStyles.optionTextSelected]}>
                   {format ? format(opt) : String(opt)}
                 </Text>
-                {selected && <Ionicons name="checkmark" size={15} color="#2E7D32" />}
+                {selected && <Ionicons name="checkmark" size={15} color={T.green} />}
               </TouchableOpacity>
             );
           })}
@@ -124,30 +124,31 @@ const dpStyles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    backgroundColor: "#FFFFFF",
+    backgroundColor: "rgba(255,255,255,0.80)",
     borderWidth: 1,
-    borderColor: "#DBDBDB",
+    borderColor: "rgba(26,34,24,0.12)",
     borderRadius: 10,
     paddingHorizontal: 14,
     paddingVertical: 13,
-    shadowColor: "#000",
+    minHeight: 44,
+    shadowColor: "rgba(26,34,24,0.10)",
     shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
+    shadowOpacity: 1,
     shadowRadius: 3,
     elevation: 1,
   },
-  value: { fontSize: 15, color: "#0F0F0F", fontWeight: "500" },
-  placeholder: { fontSize: 15, color: "#B8B8B8" },
+  value: { fontSize: 15, color: T.ink, fontWeight: "500" },
+  placeholder: { fontSize: 15, color: T.muteStrong },
   list: {
     borderWidth: 1,
-    borderColor: "#DBDBDB",
+    borderColor: "rgba(26,34,24,0.12)",
     borderRadius: 10,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: "rgba(255,255,255,0.95)",
     maxHeight: 200,
     marginTop: 4,
-    shadowColor: "#000",
+    shadowColor: "rgba(26,34,24,0.12)",
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
+    shadowOpacity: 1,
     shadowRadius: 6,
     elevation: 3,
   },
@@ -158,11 +159,11 @@ const dpStyles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: "#F5F5F5",
+    borderBottomColor: "rgba(26,34,24,0.06)",
   },
-  optionSelected: { backgroundColor: "#E8F5E9" },
-  optionText: { fontSize: 15, color: "#0F0F0F" },
-  optionTextSelected: { color: "#2E7D32", fontWeight: "600" },
+  optionSelected: { backgroundColor: "rgba(61,107,71,0.10)" },
+  optionText: { fontSize: 15, color: T.ink },
+  optionTextSelected: { color: T.green, fontWeight: "600" },
 });
 
 export default function DashboardScreen() {
@@ -181,46 +182,11 @@ export default function DashboardScreen() {
   const [pickupEnd, setPickupEnd] = useState(null);
   const [description, setDescription] = useState("");
   const [selectedContents, setSelectedContents] = useState([]);
-  const [bagImage, setBagImage] = useState(null); // null = use default
   const [repeatDays, setRepeatDays] = useState(1);
   const [servesPeople, setServesPeople] = useState(null);
   const [openDropdown, setOpenDropdown] = useState(null); // 'qty' | 'start' | 'end'
 
   const toggleDropdown = (key) => setOpenDropdown((prev) => (prev === key ? null : key));
-
-  const pickBagImage = async () => {
-    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (status !== "granted") {
-      Alert.alert(t("permissionRequired"), t("galleryPermission"));
-      return;
-    }
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ["images"],
-      allowsEditing: true,
-      aspect: [16, 9],
-      quality: 0.8,
-    });
-    if (!result.canceled) setBagImage(result.assets[0].uri);
-  };
-
-  const uploadBagImage = async (uri) => {
-    try {
-      const response = await fetch(uri);
-      const blob = await response.blob();
-      const ext = uri.split(".").pop()?.split("?")[0] || "jpg";
-      const fileName = `bag-${Date.now()}.${ext}`;
-      const { error } = await supabase.storage
-        .from("bag-images")
-        .upload(fileName, blob, { contentType: `image/${ext}` });
-      if (error) return DEFAULT_BAG_IMAGE;
-      const { data: urlData } = supabase.storage
-        .from("bag-images")
-        .getPublicUrl(fileName);
-      return urlData.publicUrl;
-    } catch {
-      return DEFAULT_BAG_IMAGE;
-    }
-  };
 
   useFocusEffect(
     useCallback(() => {
@@ -254,10 +220,12 @@ export default function DashboardScreen() {
   const addBag = async () => {
     if (!title || !price || !originalValue || !quantity || !pickupStart || !pickupEnd) {
       Alert.alert(t("fillAllFields"), "");
+      haptic.error();
       return;
     }
     if (!isNextDayTime(pickupEnd) && pickupStart >= pickupEnd) {
       Alert.alert(t("pickupWindow"), "");
+      haptic.error();
       return;
     }
     const discountPct = Math.round(
@@ -265,12 +233,13 @@ export default function DashboardScreen() {
     );
     if (discountPct < 50) {
       Alert.alert(t("priceTooHighTitle"), t("priceTooHighBlock"));
+      haptic.error();
       return;
     }
+    haptic.light();
     setSaving(true);
 
-    let imageUrl = DEFAULT_BAG_IMAGE;
-    if (bagImage) imageUrl = await uploadBagImage(bagImage);
+    const imageUrl = restaurant.logo_url || DEFAULT_BAG_IMAGE;
 
     const today = new Date();
     const inserts = Array.from({ length: repeatDays }, (_, i) => {
@@ -308,10 +277,10 @@ export default function DashboardScreen() {
       setPickupEnd(null);
       setDescription("");
       setSelectedContents([]);
-      setBagImage(null);
       setRepeatDays(1);
       setServesPeople(null);
       setOpenDropdown(null);
+      haptic.success();
       fetchDashboard();
     }
     setSaving(false);
@@ -362,7 +331,7 @@ export default function DashboardScreen() {
             <View
               style={[
                 styles.bagStatusDot,
-                { backgroundColor: isAvailable ? "#2E7D32" : "#B8B8B8" },
+                { backgroundColor: isAvailable ? T.green : T.muteStrong },
               ]}
             />
             <View style={{ flex: 1 }}>
@@ -373,7 +342,7 @@ export default function DashboardScreen() {
                 {item.title}
               </Text>
               <Text style={styles.bagCardMeta}>
-                {item.category || "Surprise Bag"} · {discount}% off
+                {item.category || t("surpriseBagFallback")} · {discount}% off
               </Text>
             </View>
           </View>
@@ -386,7 +355,7 @@ export default function DashboardScreen() {
                   : styles.bagStatusTextSoldOut,
               ]}
             >
-              {isAvailable ? t("active") : t("soldOutStatus").replace("🔴 ", "")}
+              {isAvailable ? t("active") : t("soldOutStatus")}
             </Text>
           </View>
         </View>
@@ -450,7 +419,30 @@ export default function DashboardScreen() {
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#2E7D32" />
+        <WallpaperBackground />
+        <View style={{ paddingHorizontal: 20, paddingTop: insets.top + 12, gap: 16, width: "100%" }}>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
+            <SkeletonBox width={48} height={48} radius={14} />
+            <View style={{ gap: 6 }}>
+              <SkeletonBox width={150} height={18} radius={6} />
+              <SkeletonBox width={90} height={12} radius={6} />
+            </View>
+          </View>
+          <SkeletonBox width="100%" height={64} radius={18} />
+          {[0, 1].map((i) => (
+            <GlassPanel key={i} radius={18} style={{ padding: 14, gap: 10 }}>
+              <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
+                <SkeletonBox width={120} height={16} radius={6} />
+                <SkeletonBox width={60} height={22} radius={100} />
+              </View>
+              <SkeletonBox width="70%" height={12} radius={6} />
+              <View style={{ flexDirection: "row", gap: 8 }}>
+                <SkeletonBox width={80} height={24} radius={8} />
+                <SkeletonBox width={80} height={24} radius={8} />
+              </View>
+            </GlassPanel>
+          ))}
+        </View>
       </View>
     );
   }
@@ -458,10 +450,11 @@ export default function DashboardScreen() {
   if (!restaurant) {
     return (
       <View style={styles.noRestaurantContainer}>
-        <Ionicons name="storefront-outline" size={48} color="#B8B8B8" />
-        <Text style={styles.noRestaurantTitle}>No restaurant found</Text>
+        <WallpaperBackground />
+        <Ionicons name="storefront-outline" size={48} color={T.muteStrong} />
+        <Text style={styles.noRestaurantTitle}>{t("noRestaurantFound") || "No restaurant found"}</Text>
         <Text style={styles.noRestaurantSubtitle}>
-          Your account is not linked to any restaurant.
+          {t("noRestaurantSub") || "Your account is not linked to any restaurant."}
         </Text>
       </View>
     );
@@ -469,7 +462,8 @@ export default function DashboardScreen() {
 
   return (
     <View style={styles.container}>
-      <StatusBar backgroundColor="#1B5E20" barStyle="light-content" />
+      <StatusBar barStyle="dark-content" translucent backgroundColor="transparent" />
+      <WallpaperBackground />
       <FlatList
         data={bags}
         keyExtractor={(item) => item.id}
@@ -487,7 +481,7 @@ export default function DashboardScreen() {
                   </Text>
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.restaurantName} numberOfLines={1}>{restaurant.name}</Text>
+                  <Text style={[styles.restaurantName, ar(isRTL, "bold")]} numberOfLines={1}>{restaurant.name}</Text>
                   <Text style={styles.restaurantMeta}>
                     {restaurant.area} · {restaurant.category}
                   </Text>
@@ -498,44 +492,46 @@ export default function DashboardScreen() {
                 onPress={() => setModalVisible(true)}
                 activeOpacity={0.88}
               >
-                <Ionicons name="add" size={16} color="#1B5E20" />
+                <Ionicons name="add" size={16} color="#FFFFFF" />
                 <Text style={styles.addBtnLabel}>{t("addBag").replace("+ ", "")}</Text>
               </TouchableOpacity>
             </View>
 
             {/* Stats row */}
-            <View style={styles.statsRow}>
-              <View style={styles.statItem}>
-                <Text style={styles.statNum}>{totalBags}</Text>
-                <Text style={styles.statLabel}>{t("todayBags")}</Text>
+            <GlassPanel radius={100} padding={10} style={styles.statsPanel}>
+              <View style={styles.statsRow}>
+                <View style={styles.statItem}>
+                  <Text style={styles.statNum}>{totalBags}</Text>
+                  <Text style={styles.statLabel}>{t("todayBags")}</Text>
+                </View>
+                <View style={styles.statItemDivider} />
+                <View style={styles.statItem}>
+                  <Text style={styles.statNum}>{totalReserved}</Text>
+                  <Text style={styles.statLabel}>{t("statusReserved")}</Text>
+                </View>
+                <View style={styles.statItemDivider} />
+                <View style={styles.statItem}>
+                  <Text style={styles.statNum}>JD {totalEarned.toFixed(0)}</Text>
+                  <Text style={styles.statLabel}>{t("earnedLabel")}</Text>
+                </View>
+                <View style={styles.statItemDivider} />
+                <View style={styles.statItem}>
+                  <Text style={styles.statNum}>{availableBags}</Text>
+                  <Text style={styles.statLabel}>{t("active")}</Text>
+                </View>
               </View>
-              <View style={styles.statItemDivider} />
-              <View style={styles.statItem}>
-                <Text style={styles.statNum}>{totalReserved}</Text>
-                <Text style={styles.statLabel}>{t("statusReserved")}</Text>
-              </View>
-              <View style={styles.statItemDivider} />
-              <View style={styles.statItem}>
-                <Text style={styles.statNum}>JD {totalEarned.toFixed(0)}</Text>
-                <Text style={styles.statLabel}>{t("earnedLabel")}</Text>
-              </View>
-              <View style={styles.statItemDivider} />
-              <View style={styles.statItem}>
-                <Text style={styles.statNum}>{availableBags}</Text>
-                <Text style={styles.statLabel}>{t("active")}</Text>
-              </View>
-            </View>
+            </GlassPanel>
 
             {/* Section title */}
             <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>{t("todayBags")}</Text>
+              <Text style={[styles.sectionTitle, ar(isRTL, "bold")]}>{t("todayBags")}</Text>
               <Text style={styles.sectionCount}>{bags.length}</Text>
             </View>
           </View>
         }
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
-            <Ionicons name="bag-handle-outline" size={40} color="#B8B8B8" />
+            <Ionicons name="bag-handle-outline" size={40} color={T.muteStrong} />
             <Text style={styles.emptyTitle}>{t("noBagsPosted")}</Text>
             <Text style={styles.emptySubtitle}>{t("noBagsPostedSub")}</Text>
             <TouchableOpacity
@@ -555,13 +551,14 @@ export default function DashboardScreen() {
         onRequestClose={() => setModalVisible(false)}
       >
         <View style={styles.modal}>
-          {/* Green modal header */}
+          <WallpaperBackground />
+          {/* Glass modal header */}
           <View style={styles.modalHeader}>
             <View style={styles.modalHandle} />
             <View style={styles.modalTitleRow}>
               <View style={styles.modalTitleLeft}>
                 <View style={styles.modalTitleIcon}>
-                  <Ionicons name="bag-handle" size={18} color="#FFFFFF" />
+                  <Ionicons name="bag-handle" size={18} color={T.green} />
                 </View>
                 <Text style={styles.modalTitle}>{t("addNewBag")}</Text>
               </View>
@@ -569,7 +566,7 @@ export default function DashboardScreen() {
                 style={styles.modalCloseBtn}
                 onPress={() => setModalVisible(false)}
               >
-                <Ionicons name="close" size={18} color="#FFFFFF" />
+                <Ionicons name="close" size={18} color={T.mute} />
               </TouchableOpacity>
             </View>
           </View>
@@ -580,43 +577,20 @@ export default function DashboardScreen() {
               showsVerticalScrollIndicator={false}
               keyboardShouldPersistTaps="always"
             >
-              {/* BAG IMAGE */}
-              <View style={styles.modalSection}>
-                <View style={styles.sectionChip}>
-                  <Ionicons name="image-outline" size={13} color="#6A1B9A" />
-                  <Text style={[styles.modalSectionTitle, { color: "#6A1B9A" }]}>{t("bagImageSection")}</Text>
-                </View>
-                <TouchableOpacity style={styles.imagePicker} onPress={pickBagImage} activeOpacity={0.85}>
-                  {bagImage ? (
-                    <Image source={{ uri: bagImage }} style={styles.imagePickerPreview} />
-                  ) : (
-                    <View style={styles.imagePickerPlaceholder}>
-                      <Ionicons name="camera-outline" size={28} color="#B8B8B8" />
-                      <Text style={styles.imagePickerPlaceholderText}>{t("tapToUploadImage")}</Text>
-                    </View>
-                  )}
-                </TouchableOpacity>
-                {bagImage && (
-                  <TouchableOpacity style={styles.imageRemoveBtn} onPress={() => setBagImage(null)} activeOpacity={0.8}>
-                    <Text style={styles.imageRemoveBtnText}>{t("useDefaultImage")}</Text>
-                  </TouchableOpacity>
-                )}
-              </View>
-
               {/* BAG DETAILS */}
               <View style={styles.modalSection}>
                 <View style={styles.sectionChip}>
-                  <Ionicons name="pencil-outline" size={13} color="#1565C0" />
-                  <Text style={[styles.modalSectionTitle, { color: "#1565C0" }]}>BAG DETAILS</Text>
+                  <Ionicons name="pencil-outline" size={13} color={T.muteStrong} />
+                  <Text style={[styles.modalSectionTitle, { color: T.mute }]}>{t("bagDetailsSection") || "BAG DETAILS"}</Text>
                 </View>
 
                 <Text style={styles.inputLabel}>{t("bagTitle")}</Text>
                 <View style={styles.inputWrapper}>
-                  <Ionicons name="pricetag-outline" size={15} color="#B8B8B8" style={{ marginRight: 8 }} />
+                  <Ionicons name="pricetag-outline" size={15} color={T.muteStrong} style={{ marginRight: 8 }} />
                   <TextInput
                     style={styles.input}
                     placeholder="e.g. Surprise Pastry Bag"
-                    placeholderTextColor="#B8B8B8"
+                    placeholderTextColor={T.muteStrong}
                     value={title}
                     onChangeText={setTitle}
                   />
@@ -627,7 +601,7 @@ export default function DashboardScreen() {
                   <TextInput
                     style={[styles.input, styles.inputMulti]}
                     placeholder="What's in the bag? (optional)"
-                    placeholderTextColor="#B8B8B8"
+                    placeholderTextColor={T.muteStrong}
                     value={description}
                     onChangeText={setDescription}
                     multiline
@@ -639,8 +613,8 @@ export default function DashboardScreen() {
               {/* POSSIBLE CONTENTS */}
               <View style={styles.modalSection}>
                 <View style={styles.sectionChip}>
-                  <Ionicons name="list-outline" size={13} color="#2E7D32" />
-                  <Text style={[styles.modalSectionTitle, { color: "#2E7D32" }]}>{t("possibleContentsSection")}</Text>
+                  <Ionicons name="list-outline" size={13} color={T.muteStrong} />
+                  <Text style={[styles.modalSectionTitle, { color: T.mute }]}>{t("possibleContentsSection")}</Text>
                 </View>
                 <Text style={[styles.inputLabel, { marginBottom: 10 }]}>{t("tapToSelect")}</Text>
                 <View style={styles.contentsGrid}>
@@ -662,7 +636,7 @@ export default function DashboardScreen() {
                         <Ionicons
                           name={item.icon}
                           size={14}
-                          color={selected ? "#FFFFFF" : "#2E7D32"}
+                          color={selected ? "#fff" : T.green}
                         />
                         <Text style={[styles.contentChipText, selected && styles.contentChipTextSelected]}>
                           {t(item.key)}
@@ -676,8 +650,8 @@ export default function DashboardScreen() {
               {/* PRICING */}
               <View style={styles.modalSection}>
                 <View style={styles.sectionChip}>
-                  <Ionicons name="cash-outline" size={13} color="#E65100" />
-                  <Text style={[styles.modalSectionTitle, { color: "#E65100" }]}>PRICING</Text>
+                  <Ionicons name="cash-outline" size={13} color={T.muteStrong} />
+                  <Text style={[styles.modalSectionTitle, { color: T.mute }]}>{t("pricingSection") || "PRICING"}</Text>
                 </View>
 
                 <View style={styles.inputRow}>
@@ -688,7 +662,7 @@ export default function DashboardScreen() {
                       <TextInput
                         style={styles.input}
                         placeholder="3.50"
-                        placeholderTextColor="#B8B8B8"
+                        placeholderTextColor={T.muteStrong}
                         keyboardType="decimal-pad"
                         value={price}
                         onChangeText={setPrice}
@@ -702,7 +676,7 @@ export default function DashboardScreen() {
                       <TextInput
                         style={styles.input}
                         placeholder="12.00"
-                        placeholderTextColor="#B8B8B8"
+                        placeholderTextColor={T.muteStrong}
                         keyboardType="decimal-pad"
                         value={originalValue}
                         onChangeText={setOriginalValue}
@@ -719,7 +693,7 @@ export default function DashboardScreen() {
                   if (disc < 50) {
                     return (
                       <View style={styles.pricingAlert}>
-                        <Ionicons name="close-circle-outline" size={16} color="#C62828" />
+                        <Ionicons name="close-circle-outline" size={16} color={T.urgent} />
                         <View style={{ flex: 1 }}>
                           <Text style={styles.pricingAlertTitle}>{t("priceTooHighTitle")}</Text>
                           <Text style={styles.pricingAlertBody}>{t("priceTooHighBlock")}</Text>
@@ -742,7 +716,7 @@ export default function DashboardScreen() {
                           </Text>
                         </View>
                         <View style={styles.pricingWarn}>
-                          <Ionicons name="information-circle-outline" size={16} color="#E65100" />
+                          <Ionicons name="information-circle-outline" size={16} color={T.accent} />
                           <Text style={[styles.pricingWarnText, { flex: 1 }]}>{t("priceLowerSuggestion")}</Text>
                         </View>
                       </>
@@ -750,7 +724,7 @@ export default function DashboardScreen() {
                   }
                   return (
                     <View style={styles.discountPreview}>
-                      <View style={[styles.discountBadge, { backgroundColor: "#1B5E20" }]}>
+                      <View style={styles.discountBadge}>
                         <Text style={styles.discountBadgeText}>-{disc}%</Text>
                       </View>
                       <Text style={styles.discountPreviewText}>
@@ -767,8 +741,8 @@ export default function DashboardScreen() {
               {/* QUANTITY */}
               <View style={styles.modalSection}>
                 <View style={styles.sectionChip}>
-                  <Ionicons name="layers-outline" size={13} color="#6A1B9A" />
-                  <Text style={[styles.modalSectionTitle, { color: "#6A1B9A" }]}>{t("quantity").replace(" *", "")}</Text>
+                  <Ionicons name="layers-outline" size={13} color={T.mute} />
+                  <Text style={[styles.modalSectionTitle, { color: T.mute }]}>{t("quantity").replace(" *", "")}</Text>
                 </View>
                 <DropdownPicker
                   placeholder="Select number of bags"
@@ -784,8 +758,8 @@ export default function DashboardScreen() {
               {/* SERVING SIZE */}
               <View style={styles.modalSection}>
                 <View style={styles.sectionChip}>
-                  <Ionicons name="people-outline" size={13} color="#0277BD" />
-                  <Text style={[styles.modalSectionTitle, { color: "#0277BD" }]}>{t("servingSizeSection")}</Text>
+                  <Ionicons name="people-outline" size={13} color={T.mute} />
+                  <Text style={[styles.modalSectionTitle, { color: T.mute }]}>{t("servingSizeSection")}</Text>
                 </View>
                 <DropdownPicker
                   placeholder={t("selectServingSize")}
@@ -801,8 +775,8 @@ export default function DashboardScreen() {
               {/* PICKUP TIME */}
               <View style={styles.modalSection}>
                 <View style={styles.sectionChip}>
-                  <Ionicons name="time-outline" size={13} color="#00838F" />
-                  <Text style={[styles.modalSectionTitle, { color: "#00838F" }]}>PICKUP TIME</Text>
+                  <Ionicons name="time-outline" size={13} color={T.mute} />
+                  <Text style={[styles.modalSectionTitle, { color: T.mute }]}>PICKUP TIME</Text>
                 </View>
                 <View style={styles.inputRow}>
                   <View style={styles.inputHalf}>
@@ -838,8 +812,8 @@ export default function DashboardScreen() {
               {/* REPEAT POSTING */}
               <View style={styles.modalSection}>
                 <View style={styles.sectionChip}>
-                  <Ionicons name="repeat-outline" size={13} color="#BF360C" />
-                  <Text style={[styles.modalSectionTitle, { color: "#BF360C" }]}>{t("repeatSection")}</Text>
+                  <Ionicons name="repeat-outline" size={13} color={T.muteStrong} />
+                  <Text style={[styles.modalSectionTitle, { color: T.mute }]}>{t("repeatSection")}</Text>
                 </View>
                 <DropdownPicker
                   placeholder={t("selectRepeatDays")}
@@ -856,7 +830,7 @@ export default function DashboardScreen() {
                 />
                 {repeatDays > 1 && (
                   <View style={styles.repeatNote}>
-                    <Ionicons name="information-circle-outline" size={13} color="#BF360C" />
+                    <Ionicons name="information-circle-outline" size={13} color={T.accent} />
                     <Text style={styles.repeatNoteText}>{t("repeatNoteText", { count: repeatDays })}</Text>
                   </View>
                 )}
@@ -877,7 +851,7 @@ export default function DashboardScreen() {
                 </TouchableOpacity>
               </View>
 
-              <View style={{ height: 40 }} />
+              <View style={{ height: insets.bottom + 40 }} />
             </ScrollView>
           </KeyboardAvoidingView>
         </View>
@@ -887,30 +861,29 @@ export default function DashboardScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#FAFAFA" },
-  loadingContainer: { flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: "#FFFFFF" },
+  container: { flex: 1 },
+  loadingContainer: { flex: 1, justifyContent: "center", alignItems: "center" },
   noRestaurantContainer: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
     padding: 32,
     gap: 12,
-    backgroundColor: "#FFFFFF",
   },
   noRestaurantTitle: {
     fontSize: 17,
     fontWeight: "600",
-    color: "#0F0F0F",
+    color: T.ink,
     marginTop: 8,
     textAlign: "center",
   },
-  noRestaurantSubtitle: { fontSize: 14, color: "#737373", textAlign: "center" },
+  noRestaurantSubtitle: { fontSize: 14, color: T.mute, textAlign: "center" },
 
   // Restaurant header
   restaurantHeader: {
-    backgroundColor: "#1B5E20",
+    backgroundColor: "transparent",
     paddingHorizontal: 20,
-    paddingBottom: 28,
+    paddingBottom: 16,
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
@@ -925,37 +898,34 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: "rgba(255,255,255,0.2)",
+    backgroundColor: "rgba(255,255,255,0.55)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.8)",
     alignItems: "center",
     justifyContent: "center",
   },
-  restaurantAvatarText: { fontSize: 16, fontWeight: "700", color: "#FFFFFF" },
+  restaurantAvatarText: { fontSize: 16, fontWeight: "700", color: T.ink },
   restaurantName: {
     fontSize: 15,
     fontWeight: "700",
-    color: "#FFFFFF",
+    color: T.ink,
     marginBottom: 2,
   },
-  restaurantMeta: { fontSize: 12, color: "rgba(255,255,255,0.7)" },
+  restaurantMeta: { fontSize: 12, color: T.mute },
   addBtn: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: 10,
-    paddingHorizontal: 12,
+    backgroundColor: T.green,
+    borderRadius: 100,
+    paddingHorizontal: 14,
     paddingVertical: 8,
     flexDirection: "row",
     alignItems: "center",
     gap: 4,
   },
-  addBtnLabel: { fontSize: 13, color: "#1B5E20", fontWeight: "700" },
+  addBtnLabel: { fontSize: 13, color: "#FFFFFF", fontWeight: "700" },
 
   // Stats row
-  statsRow: {
-    flexDirection: "row",
-    backgroundColor: "#E8F5E9",
-    borderBottomWidth: 1,
-    borderBottomColor: "#A5D6A7",
-    paddingVertical: 14,
-  },
+  statsPanel: { marginHorizontal: 16, marginBottom: 12 },
+  statsRow: { flexDirection: "row" },
   statItem: {
     flex: 1,
     alignItems: "center",
@@ -963,17 +933,17 @@ const styles = StyleSheet.create({
   },
   statItemDivider: {
     width: 1,
-    backgroundColor: "#A5D6A7",
-    marginVertical: 4,
+    backgroundColor: "rgba(26,34,24,0.10)",
+    marginVertical: 2,
   },
   statNum: {
-    fontSize: 17,
+    fontSize: 15,
     fontWeight: "700",
-    color: "#1B5E20",
-    marginBottom: 3,
+    color: T.green,
+    marginBottom: 2,
     textAlign: "center",
   },
-  statLabel: { fontSize: 11, color: "#4CAF50", textAlign: "center" },
+  statLabel: { fontSize: 9, color: T.mute, textAlign: "center", letterSpacing: 0.3 },
 
   // Section header
   sectionHeader: {
@@ -981,35 +951,33 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     paddingHorizontal: 20,
-    paddingVertical: 12,
-    backgroundColor: "#FFFFFF",
-    borderBottomWidth: 1,
-    borderBottomColor: "#DBDBDB",
+    paddingVertical: 10,
     gap: 8,
-    marginBottom: 12,
+    marginBottom: 8,
   },
-  sectionTitle: { fontSize: 15, fontWeight: "700", color: "#0F0F0F", textAlign: "center" },
-  sectionCount: { fontSize: 13, color: "#737373" },
+  sectionTitle: { fontSize: 13, fontWeight: "700", color: T.ink, textAlign: "center" },
+  sectionCount: { fontSize: 11, color: T.mute },
 
   // List
   list: { paddingHorizontal: 0, paddingTop: 0, paddingBottom: 32 },
 
   // Bag card
   bagCard: {
-    backgroundColor: "#FFFFFF",
+    backgroundColor: "rgba(255,255,255,0.82)",
     borderRadius: 14,
     marginHorizontal: 12,
     marginBottom: 12,
     padding: 16,
     borderLeftWidth: 4,
-    borderLeftColor: "#2E7D32",
-    shadowColor: "#000",
+    borderLeftColor: T.green,
+    shadowColor: "rgba(26,34,24,0.12)",
     shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.09,
+    shadowOpacity: 1,
     shadowRadius: 8,
     elevation: 4,
+    overflow: "hidden",
   },
-  bagCardSoldOut: { opacity: 0.7, borderLeftColor: "#B8B8B8" },
+  bagCardSoldOut: { opacity: 0.7, borderLeftColor: T.muteStrong },
   bagCardHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -1026,48 +994,48 @@ const styles = StyleSheet.create({
   bagCardTitle: {
     fontSize: 15,
     fontWeight: "600",
-    color: "#0F0F0F",
+    color: T.ink,
     marginBottom: 2,
   },
-  textMuted: { color: "#B8B8B8" },
-  bagCardMeta: { fontSize: 12, color: "#737373" },
+  textMuted: { color: T.muteStrong },
+  bagCardMeta: { fontSize: 12, color: T.mute },
   bagStatusBadge: { marginLeft: 8 },
   bagStatusText: { fontSize: 11, fontWeight: "600" },
-  bagStatusTextAvailable: { color: "#2E7D32" },
-  bagStatusTextSoldOut: { color: "#ED4956" },
+  bagStatusTextAvailable: { color: T.green },
+  bagStatusTextSoldOut: { color: T.urgent },
 
   // Price row
   bagPriceRow: {
     flexDirection: "row",
-    backgroundColor: "#FAFAFA",
+    backgroundColor: "rgba(255,255,255,0.55)",
     borderRadius: 10,
     padding: 12,
     marginBottom: 14,
     borderWidth: 1,
-    borderColor: "#EBEBEB",
+    borderColor: "rgba(26,34,24,0.08)",
   },
   bagPriceItem: { flex: 1, alignItems: "center" },
   bagPriceDivider: {
     width: 1,
-    backgroundColor: "#EBEBEB",
+    backgroundColor: "rgba(26,34,24,0.08)",
     marginHorizontal: 4,
   },
   bagPriceLabel: {
     fontSize: 10,
-    color: "#737373",
+    color: T.mute,
     marginBottom: 4,
     fontWeight: "500",
     textTransform: "uppercase",
     letterSpacing: 0.3,
   },
-  bagPriceValue: { fontSize: 15, fontWeight: "700", color: "#0F0F0F" },
+  bagPriceValue: { fontSize: 15, fontWeight: "700", color: T.ink },
   bagPriceOriginal: {
     fontSize: 13,
     fontWeight: "500",
-    color: "#B8B8B8",
+    color: T.muteStrong,
     textDecorationLine: "line-through",
   },
-  bagPriceEarned: { fontSize: 15, fontWeight: "700", color: "#2E7D32" },
+  bagPriceEarned: { fontSize: 15, fontWeight: "700", color: T.green },
 
   // Progress
   progressSection: { marginBottom: 14 },
@@ -1076,28 +1044,28 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     marginBottom: 6,
   },
-  progressLabel: { fontSize: 12, color: "#737373", fontWeight: "500" },
-  progressPct: { fontSize: 12, fontWeight: "600", color: "#2E7D32" },
+  progressLabel: { fontSize: 12, color: T.mute, fontWeight: "500" },
+  progressPct: { fontSize: 12, fontWeight: "600", color: T.green },
   progressBar: {
     height: 6,
-    backgroundColor: "#F0F0F0",
+    backgroundColor: "rgba(26,34,24,0.08)",
     borderRadius: 3,
     overflow: "hidden",
   },
   progressFill: {
     height: "100%",
-    backgroundColor: "#2E7D32",
+    backgroundColor: T.green,
     borderRadius: 3,
   },
   progressFooter: { marginTop: 4 },
-  progressRemaining: { fontSize: 11, color: "#B8B8B8" },
+  progressRemaining: { fontSize: 11, color: T.muteStrong },
 
   // Sold out button
   soldOutBtn: {
     paddingVertical: 10,
     alignItems: "center",
   },
-  soldOutBtnText: { fontSize: 13, fontWeight: "600", color: "#ED4956" },
+  soldOutBtnText: { fontSize: 13, fontWeight: "600", color: T.urgent },
 
   // Empty state
   emptyContainer: {
@@ -1109,36 +1077,42 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 17,
     fontWeight: "600",
-    color: "#0F0F0F",
+    color: T.ink,
     marginTop: 8,
     textAlign: "center",
   },
   emptySubtitle: {
     fontSize: 14,
-    color: "#737373",
+    color: T.mute,
     textAlign: "center",
     lineHeight: 22,
   },
   emptyAddBtn: {
-    backgroundColor: "#2E7D32",
+    backgroundColor: T.green,
     paddingHorizontal: 24,
     paddingVertical: 14,
-    borderRadius: 10,
+    borderRadius: 100,
     marginTop: 8,
+    shadowColor: "rgba(30,58,33,0.35)",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 1,
+    shadowRadius: 10,
+    elevation: 4,
   },
-  emptyAddBtnText: { color: "#FFFFFF", fontWeight: "600", fontSize: 15 },
+  emptyAddBtnText: { color: "#fff", fontWeight: "700", fontSize: 15 },
 
   // Modal
-  modal: { flex: 1, backgroundColor: "#FAFAFA" },
+  modal: { flex: 1 },
   modalHeader: {
-    backgroundColor: "#1B5E20",
     paddingTop: 16,
     paddingBottom: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: "rgba(26,34,24,0.07)",
   },
   modalHandle: {
     width: 40,
     height: 4,
-    backgroundColor: "rgba(255,255,255,0.35)",
+    backgroundColor: "rgba(26,34,24,0.15)",
     borderRadius: 2,
     alignSelf: "center",
     marginBottom: 16,
@@ -1154,20 +1128,22 @@ const styles = StyleSheet.create({
     width: 34,
     height: 34,
     borderRadius: 10,
-    backgroundColor: "rgba(255,255,255,0.2)",
+    backgroundColor: "rgba(61,107,71,0.12)",
+    borderWidth: 1,
+    borderColor: "rgba(61,107,71,0.18)",
     alignItems: "center",
     justifyContent: "center",
   },
-  modalTitle: { fontSize: 18, fontWeight: "700", color: "#FFFFFF" },
+  modalTitle: { fontSize: 18, fontWeight: "700", color: T.ink },
   modalCloseBtn: {
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: "rgba(255,255,255,0.2)",
+    backgroundColor: "rgba(26,34,24,0.07)",
     alignItems: "center",
     justifyContent: "center",
   },
-  modalBody: { flex: 1, backgroundColor: "#FAFAFA" },
+  modalBody: { flex: 1 },
   modalSection: { padding: 20, paddingBottom: 0 },
   sectionChip: {
     flexDirection: "row",
@@ -1184,42 +1160,42 @@ const styles = StyleSheet.create({
   inputLabel: {
     fontSize: 13,
     fontWeight: "500",
-    color: "#0F0F0F",
+    color: T.ink,
     marginBottom: 8,
   },
   inputWrapper: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#FFFFFF",
+    backgroundColor: "rgba(255,255,255,0.80)",
     borderWidth: 1,
-    borderColor: "#DBDBDB",
+    borderColor: "rgba(26,34,24,0.12)",
     borderRadius: 10,
     paddingHorizontal: 14,
     marginBottom: 14,
-    shadowColor: "#000",
+    shadowColor: "rgba(26,34,24,0.08)",
     shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
+    shadowOpacity: 1,
     shadowRadius: 3,
     elevation: 1,
   },
   inputWrapperGreen: {
-    borderColor: "#A5D6A7",
-    backgroundColor: "#F2F8F2",
+    borderColor: "rgba(61,107,71,0.30)",
+    backgroundColor: "rgba(61,107,71,0.07)",
   },
   inputWrapperMulti: { alignItems: "flex-start", paddingTop: 4 },
   inputPrefix: {
     fontSize: 14,
-    color: "#737373",
+    color: T.mute,
     marginRight: 8,
     fontWeight: "600",
   },
   inputPrefixGreen: {
     fontSize: 14,
-    color: "#2E7D32",
+    color: T.green,
     marginRight: 8,
     fontWeight: "700",
   },
-  input: { flex: 1, paddingVertical: 12, fontSize: 15, color: "#0F0F0F" },
+  input: { flex: 1, paddingVertical: 12, fontSize: 15, color: T.ink },
   inputMulti: { paddingTop: 8, height: 80, textAlignVertical: "top" },
   inputRow: { flexDirection: "row", gap: 12 },
   inputHalf: { flex: 1 },
@@ -1227,57 +1203,57 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "flex-start",
     gap: 10,
-    backgroundColor: "#FFEBEE",
+    backgroundColor: "rgba(224,92,74,0.10)",
     borderRadius: 10,
     padding: 12,
     marginTop: 10,
     borderWidth: 1,
-    borderColor: "#FFCDD2",
+    borderColor: "rgba(224,92,74,0.25)",
   },
-  pricingAlertTitle: { fontSize: 13, fontWeight: "700", color: "#C62828", marginBottom: 3 },
-  pricingAlertBody: { fontSize: 12, color: "#B71C1C", lineHeight: 17 },
+  pricingAlertTitle: { fontSize: 13, fontWeight: "700", color: T.urgent, marginBottom: 3 },
+  pricingAlertBody: { fontSize: 12, color: T.urgent, lineHeight: 17 },
   pricingWarn: {
     flexDirection: "row",
     alignItems: "flex-start",
     gap: 10,
-    backgroundColor: "#FFF3E0",
+    backgroundColor: "rgba(232,153,58,0.10)",
     borderRadius: 10,
     padding: 12,
     marginTop: 8,
     borderWidth: 1,
-    borderColor: "#FFE0B2",
+    borderColor: "rgba(232,153,58,0.25)",
   },
-  pricingWarnText: { fontSize: 12, color: "#E65100", lineHeight: 17 },
+  pricingWarnText: { fontSize: 12, color: T.accent, lineHeight: 17 },
   discountPreview: {
     flexDirection: "row",
     alignItems: "center",
     gap: 10,
-    backgroundColor: "#E8F5E9",
+    backgroundColor: "rgba(61,107,71,0.10)",
     borderRadius: 10,
     padding: 12,
     marginBottom: 14,
     borderWidth: 1,
-    borderColor: "#A5D6A7",
+    borderColor: "rgba(61,107,71,0.25)",
   },
   discountBadge: {
-    backgroundColor: "#F57F17",
+    backgroundColor: T.accent,
     borderRadius: 8,
     paddingHorizontal: 8,
     paddingVertical: 4,
   },
-  discountBadgeText: { fontSize: 12, fontWeight: "700", color: "#FFFFFF" },
-  discountPreviewText: { fontSize: 13, color: "#2E7D32", flex: 1 },
-  discountHighlight: { fontWeight: "700", color: "#1B5E20" },
+  discountBadgeText: { fontSize: 12, fontWeight: "700", color: "#fff" },
+  discountPreviewText: { fontSize: 13, color: T.green, flex: 1 },
+  discountHighlight: { fontWeight: "700", color: T.green },
   saveBtn: {
-    backgroundColor: "#1B5E20",
-    borderRadius: 12,
+    backgroundColor: T.green,
+    borderRadius: 100,
     paddingVertical: 16,
     alignItems: "center",
     marginTop: 4,
-    shadowColor: "#1B5E20",
+    shadowColor: "rgba(30,58,33,0.40)",
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
+    shadowOpacity: 1,
+    shadowRadius: 10,
     elevation: 5,
   },
   saveBtnDisabled: { opacity: 0.6 },
@@ -1290,25 +1266,25 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 6,
     borderWidth: 1.5,
-    borderColor: "#A5D6A7",
-    backgroundColor: "#F9FBE7",
+    borderColor: "rgba(61,107,71,0.30)",
+    backgroundColor: "rgba(255,255,255,0.72)",
     borderRadius: 20,
     paddingHorizontal: 12,
     paddingVertical: 8,
   },
   contentChipSelected: {
-    backgroundColor: "#2E7D32",
-    borderColor: "#2E7D32",
+    backgroundColor: T.green,
+    borderColor: T.green,
   },
-  contentChipText: { fontSize: 13, color: "#2E7D32", fontWeight: "600" },
-  contentChipTextSelected: { color: "#FFFFFF" },
+  contentChipText: { fontSize: 13, color: T.green, fontWeight: "600" },
+  contentChipTextSelected: { color: "#fff" },
 
   // Image picker
   imagePicker: {
     borderRadius: 12,
     overflow: "hidden",
     borderWidth: 1,
-    borderColor: "#DBDBDB",
+    borderColor: "rgba(26,34,24,0.15)",
     borderStyle: "dashed",
   },
   imagePickerPreview: {
@@ -1320,30 +1296,30 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     gap: 8,
-    backgroundColor: "#FAFAFA",
+    backgroundColor: "rgba(255,255,255,0.55)",
   },
   imagePickerPlaceholderText: {
     fontSize: 13,
-    color: "#B8B8B8",
+    color: T.muteStrong,
     fontWeight: "500",
   },
   imageRemoveBtn: {
     alignItems: "center",
     paddingVertical: 8,
   },
-  imageRemoveBtnText: { fontSize: 13, color: "#737373", fontWeight: "500" },
+  imageRemoveBtnText: { fontSize: 13, color: T.mute, fontWeight: "500" },
 
   // Repeat note
   repeatNote: {
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
-    backgroundColor: "#FBE9E7",
+    backgroundColor: "rgba(232,153,58,0.10)",
     borderRadius: 8,
     padding: 10,
     marginTop: 8,
     borderWidth: 1,
-    borderColor: "#FFCCBC",
+    borderColor: "rgba(232,153,58,0.25)",
   },
-  repeatNoteText: { fontSize: 12, color: "#BF360C", flex: 1 },
+  repeatNoteText: { fontSize: 12, color: T.accent, flex: 1 },
 });

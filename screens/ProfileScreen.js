@@ -15,10 +15,12 @@ import {
   Platform,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { LinearGradient } from "expo-linear-gradient";
 import * as ImagePicker from "expo-image-picker";
 import { supabase } from "../lib/supabase";
 import { useLanguage } from "../lang/LanguageContext";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { GlassPanel, GlassButton, T, WallpaperBackground, WALLPAPER, TextBackdrop, ar } from "../components/Glass";
 
 export default function ProfileScreen({ navigation }) {
   const [user, setUser] = useState(null);
@@ -28,10 +30,9 @@ export default function ProfileScreen({ navigation }) {
   const [restaurant, setRestaurant] = useState(null);
   const [uploading, setUploading] = useState(false);
 
-  // Edit modal
   const [editModal, setEditModal] = useState({ visible: false, type: null });
   const [editValue, setEditValue] = useState("");
-  const [editValue2, setEditValue2] = useState(""); // confirm password
+  const [editValue2, setEditValue2] = useState("");
   const [saving, setSaving] = useState(false);
 
   const { t, language, toggleLanguage, isRTL } = useLanguage();
@@ -131,19 +132,10 @@ export default function ProfileScreen({ navigation }) {
   };
 
   const handleSave = async () => {
-    if (!editValue.trim()) {
-      Alert.alert("Error", "Field cannot be empty.");
-      return;
-    }
+    if (!editValue.trim()) { Alert.alert("Error", "Field cannot be empty."); return; }
     if (editModal.type === "password") {
-      if (editValue.length < 6) {
-        Alert.alert("Error", "Password must be at least 6 characters.");
-        return;
-      }
-      if (editValue !== editValue2) {
-        Alert.alert("Error", "Passwords do not match.");
-        return;
-      }
+      if (editValue.length < 6) { Alert.alert("Error", "Password must be at least 6 characters."); return; }
+      if (editValue !== editValue2) { Alert.alert("Error", "Passwords do not match."); return; }
     }
 
     setSaving(true);
@@ -179,8 +171,9 @@ export default function ProfileScreen({ navigation }) {
 
   if (loading) {
     return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#2E7D32" />
+      <View style={styles.root}>
+        <WallpaperBackground />
+        <View style={styles.center}><ActivityIndicator size="large" color={T.green} /></View>
       </View>
     );
   }
@@ -200,210 +193,139 @@ export default function ProfileScreen({ navigation }) {
     editModal.type === "name" ? t("editName") :
     editModal.type === "email" ? t("changeEmail") : t("changePassword");
 
+  const ACCOUNT_ROWS = [
+    { type: "name", icon: "person-outline", label: t("name"), value: displayName },
+    { type: "email", icon: "mail-outline", label: t("email"), value: user?.email },
+    ...(!isRestaurant ? [{ type: "payment", icon: "card-outline", label: t("paymentMethod"), value: null, nav: true }] : []),
+    { type: "password", icon: "lock-closed-outline", label: t("password"), value: "••••••••" },
+  ];
+
   return (
     <>
-      <StatusBar backgroundColor="#1B5E20" barStyle="light-content" />
-      <ScrollView
-        style={styles.container}
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingBottom: insets.bottom + 24 }}
-        keyboardShouldPersistTaps="handled"
-      >
-        {/* Header + Avatar hero */}
-        <View style={[styles.header, { paddingTop: insets.top + 16 }]}>
-          <Text style={styles.headerTitle}>{t("profileTitle")}</Text>
-          <View style={styles.avatarSection}>
-            {/* Avatar */}
-            {isRestaurant ? (
+      <View style={styles.root}>
+        <StatusBar barStyle="dark-content" translucent backgroundColor="transparent" />
+        <WallpaperBackground />
+
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={[styles.scroll, { paddingTop: insets.top + 20, paddingBottom: insets.bottom + 32 }]}
+        >
+          {/* Header label */}
+          <Text style={[styles.screenLabel, isRTL && styles.rtl]}>· {t("appName")}</Text>
+          <Text style={[styles.screenTitle, isRTL && styles.rtl, ar(isRTL, "bold")]}>{t("profileTitle")}</Text>
+
+          {/* Avatar card */}
+          <GlassPanel radius={24} padding={20} style={styles.avatarCard}>
+            <View style={{ alignItems: "center" }}>
               <TouchableOpacity
                 style={styles.avatarCircle}
-                onPress={handlePickImage}
-                activeOpacity={0.8}
-                disabled={uploading}
+                onPress={isRestaurant ? handlePickImage : undefined}
+                disabled={!isRestaurant || uploading}
+                activeOpacity={isRestaurant ? 0.8 : 1}
               >
-                {restaurant?.logo_url ? (
+                {isRestaurant && restaurant?.logo_url ? (
                   <Image source={{ uri: restaurant.logo_url }} style={styles.avatarImage} />
                 ) : (
                   <Text style={styles.avatarText}>{initials}</Text>
                 )}
-                <View style={styles.cameraOverlay}>
-                  {uploading ? (
-                    <ActivityIndicator size="small" color="#FFFFFF" />
-                  ) : (
-                    <Ionicons name="camera" size={14} color="#FFFFFF" />
-                  )}
-                </View>
-              </TouchableOpacity>
-            ) : (
-              <View style={styles.avatarCircle}>
-                <Text style={styles.avatarText}>{initials}</Text>
-              </View>
-            )}
-            <Text style={styles.displayName}>{displayName}</Text>
-            <Text style={styles.emailText}>{user?.email}</Text>
-            {isRestaurant && (
-              <Text style={styles.restaurantBadge}>{t("restaurantAccount")}</Text>
-            )}
-          </View>
-        </View>
-
-        {/* Stats row */}
-        <View style={styles.statsRow}>
-          <View style={styles.statItem}>
-            <Text style={styles.statNum}>{orderStats.total}</Text>
-            <Text style={styles.statLabel}>{t("ordersCount")}</Text>
-          </View>
-          <View style={styles.statDivider} />
-          <View style={styles.statItem}>
-            <Text style={styles.statNum}>JD {orderStats.spent.toFixed(0)}</Text>
-            <Text style={styles.statLabel}>{isRestaurant ? t("earned") : t("spent")}</Text>
-          </View>
-          <View style={styles.statDivider} />
-          <View style={styles.statItem}>
-            <Text style={styles.statNum}>{memberSince}</Text>
-            <Text style={styles.statLabel}>{t("memberBadge")}</Text>
-          </View>
-        </View>
-
-        <View style={styles.sectionDivider} />
-
-        {/* Account Settings */}
-        <Text style={styles.sectionLabel}>{t("accountSettings")}</Text>
-        <View style={styles.menuSection}>
-          <TouchableOpacity
-            style={[styles.menuRow, isRTL && styles.rtlRow]}
-            onPress={() => openEdit("name")}
-            activeOpacity={0.7}
-          >
-            <View style={[styles.menuLeft, isRTL && styles.rtlRow]}>
-              <View style={[styles.menuIconBox, { backgroundColor: "#E8F5E9" }]}>
-                <Ionicons name="person-outline" size={18} color="#2E7D32" />
-              </View>
-              <View>
-                <Text style={styles.menuLabel}>{t("name")}</Text>
-                <Text style={styles.menuSubValue} numberOfLines={1}>{displayName}</Text>
-              </View>
-            </View>
-            <Ionicons name="chevron-forward" size={16} color="#B8B8B8" />
-          </TouchableOpacity>
-
-          <View style={styles.menuDivider} />
-
-          <TouchableOpacity
-            style={[styles.menuRow, isRTL && styles.rtlRow]}
-            onPress={() => openEdit("email")}
-            activeOpacity={0.7}
-          >
-            <View style={[styles.menuLeft, isRTL && styles.rtlRow]}>
-              <View style={[styles.menuIconBox, { backgroundColor: "#E3F2FD" }]}>
-                <Ionicons name="mail-outline" size={18} color="#1565C0" />
-              </View>
-              <View>
-                <Text style={styles.menuLabel}>{t("email")}</Text>
-                <Text style={styles.menuSubValue} numberOfLines={1}>{user?.email}</Text>
-              </View>
-            </View>
-            <Ionicons name="chevron-forward" size={16} color="#B8B8B8" />
-          </TouchableOpacity>
-
-          {!isRestaurant && (
-            <>
-              <View style={styles.menuDivider} />
-              <TouchableOpacity
-                style={[styles.menuRow, isRTL && styles.rtlRow]}
-                onPress={() => navigation.navigate("Payment")}
-                activeOpacity={0.7}
-              >
-                <View style={[styles.menuLeft, isRTL && styles.rtlRow]}>
-                  <View style={[styles.menuIconBox, { backgroundColor: "#E8F5E9" }]}>
-                    <Ionicons name="card-outline" size={18} color="#2E7D32" />
+                {isRestaurant && (
+                  <View style={styles.cameraOverlay}>
+                    {uploading
+                      ? <ActivityIndicator size="small" color="#fff" />
+                      : <Ionicons name="camera" size={13} color="#fff" />
+                    }
                   </View>
-                  <Text style={styles.menuLabel}>{t("paymentMethod")}</Text>
-                </View>
-                <Ionicons name="chevron-forward" size={16} color="#B8B8B8" />
+                )}
               </TouchableOpacity>
-            </>
-          )}
+              <Text style={styles.displayName}>{displayName}</Text>
+              <Text style={styles.emailText}>{user?.email}</Text>
+              {isRestaurant && (
+                <View style={styles.restaurantBadge}>
+                  <Text style={styles.restaurantBadgeText}>{t("restaurantAccount")}</Text>
+                </View>
+              )}
+            </View>
 
-          <View style={styles.menuDivider} />
-
-          <TouchableOpacity
-            style={[styles.menuRow, isRTL && styles.rtlRow]}
-            onPress={() => openEdit("password")}
-            activeOpacity={0.7}
-          >
-            <View style={[styles.menuLeft, isRTL && styles.rtlRow]}>
-              <View style={[styles.menuIconBox, { backgroundColor: "#F3E5F5" }]}>
-                <Ionicons name="lock-closed-outline" size={18} color="#7B1FA2" />
+            {/* Stats */}
+            <View style={[styles.statsRow, isRTL && styles.rtlRow]}>
+              <View style={styles.statItem}>
+                <Text style={styles.statNum}>{orderStats.total}</Text>
+                <Text style={styles.statLabel}>{t("ordersCount")}</Text>
               </View>
-              <View>
-                <Text style={styles.menuLabel}>{t("password")}</Text>
-                <Text style={styles.menuSubValue}>••••••••</Text>
+              <View style={styles.statDivider} />
+              <View style={styles.statItem}>
+                <Text style={styles.statNum}>JD {orderStats.spent.toFixed(0)}</Text>
+                <Text style={styles.statLabel}>{isRestaurant ? t("earned") : t("spent")}</Text>
+              </View>
+              <View style={styles.statDivider} />
+              <View style={styles.statItem}>
+                <Text style={styles.statNum}>{memberSince}</Text>
+                <Text style={styles.statLabel}>{t("memberBadge")}</Text>
               </View>
             </View>
-            <Ionicons name="chevron-forward" size={16} color="#B8B8B8" />
-          </TouchableOpacity>
-        </View>
+          </GlassPanel>
 
-        <View style={styles.sectionDivider} />
-
-        {/* Preferences */}
-        <Text style={styles.sectionLabel}>{t("preferences")}</Text>
-        <View style={styles.menuSection}>
-          <TouchableOpacity
-            style={[styles.menuRow, isRTL && styles.rtlRow]}
-            onPress={toggleLanguage}
-            activeOpacity={0.7}
-          >
-            <View style={[styles.menuLeft, isRTL && styles.rtlRow]}>
-              <View style={[styles.menuIconBox, { backgroundColor: "#E0F7FA" }]}>
-                <Ionicons name="globe-outline" size={18} color="#00838F" />
+          {/* Account Settings */}
+          <Text style={[styles.sectionLabel, isRTL && styles.rtl]}>{t("accountSettings")}</Text>
+          <GlassPanel radius={18} style={{ overflow: "hidden", marginBottom: 16 }}>
+            {ACCOUNT_ROWS.map((row, i) => (
+              <View key={row.type}>
+                <TouchableOpacity
+                  style={[styles.menuRow, isRTL && styles.rtlRow]}
+                  onPress={() => row.nav ? navigation.navigate("Payment") : openEdit(row.type)}
+                  activeOpacity={0.7}
+                >
+                  <View style={[styles.menuLeft, isRTL && styles.rtlRow]}>
+                    <View style={styles.menuIconBadge}>
+                      <Ionicons name={row.icon} size={15} color={T.green} />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={[styles.menuLabel, isRTL && styles.rtl]}>{row.label}</Text>
+                      {row.value && <Text style={[styles.menuSub, isRTL && styles.rtl]} numberOfLines={1}>{row.value}</Text>}
+                    </View>
+                  </View>
+                  <Ionicons name={isRTL ? "chevron-back" : "chevron-forward"} size={14} color={T.muteStrong} />
+                </TouchableOpacity>
+                {i < ACCOUNT_ROWS.length - 1 && <View style={styles.menuDivider} />}
               </View>
-              <Text style={styles.menuLabel}>{t("language")}</Text>
-            </View>
-            <View style={styles.menuRight}>
-              <Text style={styles.menuValue}>{language === "en" ? "English" : "العربية"}</Text>
-              <Ionicons name="chevron-forward" size={16} color="#B8B8B8" />
-            </View>
-          </TouchableOpacity>
+            ))}
+          </GlassPanel>
 
-          <View style={styles.menuDivider} />
-
-          <TouchableOpacity
-            style={[styles.menuRow, isRTL && styles.rtlRow]}
-            onPress={() => navigation.navigate("Contact")}
-            activeOpacity={0.7}
-          >
-            <View style={[styles.menuLeft, isRTL && styles.rtlRow]}>
-              <View style={[styles.menuIconBox, { backgroundColor: "#F3E5F5" }]}>
-                <Ionicons name="chatbubble-ellipses-outline" size={18} color="#7B1FA2" />
+          {/* Preferences */}
+          <Text style={[styles.sectionLabel, isRTL && styles.rtl]}>{t("preferences")}</Text>
+          <GlassPanel radius={18} style={{ overflow: "hidden", marginBottom: 16 }}>
+            <TouchableOpacity style={[styles.menuRow, isRTL && styles.rtlRow]} onPress={toggleLanguage} activeOpacity={0.7}>
+              <View style={[styles.menuLeft, isRTL && styles.rtlRow]}>
+                <View style={styles.menuIconBadge}>
+                  <Ionicons name="globe-outline" size={15} color={T.green} />
+                </View>
+                <Text style={[styles.menuLabel, isRTL && styles.rtl]}>{t("language")}</Text>
               </View>
-              <Text style={styles.menuLabel}>{t("contactUs")}</Text>
-            </View>
-            <Ionicons name="chevron-forward" size={16} color="#B8B8B8" />
-          </TouchableOpacity>
-
-          <View style={styles.menuDivider} />
-
-          <TouchableOpacity
-            style={[styles.menuRow, isRTL && styles.rtlRow]}
-            onPress={handleSignOut}
-            activeOpacity={0.7}
-          >
-            <View style={[styles.menuLeft, isRTL && styles.rtlRow]}>
-              <View style={[styles.menuIconBox, { backgroundColor: "#FFEBEE" }]}>
-                <Ionicons name="log-out-outline" size={18} color="#ED4956" />
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                <Text style={styles.menuValue}>{language === "en" ? "English" : "العربية"}</Text>
+                <Ionicons name={isRTL ? "chevron-back" : "chevron-forward"} size={14} color={T.muteStrong} />
               </View>
-              <Text style={[styles.menuLabel, styles.menuLabelDestructive]}>{t("signOut")}</Text>
-            </View>
-          </TouchableOpacity>
-        </View>
+            </TouchableOpacity>
+            <View style={styles.menuDivider} />
+            <TouchableOpacity style={[styles.menuRow, isRTL && styles.rtlRow]} onPress={() => navigation.navigate("Contact")} activeOpacity={0.7}>
+              <View style={[styles.menuLeft, isRTL && styles.rtlRow]}>
+                <View style={styles.menuIconBadge}>
+                  <Ionicons name="chatbubble-ellipses-outline" size={15} color={T.green} />
+                </View>
+                <Text style={[styles.menuLabel, isRTL && styles.rtl]}>{t("contactUs")}</Text>
+              </View>
+              <Ionicons name={isRTL ? "chevron-back" : "chevron-forward"} size={14} color={T.muteStrong} />
+            </TouchableOpacity>
+          </GlassPanel>
 
-        {/* Version */}
-        <View style={styles.versionRow}>
+          {/* Sign out */}
+          <GlassButton danger onPress={handleSignOut} style={{ borderColor: "rgba(237,73,86,0.35)" }}>
+            {t("signOut")}
+          </GlassButton>
+
           <Text style={styles.versionText}>{t("appVersion")}</Text>
-        </View>
-      </ScrollView>
+        </ScrollView>
+      </View>
 
       {/* Edit Modal */}
       <Modal
@@ -422,6 +344,7 @@ export default function ProfileScreen({ navigation }) {
             onPress={() => setEditModal({ visible: false, type: null })}
           />
           <View style={styles.modalSheet}>
+            <LinearGradient colors={WALLPAPER.colors} start={WALLPAPER.start} end={WALLPAPER.end} style={StyleSheet.absoluteFill} />
             <View style={styles.modalHandle} />
             <Text style={styles.modalTitle}>{editModalTitle}</Text>
 
@@ -434,7 +357,7 @@ export default function ProfileScreen({ navigation }) {
                   onChangeText={setEditValue}
                   secureTextEntry
                   placeholder={t("atLeast6Chars")}
-                  placeholderTextColor="#B8B8B8"
+                  placeholderTextColor={T.muteStrong}
                   autoFocus
                 />
                 <Text style={styles.inputLabel}>{t("confirmPassword")}</Text>
@@ -444,7 +367,7 @@ export default function ProfileScreen({ navigation }) {
                   onChangeText={setEditValue2}
                   secureTextEntry
                   placeholder={t("repeatPassword")}
-                  placeholderTextColor="#B8B8B8"
+                  placeholderTextColor={T.muteStrong}
                 />
               </>
             ) : (
@@ -459,7 +382,7 @@ export default function ProfileScreen({ navigation }) {
                   keyboardType={editModal.type === "email" ? "email-address" : "default"}
                   autoCapitalize={editModal.type === "email" ? "none" : "words"}
                   placeholder={editModal.type === "name" ? t("yourName") : "email@example.com"}
-                  placeholderTextColor="#B8B8B8"
+                  placeholderTextColor={T.muteStrong}
                   autoFocus
                 />
                 {editModal.type === "email" && (
@@ -480,11 +403,10 @@ export default function ProfileScreen({ navigation }) {
                 onPress={handleSave}
                 disabled={saving}
               >
-                {saving ? (
-                  <ActivityIndicator color="#FFFFFF" size="small" />
-                ) : (
-                  <Text style={styles.modalSaveText}>{t("saveChanges")}</Text>
-                )}
+                {saving
+                  ? <ActivityIndicator color="#fff" size="small" />
+                  : <Text style={styles.modalSaveText}>{t("saveChanges")}</Text>
+                }
               </TouchableOpacity>
             </View>
           </View>
@@ -495,189 +417,72 @@ export default function ProfileScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#FAFAFA" },
-  loadingContainer: { flex: 1, justifyContent: "center", alignItems: "center" },
+  root: { flex: 1 },
+  rtl: { textAlign: "right", writingDirection: "rtl" },
   rtlRow: { flexDirection: "row-reverse" },
+  center: { flex: 1, justifyContent: "center", alignItems: "center" },
 
-  // Header + avatar hero
-  header: {
-    backgroundColor: "#1B5E20",
-    paddingHorizontal: 20,
-    paddingBottom: 28,
-  },
-  headerTitle: {
-    fontSize: 22,
-    fontWeight: "700",
-    color: "#FFFFFF",
-    marginBottom: 20,
-    textAlign: "center",
-  },
+  scroll: { paddingHorizontal: 20 },
+  screenLabel: { fontSize: 9, letterSpacing: 1.3, textTransform: "uppercase", color: T.green, fontWeight: "700", marginBottom: 4 },
+  screenTitle: { fontSize: 26, fontWeight: "800", color: T.ink, letterSpacing: -0.8, marginBottom: 20 },
 
-  // Avatar section
-  avatarSection: { alignItems: "center" },
+  // Avatar card
+  avatarCard: { marginBottom: 24 },
   avatarCircle: {
-    width: 84,
-    height: 84,
-    borderRadius: 42,
-    backgroundColor: "#FFFFFF",
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 14,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
-    shadowRadius: 6,
-    elevation: 4,
-    overflow: "hidden",
+    width: 80, height: 80, borderRadius: 40,
+    backgroundColor: "rgba(255,255,255,0.5)",
+    borderWidth: 2, borderColor: "rgba(255,255,255,0.8)",
+    alignItems: "center", justifyContent: "center",
+    marginBottom: 12, overflow: "hidden",
   },
-  avatarImage: { width: 84, height: 84, borderRadius: 42 },
-  avatarText: { fontSize: 30, fontWeight: "700", color: "#1B5E20" },
+  avatarImage: { width: 80, height: 80, borderRadius: 40 },
+  avatarText: { fontSize: 28, fontWeight: "700", color: T.ink },
   cameraOverlay: {
-    position: "absolute",
-    bottom: 0,
-    left: 0,
-    right: 0,
-    height: 26,
-    backgroundColor: "rgba(0,0,0,0.45)",
-    alignItems: "center",
-    justifyContent: "center",
+    position: "absolute", bottom: 0, left: 0, right: 0, height: 24,
+    backgroundColor: "rgba(0,0,0,0.45)", alignItems: "center", justifyContent: "center",
   },
-  displayName: { fontSize: 17, fontWeight: "700", color: "#FFFFFF", marginBottom: 4 },
-  emailText: { fontSize: 13, color: "rgba(255,255,255,0.75)" },
-  restaurantBadge: {
-    marginTop: 8,
-    backgroundColor: "rgba(255,255,255,0.15)",
-    borderRadius: 20,
-    paddingHorizontal: 12,
-    paddingVertical: 4,
-    fontSize: 12,
-    color: "#A5D6A7",
-    fontWeight: "600",
-    overflow: "hidden",
-  },
+  displayName: { fontSize: 17, fontWeight: "700", color: T.ink, marginBottom: 3 },
+  emailText: { fontSize: 12, color: T.mute },
+  restaurantBadge: { marginTop: 8, backgroundColor: "rgba(61,107,71,0.12)", borderRadius: 100, paddingHorizontal: 12, paddingVertical: 4 },
+  restaurantBadgeText: { fontSize: 11, color: T.green, fontWeight: "600" },
 
-  // Stats row
-  statsRow: {
-    flexDirection: "row",
-    paddingHorizontal: 20,
-    paddingVertical: 18,
-    borderBottomWidth: 1,
-    borderColor: "#DBDBDB",
-    backgroundColor: "#E8F5E9",
-  },
+  statsRow: { flexDirection: "row", marginTop: 20, paddingTop: 16, borderTopWidth: 1, borderTopColor: "rgba(26,34,24,0.08)" },
   statItem: { flex: 1, alignItems: "center" },
-  statNum: { fontSize: 16, fontWeight: "700", color: "#1B5E20", marginBottom: 3, textAlign: "center" },
-  statLabel: { fontSize: 12, color: "#4CAF50", textAlign: "center" },
-  statDivider: { width: 1, backgroundColor: "#A5D6A7", marginHorizontal: 8 },
+  statNum: { fontSize: 15, fontWeight: "700", color: T.green, marginBottom: 2, textAlign: "center" },
+  statLabel: { fontSize: 9, color: T.mute, textAlign: "center", letterSpacing: 0.3 },
+  statDivider: { width: 1, backgroundColor: "rgba(26,34,24,0.10)", marginVertical: 2 },
 
-  sectionDivider: { height: 8, backgroundColor: "#FAFAFA" },
-  sectionLabel: {
-    fontSize: 12,
-    fontWeight: "700",
-    color: "#737373",
-    textTransform: "uppercase",
-    letterSpacing: 0.8,
-    marginHorizontal: 20,
-    marginTop: 12,
-    marginBottom: 6,
-  },
+  sectionLabel: { fontSize: 9, letterSpacing: 1.2, textTransform: "uppercase", color: T.green, fontWeight: "700", marginBottom: 8 },
 
-  // Menu
-  menuSection: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: 14,
-    marginHorizontal: 12,
-    marginBottom: 8,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.09,
-    shadowRadius: 8,
-    elevation: 4,
-    overflow: "hidden",
+  menuIconBadge: {
+    width: 34, height: 34, borderRadius: 10,
+    backgroundColor: "rgba(61,107,71,0.10)",
+    alignItems: "center", justifyContent: "center",
   },
-  menuRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-  },
-  menuLeft: { flexDirection: "row", alignItems: "center", gap: 14, flex: 1 },
-  menuRight: { flexDirection: "row", alignItems: "center", gap: 6 },
-  menuIconBox: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  menuLabel: { fontSize: 15, color: "#0F0F0F", fontWeight: "400" },
-  menuSubValue: { fontSize: 12, color: "#737373", marginTop: 1, maxWidth: 200 },
-  menuLabelDestructive: { color: "#ED4956" },
-  menuValue: { fontSize: 14, color: "#737373" },
-  menuDivider: { height: 1, backgroundColor: "#F0F0F0", marginLeft: 66 },
+  menuRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 16, paddingVertical: 12 },
+  menuLeft: { flexDirection: "row", alignItems: "center", gap: 12, flex: 1 },
+  menuLabel: { fontSize: 14, color: T.ink, fontWeight: "600" },
+  menuSub: { fontSize: 11, color: T.mute, marginTop: 1, maxWidth: 200 },
+  menuValue: { fontSize: 13, color: T.mute },
+  menuDivider: { height: 1, backgroundColor: "rgba(26,34,24,0.07)", marginHorizontal: 14 },
 
-  // Version
-  versionRow: { alignItems: "center", paddingTop: 24 },
-  versionText: { fontSize: 12, color: "#B8B8B8" },
+  versionText: { fontSize: 11, color: T.muteStrong, textAlign: "center", marginTop: 20 },
 
   // Modal
-  modalOverlay: {
-    flex: 1,
-    justifyContent: "flex-end",
-    backgroundColor: "rgba(0,0,0,0.4)",
-  },
-  modalSheet: {
-    backgroundColor: "#FFFFFF",
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    padding: 24,
-    paddingBottom: 36,
-    gap: 4,
-  },
-  modalHandle: {
-    width: 40,
-    height: 4,
-    backgroundColor: "#DBDBDB",
-    borderRadius: 2,
-    alignSelf: "center",
-    marginBottom: 20,
-  },
-  modalTitle: {
-    fontSize: 18,
-    fontWeight: "700",
-    color: "#0F0F0F",
-    textAlign: "center",
-    marginBottom: 16,
-  },
-  inputLabel: { fontSize: 13, fontWeight: "600", color: "#737373", marginBottom: 6, marginTop: 8 },
+  modalOverlay: { flex: 1, justifyContent: "flex-end", backgroundColor: "rgba(0,0,0,0.35)" },
+  modalSheet: { borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24, paddingBottom: 36, gap: 4, overflow: "hidden" },
+  modalHandle: { width: 40, height: 4, backgroundColor: "rgba(26,34,24,0.2)", borderRadius: 2, alignSelf: "center", marginBottom: 20 },
+  modalTitle: { fontSize: 18, fontWeight: "700", color: T.ink, textAlign: "center", marginBottom: 16 },
+  inputLabel: { fontSize: 11, fontWeight: "700", color: T.green, textTransform: "uppercase", letterSpacing: 0.8, marginBottom: 6, marginTop: 8 },
   input: {
-    borderWidth: 1,
-    borderColor: "#DBDBDB",
-    borderRadius: 10,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    fontSize: 15,
-    color: "#0F0F0F",
-    backgroundColor: "#FAFAFA",
+    borderWidth: 1.5, borderColor: "rgba(61,107,71,0.25)", borderRadius: 12,
+    paddingHorizontal: 14, paddingVertical: 12,
+    fontSize: 15, color: T.ink, backgroundColor: "rgba(255,255,255,0.75)",
   },
-  inputHint: { fontSize: 12, color: "#737373", marginTop: 6 },
+  inputHint: { fontSize: 11, color: T.mute, marginTop: 6 },
   modalBtnRow: { flexDirection: "row", gap: 12, marginTop: 24 },
-  modalCancelBtn: {
-    flex: 1,
-    borderWidth: 1,
-    borderColor: "#DBDBDB",
-    borderRadius: 10,
-    paddingVertical: 14,
-    alignItems: "center",
-  },
-  modalCancelText: { fontSize: 15, color: "#737373", fontWeight: "500" },
-  modalSaveBtn: {
-    flex: 1,
-    backgroundColor: "#2E7D32",
-    borderRadius: 10,
-    paddingVertical: 14,
-    alignItems: "center",
-  },
-  modalSaveText: { fontSize: 15, color: "#FFFFFF", fontWeight: "600" },
+  modalCancelBtn: { flex: 1, borderWidth: 1, borderColor: "rgba(26,34,24,0.2)", borderRadius: 100, paddingVertical: 13, alignItems: "center" },
+  modalCancelText: { fontSize: 14, color: T.mute, fontWeight: "500" },
+  modalSaveBtn: { flex: 1, backgroundColor: T.green, borderRadius: 100, paddingVertical: 13, alignItems: "center" },
+  modalSaveText: { fontSize: 14, color: "#fff", fontWeight: "600" },
 });

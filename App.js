@@ -1,12 +1,16 @@
 import "react-native-gesture-handler";
 import { useState, useEffect } from "react";
+import { useFonts, ElMessiri_400Regular, ElMessiri_500Medium, ElMessiri_600SemiBold, ElMessiri_700Bold } from "@expo-google-fonts/el-messiri";
 import { NavigationContainer } from "@react-navigation/native";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { createStackNavigator } from "@react-navigation/stack";
-import { Text, View, ActivityIndicator } from "react-native";
+import { Text, View, ActivityIndicator, StyleSheet, Platform, StatusBar } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { LinearGradient } from "expo-linear-gradient";
 import { supabase } from "./lib/supabase";
 import { LanguageProvider, useLanguage } from "./lang/LanguageContext";
+import { LocationProvider } from "./lib/LocationContext";
+import { T, WALLPAPER } from "./components/Glass";
 import HomeScreen from "./screens/HomeScreen";
 import OrdersScreen from "./screens/OrdersScreen";
 import ProfileScreen from "./screens/ProfileScreen";
@@ -26,15 +30,37 @@ import { SafeAreaProvider, useSafeAreaInsets } from "react-native-safe-area-cont
 const Tab = createBottomTabNavigator();
 const Stack = createStackNavigator();
 
-const TabIcon = ({ iconName, focused }) => (
-  <View style={{ alignItems: "center", justifyContent: "center" }}>
+// Minimal tab icon
+const TabIcon = ({ iconName, focused, label }) => (
+  <View style={{ alignItems: "center", gap: 3 }}>
     <Ionicons
       name={focused ? iconName : `${iconName}-outline`}
-      size={24}
-      color={focused ? "#2E7D32" : "#8E8E8E"}
+      size={22}
+      color={focused ? T.green : T.muteStrong}
     />
+    <Text style={{ fontSize: 9, fontWeight: focused ? "700" : "500", color: focused ? T.green : T.muteStrong }}>
+      {label}
+    </Text>
   </View>
 );
+
+const TAB_BAR_STYLE = (insets) => ({
+  backgroundColor: "rgba(253,252,249,0.97)",
+  borderTopWidth: 1,
+  borderTopColor: "rgba(255,255,255,0.85)",
+  elevation: 0,
+  shadowColor: "rgba(40,55,35,0.12)",
+  shadowOffset: { width: 0, height: -2 },
+  shadowOpacity: 1,
+  shadowRadius: 12,
+  height: Platform.OS === "android"
+    ? 58 + insets.bottom
+    : 56 + (insets.bottom > 0 ? insets.bottom : 10),
+  paddingBottom: Platform.OS === "android"
+    ? 6 + insets.bottom
+    : insets.bottom > 0 ? insets.bottom : 10,
+  paddingTop: Platform.OS === "android" ? 6 : 8,
+});
 
 function UserTabs() {
   const insets = useSafeAreaInsets();
@@ -42,54 +68,29 @@ function UserTabs() {
     <Tab.Navigator
       screenOptions={{
         headerShown: false,
-        tabBarStyle: {
-          backgroundColor: "#FFFFFF",
-          borderTopWidth: 0.5,
-          borderTopColor: "#DBDBDB",
-          elevation: 0,
-          shadowOpacity: 0,
-          height: 50 + (insets.bottom > 0 ? insets.bottom : 8),
-          paddingBottom: insets.bottom > 0 ? insets.bottom : 8,
-          paddingTop: 4,
-        },
+        tabBarStyle: TAB_BAR_STYLE(insets),
         tabBarShowLabel: false,
       }}
     >
       <Tab.Screen
         name="Home"
         component={HomeScreen}
-        options={{
-          tabBarIcon: ({ focused }) => (
-            <TabIcon iconName="home" focused={focused} />
-          ),
-        }}
+        options={{ tabBarIcon: ({ focused }) => <TabIcon iconName="home" focused={focused} label="Home" /> }}
       />
       <Tab.Screen
         name="Search"
         component={SearchScreen}
-        options={{
-          tabBarIcon: ({ focused }) => (
-            <TabIcon iconName="search" focused={focused} />
-          ),
-        }}
+        options={{ tabBarIcon: ({ focused }) => <TabIcon iconName="search" focused={focused} label="Search" /> }}
       />
       <Tab.Screen
         name="Orders"
         component={OrdersScreen}
-        options={{
-          tabBarIcon: ({ focused }) => (
-            <TabIcon iconName="bag-handle" focused={focused} />
-          ),
-        }}
+        options={{ tabBarIcon: ({ focused }) => <TabIcon iconName="bag-handle" focused={focused} label="Orders" /> }}
       />
       <Tab.Screen
         name="Profile"
         component={ProfileScreen}
-        options={{
-          tabBarIcon: ({ focused }) => (
-            <TabIcon iconName="person" focused={focused} />
-          ),
-        }}
+        options={{ tabBarIcon: ({ focused }) => <TabIcon iconName="person" focused={focused} label="Profile" /> }}
       />
     </Tab.Navigator>
   );
@@ -101,54 +102,29 @@ function RestaurantTabs() {
     <Tab.Navigator
       screenOptions={{
         headerShown: false,
-        tabBarStyle: {
-          backgroundColor: "#FFFFFF",
-          borderTopWidth: 0.5,
-          borderTopColor: "#DBDBDB",
-          elevation: 0,
-          shadowOpacity: 0,
-          height: 50 + (insets.bottom > 0 ? insets.bottom : 8),
-          paddingBottom: insets.bottom > 0 ? insets.bottom : 8,
-          paddingTop: 4,
-        },
+        tabBarStyle: TAB_BAR_STYLE(insets),
         tabBarShowLabel: false,
       }}
     >
       <Tab.Screen
         name="Dashboard"
         component={DashboardScreen}
-        options={{
-          tabBarIcon: ({ focused }) => (
-            <TabIcon iconName="grid" focused={focused} />
-          ),
-        }}
+        options={{ tabBarIcon: ({ focused }) => <TabIcon iconName="grid" focused={focused} label="Bags" /> }}
       />
       <Tab.Screen
         name="Reservations"
         component={RestaurantOrdersScreen}
-        options={{
-          tabBarIcon: ({ focused }) => (
-            <TabIcon iconName="calendar" focused={focused} />
-          ),
-        }}
+        options={{ tabBarIcon: ({ focused }) => <TabIcon iconName="calendar" focused={focused} label="Orders" /> }}
       />
       <Tab.Screen
         name="Map"
         component={MapScreen}
-        options={{
-          tabBarIcon: ({ focused }) => (
-            <TabIcon iconName="location" focused={focused} />
-          ),
-        }}
+        options={{ tabBarIcon: ({ focused }) => <TabIcon iconName="location" focused={focused} label="Map" /> }}
       />
       <Tab.Screen
         name="Profile"
         component={ProfileScreen}
-        options={{
-          tabBarIcon: ({ focused }) => (
-            <TabIcon iconName="person" focused={focused} />
-          ),
-        }}
+        options={{ tabBarIcon: ({ focused }) => <TabIcon iconName="person" focused={focused} label="Profile" /> }}
       />
     </Tab.Navigator>
   );
@@ -223,17 +199,12 @@ function AppContent() {
 
   if (loading) {
     return (
-      <View
-        style={{
-          flex: 1,
-          justifyContent: "center",
-          alignItems: "center",
-          backgroundColor: "#FFFFFF",
-        }}
-      >
-        <ActivityIndicator color="#2E7D32" size="large" />
-        <Text style={{ color: "#737373", marginTop: 12, fontSize: 14 }}>
-          Loading Wajbeh...
+      <View style={{ flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: "#fdfcf9" }}>
+        <StatusBar barStyle="dark-content" translucent backgroundColor="transparent" />
+        <LinearGradient colors={WALLPAPER.colors} start={WALLPAPER.start} end={WALLPAPER.end} style={StyleSheet.absoluteFill} />
+        <ActivityIndicator color={T.green} size="large" />
+        <Text style={{ color: T.mute, marginTop: 12, fontSize: 14, fontWeight: "500" }}>
+          Zaytoon
         </Text>
       </View>
     );
@@ -268,10 +239,21 @@ function AppContent() {
 }
 
 export default function App() {
+  const [fontsLoaded] = useFonts({
+    ElMessiri_400Regular,
+    ElMessiri_500Medium,
+    ElMessiri_600SemiBold,
+    ElMessiri_700Bold,
+  });
+
+  if (!fontsLoaded) return null;
+
   return (
     <SafeAreaProvider>
       <LanguageProvider>
-        <AppContent />
+        <LocationProvider>
+          <AppContent />
+        </LocationProvider>
       </LanguageProvider>
     </SafeAreaProvider>
   );

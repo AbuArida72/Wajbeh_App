@@ -11,6 +11,7 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useLanguage } from "../lang/LanguageContext";
+import { GlassPanel, T, WallpaperBackground, TextBackdrop, ar } from "../components/Glass";
 
 export default function ContactScreen({ navigation }) {
   const insets = useSafeAreaInsets();
@@ -20,27 +21,21 @@ export default function ContactScreen({ navigation }) {
   const CONTACT_ITEMS = [
     {
       label: "Email",
-      value: "support@wajbeh.com",
-      iconName: "mail-outline",
-      iconBg: "#E3F2FD",
-      iconColor: "#1565C0",
-      action: () => Linking.openURL("mailto:support@wajbeh.com"),
+      value: "support@zaytoon.jo",
+      icon: "mail-outline",
+      action: () => Linking.openURL("mailto:support@zaytoon.jo"),
     },
     {
       label: "WhatsApp",
       value: "+962 7X XXX XXXX",
-      iconName: "logo-whatsapp",
-      iconBg: "#E8F5E9",
-      iconColor: "#2E7D32",
+      icon: "logo-whatsapp",
       action: () => Linking.openURL("https://wa.me/96270000000"),
     },
     {
       label: "Instagram",
-      value: "@wajbeh.jo",
-      iconName: "logo-instagram",
-      iconBg: "#FCE4EC",
-      iconColor: "#C2185B",
-      action: () => Linking.openURL("https://instagram.com/wajbeh.jo"),
+      value: "@zaytoon.jo",
+      icon: "logo-instagram",
+      action: () => Linking.openURL("https://instagram.com/zaytoon.jo"),
     },
   ];
 
@@ -52,13 +47,21 @@ export default function ContactScreen({ navigation }) {
   ];
 
   return (
-    <View style={styles.container}>
-      <StatusBar backgroundColor="#1B5E20" barStyle="light-content" />
-      <View style={[styles.header, { paddingTop: insets.top + 12 }, isRTL && styles.rtlRow]}>
-        <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
-          <Ionicons name={isRTL ? "arrow-forward" : "arrow-back"} size={20} color="#FFFFFF" />
+    <View style={styles.root}>
+      <StatusBar barStyle="dark-content" />
+      <WallpaperBackground />
+
+      {/* Header */}
+      <View style={[styles.header, { paddingTop: insets.top + 14 }, isRTL && styles.rtlRow]}>
+        <TouchableOpacity
+          onPress={() => navigation.goBack()}
+          style={{ width: 38, height: 38 }}
+        >
+          <GlassPanel radius={50} style={{ width: 38, height: 38, alignItems: "center", justifyContent: "center" }}>
+            <Ionicons name={isRTL ? "arrow-forward" : "arrow-back"} size={18} color={T.ink} />
+          </GlassPanel>
         </TouchableOpacity>
-        <Text style={[styles.headerTitle, isRTL && styles.rtl]}>{t("contactTitle")}</Text>
+        <Text style={[styles.headerTitle, isRTL && styles.rtl, ar(isRTL, "bold")]}>{t("contactTitle")}</Text>
         <View style={{ width: 38 }} />
       </View>
 
@@ -66,13 +69,15 @@ export default function ContactScreen({ navigation }) {
         contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 32 }]}
         showsVerticalScrollIndicator={false}
       >
-        <View style={styles.introBlock}>
+        {/* Intro */}
+        <GlassPanel radius={20} padding={20} style={{ marginBottom: 24, alignItems: "center" }}>
           <Text style={[styles.introTitle, isRTL && styles.rtl]}>{t("hereToHelp")}</Text>
           <Text style={[styles.introSub, isRTL && styles.rtl]}>{t("reachOut")}</Text>
-        </View>
+        </GlassPanel>
 
+        {/* Contact channels */}
         <Text style={[styles.sectionLabel, isRTL && styles.rtl]}>{t("getInTouch")}</Text>
-        <View style={styles.card}>
+        <GlassPanel radius={18} style={{ overflow: "hidden", marginBottom: 24 }}>
           {CONTACT_ITEMS.map((item, i) => (
             <View key={i}>
               <TouchableOpacity
@@ -81,23 +86,22 @@ export default function ContactScreen({ navigation }) {
                 activeOpacity={0.7}
               >
                 <View style={[styles.contactLeft, isRTL && styles.rtlRow]}>
-                  <View style={[styles.contactIconWrap, { backgroundColor: item.iconBg }]}>
-                    <Ionicons name={item.iconName} size={18} color={item.iconColor} />
-                  </View>
+                  <Ionicons name={item.icon} size={20} color={T.green} />
                   <View>
                     <Text style={[styles.contactLabel, isRTL && styles.rtl]}>{item.label}</Text>
                     <Text style={[styles.contactValue, isRTL && styles.rtl]}>{item.value}</Text>
                   </View>
                 </View>
-                <Ionicons name={isRTL ? "chevron-back" : "chevron-forward"} size={16} color="#B8B8B8" />
+                <Ionicons name={isRTL ? "chevron-back" : "chevron-forward"} size={14} color={T.muteStrong} />
               </TouchableOpacity>
               {i < CONTACT_ITEMS.length - 1 && <View style={styles.divider} />}
             </View>
           ))}
-        </View>
+        </GlassPanel>
 
+        {/* FAQ */}
         <Text style={[styles.sectionLabel, isRTL && styles.rtl]}>{t("faqLabel")}</Text>
-        <View style={styles.card}>
+        <GlassPanel radius={18} style={{ overflow: "hidden", marginBottom: 24 }}>
           {FAQ_ITEMS.map((item, i) => (
             <View key={i}>
               <TouchableOpacity
@@ -110,8 +114,8 @@ export default function ContactScreen({ navigation }) {
                 </Text>
                 <Ionicons
                   name={expandedFaq === i ? "chevron-up" : "chevron-down"}
-                  size={16}
-                  color="#737373"
+                  size={14}
+                  color={T.muteStrong}
                 />
               </TouchableOpacity>
               {expandedFaq === i && (
@@ -120,111 +124,42 @@ export default function ContactScreen({ navigation }) {
               {i < FAQ_ITEMS.length - 1 && <View style={styles.divider} />}
             </View>
           ))}
-        </View>
+        </GlassPanel>
 
-        <View style={styles.footerNote}>
-          <Text style={styles.footerNoteText}>{t("wajbehTagline")}</Text>
-          <Text style={styles.footerNoteVersion}>v1.0.0</Text>
-        </View>
+        <Text style={styles.footerText}>Zaytoon · Save food. Save money.</Text>
       </ScrollView>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#FAFAFA" },
+  root: { flex: 1 },
   rtl: { textAlign: "right", writingDirection: "rtl" },
   rtlRow: { flexDirection: "row-reverse" },
 
   header: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    backgroundColor: "#1B5E20",
-    paddingHorizontal: 20,
-    paddingBottom: 20,
+    flexDirection: "row", alignItems: "center", justifyContent: "space-between",
+    paddingHorizontal: 20, paddingBottom: 14,
   },
-  backBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: 10,
-    backgroundColor: "rgba(255,255,255,0.15)",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  headerTitle: { fontSize: 17, fontWeight: "700", color: "#FFFFFF" },
+  headerTitle: { fontSize: 17, fontWeight: "700", color: T.ink },
 
-  content: { paddingHorizontal: 20, paddingTop: 20 },
+  content: { paddingHorizontal: 20, paddingTop: 16 },
 
-  introBlock: {
-    backgroundColor: "#E8F5E9",
-    borderRadius: 14,
-    padding: 20,
-    marginBottom: 24,
-    borderWidth: 1,
-    borderColor: "#A5D6A7",
-    alignItems: "center",
-  },
-  introTitle: { fontSize: 18, fontWeight: "700", color: "#1B5E20", marginBottom: 8, textAlign: "center" },
-  introSub: { fontSize: 14, color: "#4CAF50", lineHeight: 21, textAlign: "center" },
+  introTitle: { fontSize: 17, fontWeight: "700", color: T.ink, marginBottom: 8, textAlign: "center" },
+  introSub: { fontSize: 13, color: T.mute, lineHeight: 20, textAlign: "center" },
 
-  sectionLabel: {
-    fontSize: 11,
-    fontWeight: "700",
-    color: "#2E7D32",
-    letterSpacing: 1,
-    marginBottom: 10,
-    marginLeft: 4,
-    textTransform: "uppercase",
-  },
+  sectionLabel: { fontSize: 9, fontWeight: "700", color: T.muteStrong, letterSpacing: 1.2, marginBottom: 8, textTransform: "uppercase" },
 
-  card: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: "#EBEBEB",
-    overflow: "hidden",
-    marginBottom: 24,
-  },
-
-  contactRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    padding: 16,
-  },
+  contactRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", padding: 16 },
   contactLeft: { flexDirection: "row", alignItems: "center", gap: 14, flex: 1 },
-  contactIconWrap: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  contactLabel: { fontSize: 12, color: "#737373", marginBottom: 2, fontWeight: "500" },
-  contactValue: { fontSize: 14, fontWeight: "600", color: "#0F0F0F" },
+  contactLabel: { fontSize: 10, color: T.muteStrong, marginBottom: 2, fontWeight: "600", textTransform: "uppercase", letterSpacing: 0.5 },
+  contactValue: { fontSize: 14, fontWeight: "600", color: T.ink },
 
-  faqRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    padding: 16,
-    gap: 12,
-  },
-  faqQuestion: { flex: 1, fontSize: 14, fontWeight: "600", color: "#0F0F0F", lineHeight: 20 },
-  faqAnswer: {
-    fontSize: 13,
-    color: "#737373",
-    lineHeight: 20,
-    paddingHorizontal: 16,
-    paddingBottom: 16,
-    paddingTop: 0,
-    backgroundColor: "#FAFAFA",
-  },
+  faqRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", padding: 16, gap: 12 },
+  faqQuestion: { flex: 1, fontSize: 13, fontWeight: "600", color: T.ink, lineHeight: 19 },
+  faqAnswer: { fontSize: 12, color: T.mute, lineHeight: 19, paddingHorizontal: 16, paddingBottom: 16 },
 
-  divider: { height: 1, backgroundColor: "#F0F0F0", marginHorizontal: 16 },
+  divider: { height: 1, backgroundColor: "rgba(255,255,255,0.3)", marginHorizontal: 14 },
 
-  footerNote: { alignItems: "center", paddingTop: 8 },
-  footerNoteText: { fontSize: 12, color: "#A5D6A7", marginBottom: 4, fontWeight: "500" },
-  footerNoteVersion: { fontSize: 11, color: "#B8B8B8" },
+  footerText: { fontSize: 11, color: T.muteStrong, textAlign: "center", marginTop: 8 },
 });

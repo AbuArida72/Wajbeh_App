@@ -5,7 +5,6 @@ import {
   StyleSheet,
   TextInput,
   TouchableOpacity,
-  ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -14,6 +13,8 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { supabase } from "../lib/supabase";
 import { useLanguage } from "../lang/LanguageContext";
+import { GlassPanel, GlassButton, Chip, T, WallpaperBackground, TextBackdrop, ar } from "../components/Glass";
+import { haptic } from "../lib/haptics";
 
 export default function SignUpScreen({ navigation, onAuthSuccess }) {
   const [fullName, setFullName] = useState("");
@@ -28,17 +29,15 @@ export default function SignUpScreen({ navigation, onAuthSuccess }) {
   const signUp = async () => {
     setError("");
     if (!fullName || !email || !password || !confirmPassword) {
-      setError(t("fillAllFields"));
-      return;
+      setError(t("fillAllFields")); haptic.error(); return;
     }
     if (password !== confirmPassword) {
-      setError(t("passwordsMismatch"));
-      return;
+      setError(t("passwordsMismatch")); haptic.error(); return;
     }
     if (password.length < 6) {
-      setError(t("passwordTooShort"));
-      return;
+      setError(t("passwordTooShort")); haptic.error(); return;
     }
+    haptic.light();
     setLoading(true);
     const { data, error } = await supabase.auth.signUp({
       email,
@@ -55,371 +54,257 @@ export default function SignUpScreen({ navigation, onAuthSuccess }) {
         .from("profiles")
         .upsert({ id: data.user.id, is_restaurant: false });
     }
+    haptic.success();
     setLoading(false);
     setDone(true);
   };
 
   if (done) {
     return (
-      <SafeAreaView style={styles.safe}>
-        <View style={styles.doneContainer}>
-          <View style={styles.doneIconCircle}>
-            <Ionicons name="mail-outline" size={36} color="#2E7D32" />
-          </View>
-          <Text style={styles.doneTitle}>{t("checkYourEmail")}</Text>
-          <Text style={[styles.doneSubtitle, isRTL && styles.rtl]}>
-            {t("weSentLink")}
-          </Text>
-          <Text style={styles.doneEmail}>{email}</Text>
-          <View style={styles.doneSteps}>
-            {[t("openEmail"), t("clickLink"), t("comeBackSignIn")].map((step, i) => (
-              <View key={i} style={styles.doneStep}>
-                <View style={styles.doneStepNum}>
-                  <Text style={styles.doneStepNumText}>{i + 1}</Text>
+      <View style={styles.root}>
+        <WallpaperBackground />
+
+        <SafeAreaView style={styles.safe}>
+          <View style={styles.doneContainer}>
+            <GlassPanel radius={50} style={styles.doneIconCircle}>
+              <Ionicons name="mail-outline" size={36} color={T.green} />
+            </GlassPanel>
+            <Text style={styles.doneTitle}>{t("checkYourEmail")}</Text>
+            <Text style={[styles.doneSubtitle, isRTL && styles.rtl]}>{t("weSentLink")}</Text>
+            <Text style={styles.doneEmail}>{email}</Text>
+
+            <GlassPanel radius={18} style={{ width: "100%", marginBottom: 28, overflow: "hidden" }}>
+              {[t("openEmail"), t("clickLink"), t("comeBackSignIn")].map((step, i) => (
+                <View key={i} style={[styles.doneStep, i < 2 && styles.doneStepBorder, isRTL && styles.rtlRow]}>
+                  <View style={styles.doneStepBadge}>
+                    <Text style={styles.doneStepNum}>{i + 1}</Text>
+                  </View>
+                  <Text style={[styles.doneStepText, isRTL && styles.rtl]}>{step}</Text>
                 </View>
-                <Text style={[styles.doneStepText, isRTL && styles.rtl]}>
-                  {step}
-                </Text>
-              </View>
-            ))}
+              ))}
+            </GlassPanel>
+
+            <GlassButton primary onPress={() => navigation.navigate("SignIn")} style={{ width: "100%" }}>
+              {t("goToSignIn")}
+            </GlassButton>
           </View>
-          <TouchableOpacity
-            style={styles.goSignInBtn}
-            onPress={() => navigation.navigate("SignIn")}
-          >
-            <Text style={styles.goSignInBtnText}>{t("goToSignIn")}</Text>
-          </TouchableOpacity>
-        </View>
-      </SafeAreaView>
+        </SafeAreaView>
+      </View>
     );
   }
 
   return (
-    <SafeAreaView style={styles.safe}>
-      <KeyboardAvoidingView
-        style={styles.container}
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
-      >
-        <ScrollView
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={styles.scroll}
-        >
-          {/* Top row */}
-          <View style={styles.topRow}>
-            <TouchableOpacity
-              style={styles.backBtn}
-              onPress={() => navigation.goBack()}
-            >
-              <Ionicons name="arrow-back" size={20} color="#0F0F0F" />
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.langBtn} onPress={toggleLanguage}>
-              <Text style={styles.langBtnText}>
-                {language === "en" ? t("switchToArabic") : t("switchToEnglish")}
-              </Text>
-            </TouchableOpacity>
-          </View>
+    <View style={styles.root}>
+      <WallpaperBackground />
 
-          {/* Heading */}
-          <View style={styles.headingSection}>
-            <Text style={styles.brandText}>Wajbeh</Text>
-            <Text style={[styles.heading, isRTL && styles.rtl]}>
-              {t("createAccount")}
-            </Text>
-            <Text style={[styles.subHeading, isRTL && styles.rtl]}>
-              {t("joinUs")}
-            </Text>
-          </View>
+      <SafeAreaView style={styles.safe}>
+        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : "height"}>
+          <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
 
-          {/* Form */}
-          <View style={styles.form}>
-            {/* Full name */}
-            <View style={styles.fieldGroup}>
-              <Text style={[styles.label, isRTL && styles.rtl]}>
-                {t("fullName")}
-              </Text>
-              <View style={styles.inputWrapper}>
-                <Ionicons name="person-outline" size={16} color="#B8B8B8" style={styles.inputIcon} />
-                <TextInput
-                  style={[styles.input, isRTL && styles.inputRTL]}
-                  placeholder={t("yourFullName")}
-                  placeholderTextColor="#B8B8B8"
-                  value={fullName}
-                  onChangeText={setFullName}
-                  autoCapitalize="words"
-                />
-              </View>
+            {/* Top row */}
+            <View style={[styles.topRow, isRTL && styles.rtlRow]}>
+              <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
+                <Ionicons name={isRTL ? "arrow-forward" : "arrow-back"} size={20} color={T.ink} />
+              </TouchableOpacity>
+              <Chip onPress={toggleLanguage}>
+                {language === "en" ? "العربية" : "English"}
+              </Chip>
             </View>
 
-            {/* Email */}
-            <View style={styles.fieldGroup}>
-              <Text style={[styles.label, isRTL && styles.rtl]}>
-                {t("emailAddress")}
-              </Text>
-              <View style={styles.inputWrapper}>
-                <Ionicons name="mail-outline" size={16} color="#B8B8B8" style={styles.inputIcon} />
-                <TextInput
-                  style={[styles.input, isRTL && styles.inputRTL]}
-                  placeholder="you@email.com"
-                  placeholderTextColor="#B8B8B8"
-                  keyboardType="email-address"
-                  autoCapitalize="none"
-                  value={email}
-                  onChangeText={setEmail}
-                />
+            {/* Heading — centered */}
+            <View style={styles.headingSection}>
+              <View style={styles.brandBadge}>
+                <Text style={[styles.brandText, ar(isRTL, "bold")]}>{t("appName")}</Text>
               </View>
+              <Text style={[styles.heading, ar(isRTL, "bold")]}>{t("createAccount")}</Text>
+              <Text style={styles.subHeading}>{t("joinUs")}</Text>
             </View>
 
-            {/* Password */}
-            <View style={styles.fieldGroup}>
-              <Text style={[styles.label, isRTL && styles.rtl]}>
-                {t("password")}
-              </Text>
-              <View style={styles.inputWrapper}>
-                <Ionicons name="lock-closed-outline" size={16} color="#B8B8B8" style={styles.inputIcon} />
-                <TextInput
-                  style={[styles.input, isRTL && styles.inputRTL]}
-                  placeholder={t("atLeast6Chars")}
-                  placeholderTextColor="#B8B8B8"
-                  secureTextEntry
-                  value={password}
-                  onChangeText={setPassword}
-                />
+            {/* Glass form card */}
+            <GlassPanel radius={20} style={{ marginBottom: 16, overflow: "hidden" }}>
+              {/* Full name */}
+              <View style={[styles.field, styles.fieldBorder, isRTL && styles.rtlRow]}>
+                <View style={styles.fieldIconWrap}>
+                  <Ionicons name="person-outline" size={16} color={T.green} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.fieldLabel, isRTL && styles.rtl]}>{t("fullName")}</Text>
+                  <TextInput
+                    style={[styles.fieldInput, isRTL && styles.rtl]}
+                    placeholder={t("yourFullName")}
+                    placeholderTextColor={T.muteStrong}
+                    autoCapitalize="words"
+                    value={fullName}
+                    onChangeText={setFullName}
+                  />
+                </View>
               </View>
-            </View>
-
-            {/* Confirm password */}
-            <View style={styles.fieldGroup}>
-              <Text style={[styles.label, isRTL && styles.rtl]}>
-                {t("confirmPassword")}
-              </Text>
-              <View style={styles.inputWrapper}>
-                <Ionicons name="lock-closed-outline" size={16} color="#B8B8B8" style={styles.inputIcon} />
-                <TextInput
-                  style={[styles.input, isRTL && styles.inputRTL]}
-                  placeholder={t("repeatPassword")}
-                  placeholderTextColor="#B8B8B8"
-                  secureTextEntry
-                  value={confirmPassword}
-                  onChangeText={setConfirmPassword}
-                />
+              {/* Email */}
+              <View style={[styles.field, styles.fieldBorder, isRTL && styles.rtlRow]}>
+                <View style={styles.fieldIconWrap}>
+                  <Ionicons name="mail-outline" size={16} color={T.green} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.fieldLabel, isRTL && styles.rtl]}>{t("emailAddress")}</Text>
+                  <TextInput
+                    style={[styles.fieldInput, isRTL && styles.rtl]}
+                    placeholder="you@email.com"
+                    placeholderTextColor={T.muteStrong}
+                    keyboardType="email-address"
+                    autoCapitalize="none"
+                    value={email}
+                    onChangeText={setEmail}
+                  />
+                </View>
               </View>
-            </View>
+              {/* Password */}
+              <View style={[styles.field, styles.fieldBorder, isRTL && styles.rtlRow]}>
+                <View style={styles.fieldIconWrap}>
+                  <Ionicons name="lock-closed-outline" size={16} color={T.green} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.fieldLabel, isRTL && styles.rtl]}>{t("password")}</Text>
+                  <TextInput
+                    style={[styles.fieldInput, isRTL && styles.rtl]}
+                    placeholder={t("atLeast6Chars")}
+                    placeholderTextColor={T.muteStrong}
+                    secureTextEntry
+                    value={password}
+                    onChangeText={setPassword}
+                  />
+                </View>
+              </View>
+              {/* Confirm password */}
+              <View style={[styles.field, isRTL && styles.rtlRow]}>
+                <View style={styles.fieldIconWrap}>
+                  <Ionicons name="shield-checkmark-outline" size={16} color={T.green} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.fieldLabel, isRTL && styles.rtl]}>{t("confirmPassword")}</Text>
+                  <TextInput
+                    style={[styles.fieldInput, isRTL && styles.rtl]}
+                    placeholder={t("repeatPassword")}
+                    placeholderTextColor={T.muteStrong}
+                    secureTextEntry
+                    value={confirmPassword}
+                    onChangeText={setConfirmPassword}
+                  />
+                </View>
+              </View>
+            </GlassPanel>
 
-            {/* Error */}
             {error ? (
-              <View style={styles.errorBox}>
-                <Ionicons name="warning-outline" size={16} color="#ED4956" />
-                <Text style={[styles.errorText, isRTL && styles.rtl]}>
-                  {error}
-                </Text>
+              <View style={[styles.errorBox, isRTL && styles.rtlRow]}>
+                <Ionicons name="warning-outline" size={14} color={T.urgent} />
+                <Text style={[styles.errorText, isRTL && styles.rtl]}>{error}</Text>
               </View>
             ) : null}
 
-            {/* Submit */}
-            <TouchableOpacity
-              style={[styles.btn, loading && styles.btnDisabled]}
-              onPress={signUp}
-              disabled={loading}
-              activeOpacity={0.88}
-            >
-              {loading ? (
-                <ActivityIndicator color="#fff" />
-              ) : (
-                <Text style={styles.btnText}>{t("createAccountBtn")}</Text>
-              )}
-            </TouchableOpacity>
+            <GlassButton primary onPress={signUp} loading={loading} disabled={loading}>
+              {t("createAccountBtn")}
+            </GlassButton>
 
-            {/* Sign in link */}
-            <TouchableOpacity
-              style={styles.signInLink}
-              onPress={() => navigation.navigate("SignIn")}
-            >
-              <Text style={[styles.signInLinkText, isRTL && styles.rtl]}>
+            <TouchableOpacity onPress={() => navigation.navigate("SignIn")} style={{ alignItems: "center", marginTop: 22 }}>
+              <Text style={[styles.signInText, isRTL && styles.rtl]}>
                 {t("hasAccount")}{" "}
-                <Text style={styles.signInLinkHighlight}>{t("signIn")}</Text>
+                <Text style={styles.signInLink}>{t("signIn")}</Text>
               </Text>
             </TouchableOpacity>
-          </View>
 
-          {/* Restaurant note */}
-          <View style={styles.restaurantNote}>
-            <Ionicons name="storefront-outline" size={18} color="#737373" />
-            <Text style={[styles.restaurantNoteText, isRTL && styles.rtl]}>
-              {t("restaurantNote")}
-            </Text>
-          </View>
-        </ScrollView>
-      </KeyboardAvoidingView>
-    </SafeAreaView>
+            {/* Restaurant note */}
+            <GlassPanel radius={14} padding={14} style={{ marginTop: 28 }}>
+              <View style={[styles.restaurantNoteRow, isRTL && styles.rtlRow]}>
+                <View style={styles.noteIconWrap}>
+                  <Ionicons name="storefront-outline" size={16} color={T.accent} />
+                </View>
+                <Text style={[styles.restaurantNoteText, isRTL && styles.rtl]}>{t("restaurantNote")}</Text>
+              </View>
+            </GlassPanel>
+
+          </ScrollView>
+        </KeyboardAvoidingView>
+      </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: "#FFFFFF" },
-  container: { flex: 1 },
-  scroll: { flexGrow: 1, padding: 20, paddingBottom: 32 },
+  root: { flex: 1 },
+  safe: { flex: 1 },
+  scroll: { flexGrow: 1, padding: 22, paddingBottom: 32 },
   rtl: { textAlign: "right", writingDirection: "rtl" },
+  rtlRow: { flexDirection: "row-reverse" },
 
-  // Top row
-  topRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 32,
-  },
+  topRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 32 },
   backBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: 10,
-    backgroundColor: "#F5F5F5",
-    alignItems: "center",
-    justifyContent: "center",
+    width: 44, height: 44, borderRadius: 22,
+    backgroundColor: "rgba(255,255,255,0.72)",
+    borderWidth: 1, borderColor: "rgba(255,255,255,0.90)",
+    alignItems: "center", justifyContent: "center",
   },
-  langBtn: {
-    backgroundColor: "#F5F5F5",
+
+  // Centered heading
+  headingSection: { alignItems: "center", marginBottom: 28 },
+  brandBadge: {
+    backgroundColor: "rgba(61,107,71,0.10)",
+    borderRadius: 100,
     paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 10,
-  },
-  langBtnText: { color: "#737373", fontWeight: "600", fontSize: 13 },
-
-  // Heading
-  headingSection: { marginBottom: 28, alignItems: "center" },
-  brandText: {
-    fontSize: 13,
-    fontWeight: "700",
-    color: "#2E7D32",
-    marginBottom: 12,
-    letterSpacing: 0.5,
-    textTransform: "uppercase",
-    textAlign: "center",
-  },
-  heading: { fontSize: 26, fontWeight: "700", color: "#0F0F0F", marginBottom: 8, textAlign: "center" },
-  subHeading: { fontSize: 14, color: "#737373", lineHeight: 20, textAlign: "center" },
-
-  // Form
-  form: { marginBottom: 24 },
-  fieldGroup: { marginBottom: 16 },
-  label: { fontSize: 13, fontWeight: "500", color: "#0F0F0F", marginBottom: 8 },
-  inputWrapper: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#FAFAFA",
+    paddingVertical: 5,
     borderWidth: 1,
-    borderColor: "#DBDBDB",
-    borderRadius: 10,
-    paddingHorizontal: 14,
+    borderColor: "rgba(61,107,71,0.18)",
+    marginBottom: 18,
   },
-  inputIcon: { marginRight: 8 },
-  input: { flex: 1, paddingVertical: 12, fontSize: 15, color: "#0F0F0F" },
-  inputRTL: { textAlign: "right" },
+  brandText: { fontSize: 11, fontWeight: "800", color: T.green, letterSpacing: 1.2, textTransform: "uppercase" },
+  heading: { fontSize: 32, fontWeight: "800", color: T.ink, letterSpacing: -1.2, textAlign: "center", marginBottom: 8 },
+  subHeading: { fontSize: 13, color: T.mute, textAlign: "center" },
 
-  // Error
+  // Fields
+  field: { flexDirection: "row", alignItems: "center", paddingHorizontal: 14, paddingVertical: 13, gap: 12 },
+  fieldBorder: { borderBottomWidth: 1, borderBottomColor: "rgba(26,34,24,0.08)" },
+  fieldIconWrap: {
+    width: 34, height: 34, borderRadius: 10,
+    backgroundColor: "rgba(61,107,71,0.10)",
+    borderWidth: 1, borderColor: "rgba(61,107,71,0.15)",
+    alignItems: "center", justifyContent: "center",
+    flexShrink: 0,
+  },
+  fieldLabel: { fontSize: 9, fontWeight: "700", color: T.green, textTransform: "uppercase", letterSpacing: 0.8, marginBottom: 3 },
+  fieldInput: { fontSize: 15, color: T.ink },
+
   errorBox: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    gap: 8,
-    backgroundColor: "#FFFFFF",
-    borderRadius: 10,
-    padding: 12,
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: "#ED4956",
+    flexDirection: "row", gap: 8, alignItems: "flex-start", marginBottom: 14,
+    backgroundColor: "rgba(224,92,74,0.08)", borderRadius: 12, padding: 12,
+    borderWidth: 1, borderColor: "rgba(224,92,74,0.22)",
   },
-  errorText: { color: "#ED4956", fontSize: 13, flex: 1, lineHeight: 18 },
+  errorText: { color: T.urgent, fontSize: 13, flex: 1 },
 
-  // Button
-  btn: {
-    backgroundColor: "#2E7D32",
-    paddingVertical: 14,
-    borderRadius: 10,
-    alignItems: "center",
-    marginBottom: 16,
-  },
-  btnDisabled: { opacity: 0.6 },
-  btnText: { color: "#FFFFFF", fontSize: 15, fontWeight: "600" },
-  signInLink: { alignItems: "center" },
-  signInLinkText: { fontSize: 14, color: "#737373" },
-  signInLinkHighlight: { color: "#2E7D32", fontWeight: "600" },
+  signInText: { fontSize: 13, color: T.mute, textAlign: "center" },
+  signInLink: { color: T.accent, fontWeight: "700" },
 
-  // Restaurant note
-  restaurantNote: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    gap: 10,
-    backgroundColor: "#FAFAFA",
-    borderRadius: 12,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: "#EBEBEB",
+  restaurantNoteRow: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 10 },
+  noteIconWrap: {
+    width: 32, height: 32, borderRadius: 9,
+    backgroundColor: "rgba(232,153,58,0.12)",
+    borderWidth: 1, borderColor: "rgba(232,153,58,0.20)",
+    alignItems: "center", justifyContent: "center",
+    flexShrink: 0,
   },
-  restaurantNoteText: {
-    fontSize: 13,
-    color: "#737373",
-    flex: 1,
-    lineHeight: 20,
-  },
+  restaurantNoteText: { fontSize: 13, color: T.mute, lineHeight: 20 },
 
   // Done screen
-  doneContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    padding: 32,
-    backgroundColor: "#FFFFFF",
+  doneContainer: { flex: 1, justifyContent: "center", alignItems: "center", padding: 28 },
+  doneIconCircle: { width: 88, height: 88, alignItems: "center", justifyContent: "center", marginBottom: 24 },
+  doneTitle: { fontSize: 26, fontWeight: "800", color: T.ink, letterSpacing: -0.8, marginBottom: 8, textAlign: "center" },
+  doneSubtitle: { fontSize: 13, color: T.mute, marginBottom: 6, textAlign: "center" },
+  doneEmail: { fontSize: 14, fontWeight: "700", color: T.green, marginBottom: 28, textAlign: "center" },
+  doneStep: { flexDirection: "row", alignItems: "center", gap: 12, paddingHorizontal: 14, paddingVertical: 12 },
+  doneStepBorder: { borderBottomWidth: 1, borderBottomColor: "rgba(26,34,24,0.07)" },
+  doneStepBadge: {
+    width: 26, height: 26, borderRadius: 13,
+    backgroundColor: "rgba(61,107,71,0.12)",
+    borderWidth: 1, borderColor: "rgba(61,107,71,0.22)",
+    alignItems: "center", justifyContent: "center", flexShrink: 0,
   },
-  doneIconCircle: {
-    width: 88,
-    height: 88,
-    borderRadius: 44,
-    backgroundColor: "#F2F8F2",
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 24,
-    borderWidth: 1,
-    borderColor: "#DBDBDB",
-  },
-  doneTitle: {
-    fontSize: 22,
-    fontWeight: "700",
-    color: "#0F0F0F",
-    marginBottom: 8,
-  },
-  doneSubtitle: { fontSize: 14, color: "#737373", marginBottom: 4 },
-  doneEmail: {
-    fontSize: 15,
-    fontWeight: "600",
-    color: "#0F0F0F",
-    marginBottom: 28,
-  },
-  doneSteps: { width: "100%", marginBottom: 28, gap: 10 },
-  doneStep: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 14,
-    backgroundColor: "#FFFFFF",
-    borderRadius: 12,
-    padding: 14,
-    borderWidth: 1,
-    borderColor: "#EBEBEB",
-  },
-  doneStepNum: {
-    width: 26,
-    height: 26,
-    borderRadius: 13,
-    backgroundColor: "#2E7D32",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  doneStepNumText: { color: "#FFFFFF", fontWeight: "700", fontSize: 12 },
-  doneStepText: { fontSize: 14, color: "#737373", fontWeight: "400", flex: 1 },
-  goSignInBtn: {
-    backgroundColor: "#2E7D32",
-    paddingHorizontal: 32,
-    paddingVertical: 14,
-    borderRadius: 10,
-    width: "100%",
-    alignItems: "center",
-  },
-  goSignInBtnText: { color: "#FFFFFF", fontSize: 15, fontWeight: "600" },
+  doneStepNum: { fontSize: 12, fontWeight: "700", color: T.green },
+  doneStepText: { fontSize: 13, color: T.ink, flex: 1, lineHeight: 19 },
 });

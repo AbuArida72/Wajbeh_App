@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "Wajbeh",
+    "name": "Zaytoon",
     "slug": "wajbeh",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -13,11 +13,11 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.wajbeh.app",
+      "bundleIdentifier": "com.zaytoon.app",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
-        "NSLocationWhenInUseUsageDescription": "Wajbeh uses your location to show nearby restaurants and help restaurants set their location on the map.",
-        "NSLocationAlwaysAndWhenInUseUsageDescription": "Wajbeh uses your location to show nearby restaurants."
+        "NSLocationWhenInUseUsageDescription": "Zaytoon uses your location to show nearby restaurants and help restaurants set their location on the map.",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "Zaytoon uses your location to show nearby restaurants."
       }
     },
     "android": {
@@ -25,7 +25,7 @@
         "foregroundImage": "./assets/icon.png",
         "backgroundColor": "#2E7D32"
       },
-      "package": "com.wajbeh.app",
+      "package": "com.zaytoon.app",
       "permissions": [
         "ACCESS_FINE_LOCATION",
         "ACCESS_COARSE_LOCATION"
@@ -43,6 +43,9 @@
       "eas": {
         "projectId": "2ee35bf3-5c24-4a18-8b42-b872b3a7c271"
       }
-    }
+    },
+    "plugins": [
+      "expo-font"
+    ]
   }
 }

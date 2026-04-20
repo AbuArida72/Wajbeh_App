@@ -2,12 +2,12 @@ import {
   View,
   Text,
   StyleSheet,
-  TouchableOpacity,
   ScrollView,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useLanguage } from "../lang/LanguageContext";
+import { GlassPanel, GlassButton, T, WallpaperBackground, ar } from "../components/Glass";
 
 const isPickupTimeActive = (pickupStart) => {
   if (!pickupStart) return false;
@@ -22,396 +22,199 @@ export default function ConfirmationScreen({ route, navigation }) {
   const { pickupCode, bag } = route.params;
   const { t, isRTL } = useLanguage();
   const savings = (bag.original_value - bag.price).toFixed(2);
-  const codeVisible = isPickupTimeActive(bag.pickup_start);
-
-  const orderDetails = [
-    { iconName: "storefront-outline", label: t("restaurant"), value: bag.restaurant },
-    { iconName: "bag-handle-outline", label: t("bag"), value: bag.title },
-    {
-      iconName: "time-outline",
-      label: t("pickupWindow"),
-      value: `${bag.pickup_start} – ${bag.pickup_end}`,
-    },
-    {
-      iconName: "calendar-outline",
-      label: t("dateLabel"),
-      value: new Date().toLocaleDateString("en-JO", {
-        day: "numeric",
-        month: "long",
-      }),
-    },
-  ];
+  const pickupActive = isPickupTimeActive(bag.pickup_start);
 
   const nextSteps = [
-    { step: "1", text: t("step1Confirm", { restaurant: bag.restaurant, start: bag.pickup_start, end: bag.pickup_end }) },
-    { step: "2", text: t("step2Confirm") },
-    { step: "3", text: t("step3Confirm") },
+    t("step1Confirm", { restaurant: bag.restaurant, start: bag.pickup_start, end: bag.pickup_end }),
+    t("step2Confirm"),
+    t("step3Confirm"),
   ];
 
   return (
-    <SafeAreaView style={styles.safe}>
-      <ScrollView
-        contentContainerStyle={styles.container}
-        showsVerticalScrollIndicator={false}
-      >
-        {/* Success icon */}
-        <View style={styles.successSection}>
-          <View style={styles.successCircle}>
-            <Ionicons name="checkmark-circle" size={64} color="#2E7D32" />
-          </View>
-          <Text style={styles.successTitle}>{t("bagReserved")}</Text>
-          <Text style={styles.successSubtitle}>
-            {t("showCodeAt")}{" "}
-            <Text style={styles.successRestaurant}>{bag.restaurant}</Text>{" "}
-            {t("toCollect")}
-          </Text>
-          <View style={styles.savingsPill}>
-            <Text style={styles.savingsPillText}>
-              {t("youSavedAmount")} JD {savings}
+    <View style={styles.root}>
+      <WallpaperBackground />
+      <SafeAreaView style={styles.safe}>
+        <ScrollView
+          contentContainerStyle={styles.container}
+          showsVerticalScrollIndicator={false}
+        >
+          {/* Success header */}
+          <View style={styles.successSection}>
+            <GlassPanel radius={40} style={styles.checkCircle}>
+              <Ionicons name="checkmark" size={34} color={T.green} />
+            </GlassPanel>
+            <Text style={[styles.successTitle, ar(isRTL, "bold")]}>{t("bagReserved")}</Text>
+            <Text style={styles.successSub}>
+              {t("showCodeAt")}{" "}
+              <Text style={{ color: T.ink, fontWeight: "700" }}>{bag.restaurant}</Text>{" "}
+              {t("toCollect")}
             </Text>
           </View>
-        </View>
 
-        {/* Pickup code card */}
-        <View style={styles.codeSection}>
-          <Text style={styles.codeSectionLabel}>{t("yourPickupCode")}</Text>
-          <View style={[styles.codeCard, !codeVisible && styles.codeCardLocked]}>
-            {codeVisible ? (
-              <View style={styles.codeCardInner}>
-                {pickupCode.split("").map((char, i) => (
-                  <View key={i} style={styles.codeCharBox}>
-                    <Text style={styles.codeChar}>{char}</Text>
-                  </View>
-                ))}
+          {/* Thank you card */}
+          <GlassPanel radius={18} padding={16} style={styles.thankYouCard}>
+            <View style={styles.thankYouRow}>
+              <Ionicons name="leaf-outline" size={20} color={T.green} />
+              <View style={{ flex: 1 }}>
+                <Text style={styles.thankYouTitle}>{t("thankYouTitle")}</Text>
+                <Text style={styles.thankYouSub}>{t("thankYouSub")}</Text>
               </View>
+            </View>
+          </GlassPanel>
+
+          {/* Pickup code */}
+          <GlassPanel radius={22} padding={20} style={styles.codeCard}>
+            <Text style={styles.codeLabel}>{t("yourPickupCode")}</Text>
+            {pickupActive ? (
+              <>
+                <Text style={styles.codeText}>{pickupCode}</Text>
+                <View style={styles.dashedRow}>
+                  {Array.from({ length: 20 }).map((_, i) => (
+                    <View key={i} style={styles.dashedDot} />
+                  ))}
+                </View>
+                <Text style={styles.codeHint}>· {t("showAtCounter")} ·</Text>
+              </>
             ) : (
-              <View style={styles.codeLockedContent}>
-                <Ionicons name="lock-closed-outline" size={28} color="#B8B8B8" />
-                <Text style={styles.codeLockTitle}>{t("codeHidden")}</Text>
-                <Text style={styles.codeLockSub}>{t("availableAt")} {bag.pickup_start}</Text>
+              <View style={styles.lockBox}>
+                <Ionicons name="lock-closed-outline" size={28} color={T.muteStrong} />
+                <Text style={styles.lockTitle}>{t("codeHidden")}</Text>
+                <Text style={styles.lockSub}>{t("availableAt")} {bag.pickup_start}</Text>
               </View>
             )}
-            <Text style={styles.codeHint}>
-              {codeVisible ? t("showAtCounter") : t("checkOrdersWhenReady")}
-            </Text>
-          </View>
-        </View>
+          </GlassPanel>
 
-        {/* Order summary */}
-        <View style={styles.detailsCard}>
-          <Text style={styles.detailsHeader}>{t("orderSummary")}</Text>
+          {/* Savings + amount row */}
+          <GlassPanel radius={18} padding={16} style={styles.savingsCard}>
+            <View style={styles.savingsRow}>
+              <View style={styles.savingsItem}>
+                <Text style={styles.savingsCap}>{t("amountPaid")}</Text>
+                <Text style={styles.savingsPrice}>JD {parseFloat(bag.price).toFixed(2)}</Text>
+              </View>
+              <View style={styles.savingsDivider} />
+              <View style={styles.savingsItem}>
+                <Text style={styles.savingsCap}>{t("youSavedAmount")}</Text>
+                <Text style={[styles.savingsPrice, { color: T.green }]}>JD {savings}</Text>
+              </View>
+            </View>
+          </GlassPanel>
 
-          {orderDetails.map((item, i, arr) => (
-            <View key={i}>
-              <View style={[styles.detailRow, isRTL && styles.rtlRow]}>
-                <View style={styles.detailLeft}>
-                  <Ionicons name={item.iconName} size={16} color="#737373" />
-                  <Text style={[styles.detailLabel, isRTL && styles.rtl]}>
-                    {item.label}
+          {/* Order summary */}
+          <Text style={styles.sectionLabel}>· {t("orderSummary") || "Order Summary"}</Text>
+          <GlassPanel radius={18} style={{ marginBottom: 16, overflow: "hidden" }}>
+            {[
+              { icon: "storefront-outline", label: t("restaurant"), value: bag.restaurant },
+              { icon: "bag-handle-outline", label: t("bag"), value: bag.title },
+              { icon: "time-outline", label: t("pickupWindow"), value: `${bag.pickup_start} – ${bag.pickup_end}` },
+            ].map((item, i, arr) => (
+              <View key={i}>
+                <View style={[styles.detailRow, isRTL && styles.rtlRow]}>
+                  <View style={[styles.detailLeft, isRTL && styles.rtlRow]}>
+                    <Ionicons name={item.icon} size={14} color={T.muteStrong} />
+                    <Text style={[styles.detailLabel, isRTL && styles.rtl]}>{item.label}</Text>
+                  </View>
+                  <Text
+                    style={[styles.detailValue, isRTL && styles.rtl]}
+                    numberOfLines={1}
+                  >
+                    {item.value}
                   </Text>
                 </View>
-                <Text
-                  style={[styles.detailValue, isRTL && styles.rtl]}
-                  numberOfLines={1}
-                >
-                  {item.value}
-                </Text>
+                {i < arr.length - 1 && <View style={styles.rowDivider} />}
               </View>
-              {i < arr.length - 1 && <View style={styles.detailDivider} />}
-            </View>
-          ))}
+            ))}
+          </GlassPanel>
 
-          <View style={styles.detailDivider} />
-          <View style={[styles.detailRow, isRTL && styles.rtlRow]}>
-            <View style={styles.detailLeft}>
-              <Ionicons name="card-outline" size={16} color="#737373" />
-              <Text style={[styles.detailLabel, isRTL && styles.rtl]}>
-                {t("amountPaid")}
-              </Text>
-            </View>
-            <Text style={styles.detailValueGreen}>
-              JD {parseFloat(bag.price).toFixed(2)}
-            </Text>
-          </View>
-        </View>
-
-        {/* What's next */}
-        <View style={styles.nextSection}>
-          <Text style={styles.nextTitle}>{t("whatsNext")}</Text>
-          {nextSteps.map((item, i) => (
-            <View key={i} style={styles.nextItem}>
-              <View style={styles.nextStepBadge}>
-                <Text style={styles.nextStepNum}>{item.step}</Text>
+          {/* What's next */}
+          <Text style={styles.sectionLabel}>· {t("whatsNext")}</Text>
+          <GlassPanel radius={18} style={{ marginBottom: 24, overflow: "hidden" }}>
+            {nextSteps.map((step, i) => (
+              <View key={i} style={[styles.stepRow, i < nextSteps.length - 1 && styles.stepBorder, isRTL && styles.rtlRow]}>
+                <View style={styles.stepBadge}>
+                  <Text style={styles.stepNum}>{i + 1}</Text>
+                </View>
+                <Text style={[styles.stepText, isRTL && styles.rtl, ar(isRTL, "regular")]}>{step}</Text>
               </View>
-              <Text style={[styles.nextText, isRTL && styles.rtl]}>
-                {item.text}
-              </Text>
-            </View>
-          ))}
-        </View>
+            ))}
+          </GlassPanel>
 
-        {/* Bag disclaimer */}
-        <View style={styles.disclaimerBox}>
-          <Ionicons name="information-circle-outline" size={16} color="#F57F17" />
-          <Text style={[styles.disclaimerText, isRTL && styles.rtl]}>
-            {t("bagDisclaimerText")}
-          </Text>
-        </View>
+          {/* Buttons */}
+          <GlassButton primary onPress={() =>
+            navigation.reset({ index: 0, routes: [{ name: "Tabs", params: { screen: "Orders" } }] })
+          }>
+            {t("viewMyOrders")}
+          </GlassButton>
+          <View style={{ height: 10 }} />
+          <GlassButton onPress={() =>
+            navigation.reset({ index: 0, routes: [{ name: "Tabs" }] })
+          }>
+            {t("backToHome")}
+          </GlassButton>
 
-        {/* Buttons */}
-        <View style={styles.btnGroup}>
-          <TouchableOpacity
-            style={styles.primaryBtn}
-            activeOpacity={0.88}
-            onPress={() =>
-              navigation.reset({
-                index: 0,
-                routes: [{ name: "Tabs", params: { screen: "Orders" } }],
-              })
-            }
-          >
-            <Text style={styles.primaryBtnText}>{t("viewMyOrders")}</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.secondaryBtn}
-            activeOpacity={0.88}
-            onPress={() =>
-              navigation.reset({
-                index: 0,
-                routes: [{ name: "Tabs" }],
-              })
-            }
-          >
-            <Text style={styles.secondaryBtnText}>{t("backToHome")}</Text>
-          </TouchableOpacity>
-        </View>
-
-        <View style={{ height: 24 }} />
-      </ScrollView>
-    </SafeAreaView>
+          <View style={{ height: 32 }} />
+        </ScrollView>
+      </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: "#FFFFFF" },
-  container: { flexGrow: 1 },
+  root: { flex: 1 },
+  safe: { flex: 1 },
+  container: { flexGrow: 1, paddingHorizontal: 20, paddingTop: 16, paddingBottom: 32 },
   rtl: { textAlign: "right", writingDirection: "rtl" },
   rtlRow: { flexDirection: "row-reverse" },
 
-  // Success section
-  successSection: {
-    alignItems: "center",
-    paddingTop: 40,
-    paddingBottom: 32,
-    paddingHorizontal: 24,
-    borderBottomWidth: 1,
-    borderBottomColor: "#DBDBDB",
-  },
-  successCircle: {
-    marginBottom: 16,
-  },
-  successTitle: {
-    fontSize: 22,
-    fontWeight: "700",
-    color: "#0F0F0F",
-    marginBottom: 8,
-    textAlign: "center",
-  },
-  successSubtitle: {
-    fontSize: 14,
-    color: "#737373",
-    textAlign: "center",
-    lineHeight: 20,
-    marginBottom: 16,
-  },
-  successRestaurant: { color: "#0F0F0F", fontWeight: "600" },
-  savingsPill: {
-    backgroundColor: "#F2F8F2",
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: "#DBDBDB",
-  },
-  savingsPillText: { color: "#2E7D32", fontSize: 13, fontWeight: "600" },
+  // Success header
+  successSection: { alignItems: "center", marginBottom: 20, paddingTop: 8 },
+  checkCircle: { width: 72, height: 72, alignItems: "center", justifyContent: "center", marginBottom: 14 },
+  successTitle: { fontSize: 26, fontWeight: "800", color: T.ink, letterSpacing: -0.8, textAlign: "center", marginBottom: 8 },
+  successSub: { fontSize: 13, color: T.mute, textAlign: "center", lineHeight: 20, paddingHorizontal: 16 },
 
-  // Code section
-  codeSection: {
-    paddingHorizontal: 20,
-    paddingVertical: 24,
-    borderBottomWidth: 1,
-    borderBottomColor: "#DBDBDB",
-  },
-  codeSectionLabel: {
-    fontSize: 11,
-    fontWeight: "700",
-    color: "#B8B8B8",
-    textAlign: "center",
-    marginBottom: 14,
-    textTransform: "uppercase",
-    letterSpacing: 1,
-  },
-  codeCard: {
-    backgroundColor: "#E8F5E9",
-    borderRadius: 16,
-    padding: 24,
-    alignItems: "center",
-    borderWidth: 1,
-    borderColor: "#A5D6A7",
-  },
-  codeCardInner: {
-    flexDirection: "row",
-    gap: 8,
-    marginBottom: 14,
-  },
-  codeCharBox: {
-    width: 44,
-    height: 56,
-    borderRadius: 10,
-    backgroundColor: "#FFFFFF",
-    alignItems: "center",
-    justifyContent: "center",
-    borderWidth: 1,
-    borderColor: "#A5D6A7",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.06,
-    shadowRadius: 3,
-    elevation: 2,
-  },
-  codeChar: {
-    fontSize: 26,
-    fontWeight: "700",
-    color: "#1B5E20",
-  },
-  codeHint: { fontSize: 12, color: "#2E7D32", fontWeight: "500", textAlign: "center", marginTop: 8 },
-  codeLockedContent: { alignItems: "center", paddingVertical: 12, gap: 8 },
-  codeCardLocked: {
-    backgroundColor: "#F5F5F5",
-    borderColor: "#E0E0E0",
-  },
-  codeLockTitle: { fontSize: 15, fontWeight: "600", color: "#0F0F0F", textAlign: "center" },
-  codeLockSub: { fontSize: 12, color: "#737373", textAlign: "center" },
+  // Thank you card
+  thankYouCard: { marginBottom: 16 },
+  thankYouRow: { flexDirection: "row", gap: 12, alignItems: "flex-start" },
+  thankYouTitle: { fontSize: 14, fontWeight: "700", color: T.green, marginBottom: 4 },
+  thankYouSub: { fontSize: 12, color: T.mute, lineHeight: 18 },
 
-  // Details card
-  detailsCard: {
-    marginHorizontal: 20,
-    marginVertical: 20,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: "#EBEBEB",
-    overflow: "hidden",
-    backgroundColor: "#FFFFFF",
-  },
-  detailsHeader: {
-    fontSize: 11,
-    fontWeight: "700",
-    color: "#B8B8B8",
-    textTransform: "uppercase",
-    letterSpacing: 1,
-    textAlign: "center",
-    padding: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: "#EBEBEB",
-    backgroundColor: "#FAFAFA",
-  },
-  detailRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-  },
-  detailLeft: { flexDirection: "row", alignItems: "center", gap: 10 },
-  detailLabel: { fontSize: 13, color: "#737373" },
-  detailValue: {
-    fontSize: 13,
-    fontWeight: "500",
-    color: "#0F0F0F",
-    maxWidth: "55%",
-    textAlign: "right",
-  },
-  detailValueGreen: { fontSize: 15, fontWeight: "700", color: "#2E7D32" },
-  detailDivider: {
-    height: 1,
-    backgroundColor: "#F5F5F5",
-    marginHorizontal: 16,
-  },
+  // Code card
+  codeCard: { alignItems: "center", marginBottom: 16 },
+  codeLabel: { fontSize: 9, letterSpacing: 1.5, textTransform: "uppercase", color: T.muteStrong, fontWeight: "700", marginBottom: 14 },
+  codeText: { fontSize: 40, fontWeight: "800", color: T.green, letterSpacing: 6 },
+  dashedRow: { flexDirection: "row", gap: 3, marginTop: 16, marginBottom: 12 },
+  dashedDot: { width: 4, height: 1.5, backgroundColor: "rgba(26,34,24,0.2)", borderRadius: 1 },
+  codeHint: { fontSize: 10, color: T.muteStrong },
+  lockBox: { alignItems: "center", gap: 8, paddingVertical: 8 },
+  lockTitle: { fontSize: 14, fontWeight: "600", color: T.ink },
+  lockSub: { fontSize: 12, color: T.mute },
 
-  // Next steps
-  nextSection: {
-    marginHorizontal: 20,
-    marginBottom: 24,
-  },
-  nextTitle: {
-    fontSize: 11,
-    fontWeight: "700",
-    color: "#B8B8B8",
-    textTransform: "uppercase",
-    letterSpacing: 1,
-    marginBottom: 12,
-    textAlign: "center",
-  },
-  nextItem: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    gap: 12,
-    backgroundColor: "#FFFFFF",
-    borderRadius: 12,
-    padding: 14,
-    marginBottom: 8,
-    borderWidth: 1,
-    borderColor: "#EBEBEB",
-  },
-  nextStepBadge: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: "#2E7D32",
-    alignItems: "center",
-    justifyContent: "center",
-    flexShrink: 0,
-  },
-  nextStepNum: { color: "#FFFFFF", fontSize: 12, fontWeight: "700" },
-  nextText: { fontSize: 13, color: "#737373", flex: 1, lineHeight: 19 },
+  // Savings card
+  savingsCard: { marginBottom: 20 },
+  savingsRow: { flexDirection: "row", alignItems: "center" },
+  savingsItem: { flex: 1, alignItems: "center" },
+  savingsDivider: { width: 1, height: 36, backgroundColor: "rgba(26,34,24,0.10)" },
+  savingsCap: { fontSize: 9, color: T.muteStrong, textTransform: "uppercase", letterSpacing: 0.8, fontWeight: "600", marginBottom: 4 },
+  savingsPrice: { fontSize: 18, fontWeight: "800", color: T.accent, letterSpacing: -0.3 },
 
-  // Disclaimer
-  disclaimerBox: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    gap: 10,
-    backgroundColor: "#FFF8E1",
-    borderRadius: 12,
-    padding: 14,
-    marginHorizontal: 20,
-    marginBottom: 20,
-    borderWidth: 1,
-    borderColor: "#FFE082",
-  },
-  disclaimerText: { fontSize: 12, color: "#795548", lineHeight: 18, flex: 1 },
+  // Section labels
+  sectionLabel: { fontSize: 9, letterSpacing: 1.4, textTransform: "uppercase", color: T.muteStrong, fontWeight: "700", marginBottom: 8 },
 
-  // Buttons
-  btnGroup: { paddingHorizontal: 20, gap: 10 },
-  primaryBtn: {
-    backgroundColor: "#2E7D32",
-    paddingVertical: 14,
-    paddingHorizontal: 24,
-    borderRadius: 10,
-    alignItems: "center",
+  // Detail rows
+  detailRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingVertical: 13, paddingHorizontal: 16 },
+  detailLeft: { flexDirection: "row", alignItems: "center", gap: 9, flex: 1 },
+  detailLabel: { fontSize: 13, color: T.mute },
+  detailValue: { fontSize: 13, fontWeight: "600", color: T.ink, maxWidth: "50%", textAlign: "right" },
+  rowDivider: { height: 1, backgroundColor: "rgba(26,34,24,0.06)", marginHorizontal: 16 },
+
+  // Steps
+  stepRow: { flexDirection: "row", alignItems: "flex-start", gap: 12, paddingHorizontal: 16, paddingVertical: 13 },
+  stepBorder: { borderBottomWidth: 1, borderBottomColor: "rgba(26,34,24,0.06)" },
+  stepBadge: {
+    width: 24, height: 24, borderRadius: 12,
+    backgroundColor: "rgba(61,107,71,0.12)",
+    borderWidth: 1, borderColor: "rgba(61,107,71,0.22)",
+    alignItems: "center", justifyContent: "center", flexShrink: 0,
   },
-  primaryBtnText: {
-    color: "#FFFFFF",
-    fontSize: 15,
-    fontWeight: "600",
-  },
-  secondaryBtn: {
-    backgroundColor: "#FFFFFF",
-    paddingVertical: 14,
-    borderRadius: 10,
-    alignItems: "center",
-    borderWidth: 1,
-    borderColor: "#DBDBDB",
-  },
-  secondaryBtnText: { color: "#737373", fontSize: 15, fontWeight: "500" },
+  stepNum: { fontSize: 12, fontWeight: "700", color: T.green },
+  stepText: { fontSize: 13, color: T.ink, flex: 1, lineHeight: 19, paddingTop: 2 },
 });

@@ -6,13 +6,17 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   Alert,
+  Linking,
   Platform,
 } from "react-native";
 import MapView, { Marker } from "react-native-maps";
 import * as Location from "expo-location";
+import { BlurView } from "expo-blur";
 import { Ionicons } from "@expo/vector-icons";
 import { supabase } from "../lib/supabase";
 import { useLanguage } from "../lang/LanguageContext";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { WallpaperBackground, GlassPanel, GlassButton, T, ar } from "../components/Glass";
 
 const AMMAN_REGION = {
   latitude: 31.9539,
@@ -21,24 +25,26 @@ const AMMAN_REGION = {
   longitudeDelta: 0.05,
 };
 
+const SUPPORT_EMAIL = "support@zaytoon.jo";
+const SUPPORT_WA    = "https://wa.me/96270000000";
+
 export default function MapScreen() {
   const { t, isRTL } = useLanguage();
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
+  const insets = useSafeAreaInsets();
+  const [loading, setLoading]       = useState(true);
+  const [saving, setSaving]         = useState(false);
   const [restaurant, setRestaurant] = useState(null);
-  const [marker, setMarker] = useState(null);
+  const [marker, setMarker]         = useState(null);
   const [savedMarker, setSavedMarker] = useState(null);
-  const [region, setRegion] = useState(AMMAN_REGION);
+  const [region, setRegion]         = useState(AMMAN_REGION);
+  const [mapType, setMapType]       = useState("standard");
+  const [address, setAddress]       = useState(null);
   const mapRef = useRef(null);
 
-  useEffect(() => {
-    loadRestaurantAndLocation();
-  }, []);
+  useEffect(() => { loadRestaurantAndLocation(); }, []);
 
   const loadRestaurantAndLocation = async () => {
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+    const { data: { user } } = await supabase.auth.getUser();
 
     const { data } = await supabase
       .from("restaurants")
@@ -53,6 +59,7 @@ export default function MapScreen() {
         setMarker(coord);
         setSavedMarker(coord);
         setRegion({ ...coord, latitudeDelta: 0.01, longitudeDelta: 0.01 });
+        fetchAddress(coord);
       } else {
         await centerOnDeviceLocation();
       }
@@ -66,9 +73,7 @@ export default function MapScreen() {
   const centerOnDeviceLocation = async () => {
     const { status } = await Location.requestForegroundPermissionsAsync();
     if (status === "granted") {
-      const loc = await Location.getCurrentPositionAsync({
-        accuracy: Location.Accuracy.Balanced,
-      });
+      const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
       setRegion({
         latitude: loc.coords.latitude,
         longitude: loc.coords.longitude,
@@ -78,8 +83,24 @@ export default function MapScreen() {
     }
   };
 
+  const fetchAddress = async (coord) => {
+    try {
+      const results = await Location.reverseGeocodeAsync(coord);
+      if (results?.length > 0) {
+        const r = results[0];
+        const parts = [r.street, r.district || r.subregion, r.city].filter(Boolean);
+        setAddress(parts.slice(0, 2).join(", ") || null);
+      }
+    } catch {
+      setAddress(null);
+    }
+  };
+
   const handleMapPress = (e) => {
-    setMarker(e.nativeEvent.coordinate);
+    const coord = e.nativeEvent.coordinate;
+    setMarker(coord);
+    setAddress(null);
+    fetchAddress(coord);
   };
 
   const saveLocation = async () => {
@@ -101,6 +122,8 @@ export default function MapScreen() {
 
   const cancelChanges = () => {
     setMarker(savedMarker);
+    if (savedMarker) fetchAddress(savedMarker);
+    else setAddress(null);
   };
 
   const useMyLocation = async () => {
@@ -109,19 +132,21 @@ export default function MapScreen() {
       Alert.alert(t("permissionNeeded"), t("locationPermissionMsg"));
       return;
     }
-    const loc = await Location.getCurrentPositionAsync({
-      accuracy: Location.Accuracy.High,
-    });
-    const coord = {
-      latitude: loc.coords.latitude,
-      longitude: loc.coords.longitude,
-    };
+    const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
+    const coord = { latitude: loc.coords.latitude, longitude: loc.coords.longitude };
     setMarker(coord);
-    mapRef.current?.animateToRegion(
-      { ...coord, latitudeDelta: 0.005, longitudeDelta: 0.005 },
-      600,
-    );
+    setAddress(null);
+    fetchAddress(coord);
+    mapRef.current?.animateToRegion({ ...coord, latitudeDelta: 0.005, longitudeDelta: 0.005 }, 600);
   };
+
+  const recenterMap = () => {
+    if (marker) {
+      mapRef.current?.animateToRegion({ ...marker, latitudeDelta: 0.008, longitudeDelta: 0.008 }, 500);
+    }
+  };
+
+  const toggleMapType = () => setMapType((p) => (p === "standard" ? "satellite" : "standard"));
 
   const hasChanges =
     marker &&
@@ -129,42 +154,57 @@ export default function MapScreen() {
       marker.latitude !== savedMarker.latitude ||
       marker.longitude !== savedMarker.longitude);
 
+  const topBarH = insets.top + 74;
+
   if (loading) {
     return (
-      <View style={styles.center}>
-        <ActivityIndicator size="large" color="#2E7D32" />
-        <Text style={styles.loadingText}>{t("loadingMap")}</Text>
+      <View style={styles.loadingContainer}>
+        <WallpaperBackground />
+        <GlassPanel radius={20} padding={28} style={styles.loadingCard}>
+          <ActivityIndicator size="large" color={T.green} />
+          <Text style={[styles.loadingText, ar(isRTL)]}>{t("loadingMap")}</Text>
+        </GlassPanel>
       </View>
     );
   }
 
   return (
     <View style={styles.container}>
-      {/* Instruction bar */}
-      {savedMarker ? (
-        <View style={[styles.instructionBar, isRTL && styles.rtlRow]}>
-          <Ionicons name="location" size={20} color="#2E7D32" />
-          <View style={{ flex: 1 }}>
-            <Text style={[styles.instructionTitle, isRTL && styles.rtl]}>{t("locationConfirmed")}</Text>
-            <Text style={[styles.instructionSub, isRTL && styles.rtl]}>{t("contactSupportLocation")}</Text>
-          </View>
-        </View>
-      ) : (
-        <View style={[styles.instructionBar, isRTL && styles.rtlRow]}>
-          <Ionicons name="location-outline" size={20} color="#737373" />
-          <View style={{ flex: 1 }}>
-            <Text style={[styles.instructionTitle, isRTL && styles.rtl]}>{t("pinRestaurant")}</Text>
-            <Text style={[styles.instructionSub, isRTL && styles.rtl]}>
-              {marker ? t("tapToMovePin") : t("tapToPlacePin")}
+      {/* ── TOP BAR (glass) ── */}
+      <View style={[styles.topBar, { paddingTop: insets.top + 10 }]}>
+        <BlurView intensity={85} tint="light" style={StyleSheet.absoluteFill} />
+        <View style={styles.topBarSheen} />
+        <View style={[styles.topBarInner, isRTL && styles.rtlRow]}>
+          {/* Status dot + name */}
+          <View style={[styles.topBarTexts, isRTL && { alignItems: "flex-end" }]}>
+            <View style={[styles.statusRow, isRTL && styles.rtlRow]}>
+              <View style={[styles.statusDot, { backgroundColor: savedMarker ? T.green : T.muteStrong }]} />
+              <Text
+                style={[styles.restaurantName, isRTL && styles.rtl, ar(isRTL, "semiBold")]}
+                numberOfLines={1}
+              >
+                {restaurant?.name || t("myRestaurant")}
+              </Text>
+            </View>
+            <Text style={[styles.topBarSub, isRTL && styles.rtl]} numberOfLines={1}>
+              {savedMarker
+                ? address || t("locationConfirmed")
+                : marker
+                ? address || t("tapToMovePin")
+                : t("tapToPlacePin")}
             </Text>
           </View>
-          <TouchableOpacity style={styles.myLocationBtn} onPress={useMyLocation}>
-            <Ionicons name="navigate-outline" size={18} color="#2E7D32" />
-          </TouchableOpacity>
-        </View>
-      )}
 
-      {/* Map */}
+          {/* My location button (only shown before location is locked) */}
+          {!savedMarker && (
+            <TouchableOpacity style={styles.glassIconBtn} onPress={useMyLocation}>
+              <Ionicons name="navigate" size={18} color={T.green} />
+            </TouchableOpacity>
+          )}
+        </View>
+      </View>
+
+      {/* ── MAP ── */}
       <MapView
         ref={mapRef}
         style={styles.map}
@@ -172,124 +212,326 @@ export default function MapScreen() {
         onPress={savedMarker ? undefined : handleMapPress}
         showsUserLocation
         showsMyLocationButton={false}
-        mapType="standard"
+        mapType={mapType}
+        showsCompass={false}
+        showsScale
       >
         {marker && (
           <Marker
             coordinate={marker}
             title={restaurant?.name || t("myRestaurant")}
-            description={t("yourRestaurantLocation")}
+            description={address || t("yourRestaurantLocation")}
+            pinColor={T.green}
           />
         )}
       </MapView>
 
-      {/* Coordinates display */}
-      {marker && (
-        <View style={styles.coordBar}>
-          <Text style={styles.coordText}>
-            {marker.latitude.toFixed(5)}°N, {marker.longitude.toFixed(5)}°E
+      {/* ── SIDE BUTTONS — upper right ── */}
+      <View style={[styles.sideStack, { top: topBarH + 12 }]}>
+        <TouchableOpacity style={styles.glassIconBtn} onPress={toggleMapType}>
+          <Ionicons
+            name={mapType === "standard" ? "globe-outline" : "map-outline"}
+            size={19}
+            color={T.green}
+          />
+          <Text style={styles.sideBtnLabel}>
+            {mapType === "standard" ? "SAT" : "MAP"}
           </Text>
-        </View>
-      )}
+        </TouchableOpacity>
 
-      {/* Save / Cancel bar — only when no savedMarker and hasChanges */}
-      {!savedMarker && hasChanges && (
-        <View style={[styles.actionBar, isRTL && styles.rtlRow]}>
-          <TouchableOpacity
-            style={styles.cancelBtn}
-            onPress={cancelChanges}
-            disabled={saving}
-          >
-            <Text style={styles.cancelBtnText}>{t("cancel")}</Text>
+        {marker && (
+          <TouchableOpacity style={styles.glassIconBtn} onPress={recenterMap}>
+            <Ionicons name="locate-outline" size={19} color={T.green} />
           </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.saveBtn, saving && styles.saveBtnDisabled]}
-            onPress={saveLocation}
-            disabled={saving}
-          >
-            {saving ? (
-              <ActivityIndicator color="#FFFFFF" size="small" />
-            ) : (
-              <Text style={styles.saveBtnText}>{t("saveLocation")}</Text>
+        )}
+      </View>
+
+      {/* ── BOTTOM BAR (glass) ── */}
+      <View style={[styles.bottomBar, { paddingBottom: insets.bottom + 12 }]}>
+        <BlurView intensity={85} tint="light" style={StyleSheet.absoluteFill} />
+        <View style={styles.bottomBarSheen} />
+
+        {savedMarker ? (
+          /* Location locked — show contact-us section */
+          <View style={styles.bottomContent}>
+            {/* Coord row */}
+            <View style={[styles.coordRow, isRTL && styles.rtlRow]}>
+              <Ionicons name="location" size={13} color={T.green} />
+              <Text style={[styles.coordText, { color: T.green }, isRTL && styles.rtl]} numberOfLines={1}>
+                {address || `${marker?.latitude.toFixed(5)}, ${marker?.longitude.toFixed(5)}`}
+              </Text>
+              <View style={styles.confirmedBadge}>
+                <Ionicons name="checkmark-circle" size={11} color="#fff" />
+                <Text style={styles.confirmedBadgeText}>{t("locationConfirmed")}</Text>
+              </View>
+            </View>
+
+            <View style={styles.divider} />
+
+            {/* Contact-us panel */}
+            <View style={[styles.contactSection, isRTL && { alignItems: "flex-end" }]}>
+              <Text style={[styles.contactTitle, isRTL && styles.rtl, ar(isRTL, "semiBold")]}>
+                {t("changeLocationTitle")}
+              </Text>
+              <Text style={[styles.contactSub, isRTL && styles.rtl]}>
+                {t("changeLocationSub")}
+              </Text>
+              <View style={[styles.contactBtns, isRTL && styles.rtlRow]}>
+                <TouchableOpacity
+                  style={styles.contactBtn}
+                  onPress={() => Linking.openURL(`mailto:${SUPPORT_EMAIL}`)}
+                >
+                  <Ionicons name="mail-outline" size={15} color={T.green} />
+                  <Text style={styles.contactBtnText}>{t("contactEmailBtn")}</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.contactBtn, styles.contactBtnWa]}
+                  onPress={() => Linking.openURL(SUPPORT_WA)}
+                >
+                  <Ionicons name="logo-whatsapp" size={15} color="#fff" />
+                  <Text style={[styles.contactBtnText, { color: "#fff" }]}>{t("contactWhatsAppBtn")}</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        ) : (
+          /* Not yet saved — editing flow */
+          <View style={styles.bottomContent}>
+            {/* Coord / hint row */}
+            <View style={[styles.coordRow, isRTL && styles.rtlRow]}>
+              <Ionicons name="location-outline" size={13} color={T.mute} />
+              <Text style={[styles.coordText, isRTL && styles.rtl]} numberOfLines={1}>
+                {marker
+                  ? address || `${marker.latitude.toFixed(5)}, ${marker.longitude.toFixed(5)}`
+                  : t("tapToPlacePin")}
+              </Text>
+            </View>
+
+            {hasChanges && <View style={styles.divider} />}
+
+            {hasChanges && (
+              <View style={[styles.actionRow, isRTL && styles.rtlRow]}>
+                <TouchableOpacity
+                  style={styles.cancelBtn}
+                  onPress={cancelChanges}
+                  disabled={saving}
+                >
+                  <Text style={styles.cancelBtnText}>{t("cancel")}</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.saveBtn, saving && styles.saveBtnDisabled]}
+                  onPress={saveLocation}
+                  disabled={saving}
+                >
+                  {saving ? (
+                    <ActivityIndicator color="#fff" size="small" />
+                  ) : (
+                    <Text style={styles.saveBtnText}>{t("saveLocation")}</Text>
+                  )}
+                </TouchableOpacity>
+              </View>
             )}
-          </TouchableOpacity>
-        </View>
-      )}
+          </View>
+        )}
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#FFFFFF" },
-  rtl: { textAlign: "right", writingDirection: "rtl" },
-  rtlRow: { flexDirection: "row-reverse" },
+  container: { flex: 1, backgroundColor: "#f3f2ec" },
+  rtl:       { textAlign: "right", writingDirection: "rtl" },
+  rtlRow:    { flexDirection: "row-reverse" },
 
-  center: { flex: 1, justifyContent: "center", alignItems: "center", gap: 12 },
-  loadingText: { fontSize: 14, color: "#737373" },
+  // Loading
+  loadingContainer: { flex: 1, justifyContent: "center", alignItems: "center" },
+  loadingCard:      { alignItems: "center", gap: 14, minWidth: 180 },
+  loadingText:      { fontSize: 14, color: T.mute, marginTop: 4 },
 
-  instructionBar: {
+  // Top bar
+  topBar: {
+    paddingHorizontal: 16,
+    paddingBottom: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: "rgba(255,255,255,0.7)",
+    overflow: "hidden",
+    zIndex: 10,
+  },
+  topBarSheen: {
+    position: "absolute",
+    top: 0, left: 0, right: 0, height: 1,
+    backgroundColor: "rgba(255,255,255,0.95)",
+  },
+  topBarInner: {
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
-    backgroundColor: "#FFFFFF",
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    borderBottomWidth: 1,
-    borderBottomColor: "#DBDBDB",
   },
-  instructionTitle: { fontSize: 14, fontWeight: "600", color: "#0F0F0F", marginBottom: 2 },
-  instructionSub: { fontSize: 12, color: "#737373" },
-  myLocationBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 10,
-    backgroundColor: "#F2F8F2",
+  topBarTexts: { flex: 1, gap: 3 },
+  statusRow: {
+    flexDirection: "row",
     alignItems: "center",
-    justifyContent: "center",
-    borderWidth: 1,
-    borderColor: "#DBDBDB",
+    gap: 7,
+  },
+  statusDot: { width: 8, height: 8, borderRadius: 4 },
+  restaurantName: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: T.ink,
+    flexShrink: 1,
+  },
+  topBarSub: {
+    fontSize: 12,
+    color: T.mute,
+    paddingStart: 15,
   },
 
+  // Map
   map: { flex: 1 },
 
-  coordBar: {
-    position: "absolute",
-    bottom: 90,
-    alignSelf: "center",
-    backgroundColor: "rgba(0,0,0,0.6)",
-    paddingHorizontal: 14,
-    paddingVertical: 6,
-    borderRadius: 20,
-  },
-  coordText: { fontSize: 12, color: "#FFFFFF", fontFamily: Platform.OS === "ios" ? "Courier" : "monospace" },
-
-  actionBar: {
-    flexDirection: "row",
-    gap: 12,
-    padding: 16,
-    backgroundColor: "#FFFFFF",
-    borderTopWidth: 1,
-    borderTopColor: "#DBDBDB",
-  },
-  saveBtn: {
-    flex: 1,
-    backgroundColor: "#2E7D32",
-    paddingVertical: 14,
-    borderRadius: 10,
+  // Shared glass icon button
+  glassIconBtn: {
+    width: 48,
+    height: 48,
+    borderRadius: 14,
+    overflow: "hidden",
+    backgroundColor: "rgba(255,255,255,0.80)",
     alignItems: "center",
     justifyContent: "center",
+    gap: 2,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.9)",
+    shadowColor: "rgba(26,34,24,0.16)",
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 1,
+    shadowRadius: 8,
+    elevation: 4,
   },
-  saveBtnDisabled: { backgroundColor: "#B8B8B8" },
-  saveBtnText: { color: "#FFFFFF", fontWeight: "600", fontSize: 15 },
+  sideBtnLabel: {
+    fontSize: 8,
+    fontWeight: "700",
+    color: T.green,
+    letterSpacing: 0.5,
+  },
+
+  // Side stack
+  sideStack: {
+    position: "absolute",
+    right: 14,
+    gap: 8,
+  },
+
+  // Bottom bar
+  bottomBar: {
+    paddingTop: 14,
+    paddingHorizontal: 16,
+    borderTopWidth: 1,
+    borderTopColor: "rgba(255,255,255,0.7)",
+    overflow: "hidden",
+  },
+  bottomBarSheen: {
+    position: "absolute",
+    top: 0, left: 0, right: 0, height: 1,
+    backgroundColor: "rgba(255,255,255,0.95)",
+  },
+  bottomContent: { gap: 10 },
+
+  // Coordinates row
+  coordRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  coordText: {
+    flex: 1,
+    fontSize: 12,
+    color: T.mute,
+    fontFamily: Platform.OS === "ios" ? "Courier" : "monospace",
+  },
+  confirmedBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    backgroundColor: T.green,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 20,
+  },
+  confirmedBadgeText: {
+    fontSize: 10,
+    fontWeight: "700",
+    color: "#fff",
+  },
+
+  divider: { height: 1, backgroundColor: "rgba(26,34,24,0.07)" },
+
+  // Contact section
+  contactSection: { gap: 8 },
+  contactTitle: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: T.ink,
+  },
+  contactSub: {
+    fontSize: 12,
+    color: T.mute,
+    lineHeight: 17,
+  },
+  contactBtns: {
+    flexDirection: "row",
+    gap: 10,
+    marginTop: 2,
+  },
+  contactBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 10,
+    backgroundColor: "rgba(61,107,71,0.10)",
+    borderWidth: 1,
+    borderColor: "rgba(61,107,71,0.20)",
+  },
+  contactBtnWa: {
+    backgroundColor: "#25D366",
+    borderColor: "rgba(0,0,0,0.06)",
+  },
+  contactBtnText: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: T.green,
+  },
+
+  // Editing actions
+  actionRow: {
+    flexDirection: "row",
+    gap: 10,
+  },
   cancelBtn: {
     paddingHorizontal: 20,
-    paddingVertical: 14,
-    borderRadius: 10,
-    backgroundColor: "#FAFAFA",
+    paddingVertical: 13,
+    borderRadius: 12,
+    backgroundColor: "rgba(26,34,24,0.06)",
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 1,
-    borderColor: "#DBDBDB",
+    borderColor: "rgba(26,34,24,0.10)",
   },
-  cancelBtnText: { color: "#737373", fontWeight: "500", fontSize: 15 },
+  cancelBtnText: { color: T.ink, fontWeight: "500", fontSize: 14 },
+  saveBtn: {
+    flex: 1,
+    backgroundColor: T.green,
+    paddingVertical: 13,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: "rgba(30,58,33,0.40)",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 1,
+    shadowRadius: 10,
+    elevation: 4,
+  },
+  saveBtnDisabled: { backgroundColor: T.muteStrong, shadowOpacity: 0 },
+  saveBtnText: { color: "#fff", fontWeight: "700", fontSize: 14 },
 });

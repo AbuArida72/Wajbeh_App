@@ -11,11 +11,13 @@ import {
   KeyboardAvoidingView,
   Platform,
   StatusBar,
+  Animated,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { supabase } from "../lib/supabase";
 import { useLanguage } from "../lang/LanguageContext";
+import { T, GlassPanel, WallpaperBackground, ar } from "../components/Glass";
 
 function formatCardNumber(raw) {
   const digits = raw.replace(/\D/g, "").slice(0, 16);
@@ -38,44 +40,86 @@ function maskCardNumber(raw) {
 }
 
 function CardVisual({ number, name, expiry, cvv, cvvFocused, t }) {
+  const flipAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.timing(flipAnim, {
+      toValue: cvvFocused ? 1 : 0,
+      duration: 400,
+      useNativeDriver: true,
+    }).start();
+  }, [cvvFocused]);
+
+  const frontRotateY = flipAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: ["0deg", "180deg"],
+  });
+  const backRotateY = flipAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: ["-180deg", "0deg"],
+  });
+  const frontOpacity = flipAnim.interpolate({
+    inputRange: [0, 0.45, 0.55, 1],
+    outputRange: [1, 1, 0, 0],
+  });
+  const backOpacity = flipAnim.interpolate({
+    inputRange: [0, 0.45, 0.55, 1],
+    outputRange: [0, 0, 1, 1],
+  });
+
+  const cvvDigits = cvv?.replace(/\D/g, "") || "";
+
   return (
-    <View style={[styles.card, cvvFocused && styles.cardFlipped]}>
-      <View style={styles.cardShine} />
-      <View style={styles.cardTopRow}>
-        <View style={styles.cardBrand}>
-          <View style={styles.brandCircle1} />
-          <View style={styles.brandCircle2} />
+    <View style={styles.cardWrapper}>
+      {/* Inner clip handles borderRadius + overflow — shadow lives on outer wrapper */}
+      <View style={styles.cardClip}>
+      {/* ── Front face ── */}
+      <Animated.View style={[styles.card, { transform: [{ rotateY: frontRotateY }], opacity: frontOpacity }]}>
+        <View style={styles.cardShine} />
+        <View style={styles.cardTopRow}>
+          <View style={styles.cardBrand}>
+            <View style={styles.brandCircle1} />
+            <View style={styles.brandCircle2} />
+          </View>
+          <View style={styles.cardChip}>
+            <View style={styles.chipLine} />
+            <View style={styles.chipLine} />
+            <View style={styles.chipLine} />
+          </View>
         </View>
-        <View style={styles.cardChip}>
-          <View style={styles.chipLine} />
-          <View style={styles.chipLine} />
-          <View style={styles.chipLine} />
+        <Text style={styles.cardNumber} numberOfLines={1}>{number}</Text>
+        <View style={styles.cardBottomRow}>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.cardFieldLabel}>{t("cardPreviewName")}</Text>
+            <Text style={styles.cardFieldValue} numberOfLines={1}>
+              {(name || t("cardPreviewName")).toUpperCase()}
+            </Text>
+          </View>
+          <View style={{ alignItems: "flex-end" }}>
+            <Text style={styles.cardFieldLabel}>{t("validThru")}</Text>
+            <Text style={styles.cardFieldValue}>{expiry || "MM/YY"}</Text>
+          </View>
         </View>
-      </View>
-      <Text style={styles.cardNumber} numberOfLines={1}>{number}</Text>
-      <View style={styles.cardBottomRow}>
-        <View style={{ flex: 1 }}>
-          <Text style={styles.cardFieldLabel}>{t("cardPreviewName")}</Text>
-          <Text style={styles.cardFieldValue} numberOfLines={1}>
-            {(name || t("cardPreviewName")).toUpperCase()}
-          </Text>
-        </View>
-        <View style={{ alignItems: "flex-end" }}>
-          <Text style={styles.cardFieldLabel}>{t("validThru")}</Text>
-          <Text style={styles.cardFieldValue}>{expiry || "MM/YY"}</Text>
-        </View>
-      </View>
-      <Text style={styles.cardWatermark}>WAJBEH</Text>
-      {cvvFocused && (
-        <View style={styles.cvvHintRow}>
-          <Text style={styles.cvvHintLabel}>CVV</Text>
-          <View style={styles.cvvHintBox}>
-            <Text style={styles.cvvHintText}>
-              {"•".repeat(cvv?.replace(/\D/g, "").length || 3)}
+        <Text style={styles.cardWatermark}>ZAYTOON</Text>
+      </Animated.View>
+
+      {/* ── Back face ── */}
+      <Animated.View style={[styles.cardBack, { transform: [{ rotateY: backRotateY }], opacity: backOpacity }]}>
+        <Text style={styles.cardWatermark}>ZAYTOON</Text>
+        {/* Magnetic stripe */}
+        <View style={styles.magStripe} />
+        {/* Signature strip + CVV */}
+        <View style={styles.cvvStripRow}>
+          <View style={styles.cvvSignatureStrip} />
+          <View style={styles.cvvBox}>
+            <Text style={styles.cvvBoxLabel}>CVV</Text>
+            <Text style={styles.cvvBoxValue}>
+              {cvvDigits.length > 0 ? cvvDigits : "•••"}
             </Text>
           </View>
         </View>
-      )}
+      </Animated.View>
+      </View>{/* end cardClip */}
     </View>
   );
 }
@@ -245,27 +289,29 @@ export default function PaymentScreen({ navigation }) {
   if (loadingExisting) {
     return (
       <View style={styles.loadingWrap}>
-        <ActivityIndicator color="#2E7D32" size="large" />
+        <WallpaperBackground />
+        <ActivityIndicator color={T.green} size="large" />
       </View>
     );
   }
 
   return (
     <View style={styles.wrapper}>
-      <StatusBar backgroundColor="#1B5E20" barStyle="light-content" />
+      <StatusBar barStyle="dark-content" translucent backgroundColor="transparent" />
+      <WallpaperBackground />
 
       {/* Header */}
       <View style={[styles.header, { paddingTop: insets.top + 12 }, isRTL && styles.rtlRow]}>
         <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()} activeOpacity={0.8}>
-          <Ionicons name={isRTL ? "arrow-forward" : "arrow-back"} size={20} color="#FFFFFF" />
+          <Ionicons name={isRTL ? "arrow-forward" : "arrow-back"} size={20} color={T.ink} />
         </TouchableOpacity>
         <View style={{ flex: 1 }}>
-          <Text style={[styles.headerTitle, isRTL && styles.rtl]}>{t("paymentTitle")}</Text>
+          <Text style={[styles.headerTitle, isRTL && styles.rtl, ar(isRTL, "bold")]}>{t("paymentTitle")}</Text>
           <Text style={[styles.headerSubtitle, isRTL && styles.rtl]}>{t("paymentSubtitle")}</Text>
         </View>
         {existingCard && isViewMode && (
           <TouchableOpacity style={styles.removeBtn} onPress={handleRemove} activeOpacity={0.8}>
-            <Ionicons name="trash-outline" size={18} color="#FFCDD2" />
+            <Ionicons name="trash-outline" size={18} color={T.urgent} />
           </TouchableOpacity>
         )}
       </View>
@@ -282,7 +328,7 @@ export default function PaymentScreen({ navigation }) {
           {/* Success banner */}
           {savedSuccess && (
             <View style={[styles.successBanner, isRTL && styles.rtlRow]}>
-              <Ionicons name="checkmark-circle" size={18} color="#2E7D32" />
+              <Ionicons name="checkmark-circle" size={18} color={T.green} />
               <Text style={[styles.successBannerText, isRTL && styles.rtl]}>
                 {t("cardAdded")}
               </Text>
@@ -310,11 +356,9 @@ export default function PaymentScreen({ navigation }) {
                 onPress={() => setShowDetails((v) => !v)}
                 activeOpacity={0.88}
               >
-                <Ionicons
-                  name={showDetails ? "eye-off-outline" : "eye-outline"}
-                  size={18}
-                  color="#1B5E20"
-                />
+                <View style={styles.fieldIconWrap}>
+                  <Ionicons name={showDetails ? "eye-off-outline" : "eye-outline"} size={16} color={T.green} />
+                </View>
                 <Text style={styles.detailsToggleBtnText}>
                   {showDetails ? t("hideCardDetails") : t("showCardDetails")}
                 </Text>
@@ -322,182 +366,188 @@ export default function PaymentScreen({ navigation }) {
 
               {/* Expanded details panel */}
               {showDetails && (
-                <View style={styles.detailsPanel}>
-                  <View style={[styles.detailRow, isRTL && styles.rtlRow]}>
-                    <Text style={[styles.detailLabel, isRTL && styles.rtl]}>{t("cardNumber")}</Text>
-                    {existingCard.card_number_full ? (
-                      <Text style={[styles.detailValue, isRTL && styles.rtl]}>
-                        {existingCard.card_number_full}
-                      </Text>
-                    ) : (
-                      <TouchableOpacity onPress={enterEditMode} activeOpacity={0.8}>
-                        <Text style={styles.detailReEnter}>{t("reEnterToReveal")}</Text>
-                      </TouchableOpacity>
-                    )}
-                  </View>
-                  <View style={styles.detailDivider} />
-                  <View style={[styles.detailRow, isRTL && styles.rtlRow]}>
-                    <Text style={[styles.detailLabel, isRTL && styles.rtl]}>{t("cardholderName")}</Text>
-                    <Text style={[styles.detailValue, isRTL && styles.rtl]}>
-                      {existingCard.cardholder_name}
-                    </Text>
-                  </View>
-                  <View style={styles.detailDivider} />
-                  <View style={[styles.detailRow, isRTL && styles.rtlRow]}>
-                    <Text style={[styles.detailLabel, isRTL && styles.rtl]}>{t("expiryDate")}</Text>
-                    <Text style={[styles.detailValue, isRTL && styles.rtl]}>
-                      {existingCard.expiry_date}
-                    </Text>
-                  </View>
-                </View>
+                <GlassPanel radius={16} style={{ overflow: "hidden" }}>
+                  {[
+                    { label: t("cardNumber"), key: "number" },
+                    { label: t("cardholderName"), key: "name" },
+                    { label: t("expiryDate"), key: "expiry" },
+                  ].map(({ label, key }, i, arr) => (
+                    <View key={key}>
+                      <View style={[styles.detailRow, isRTL && styles.rtlRow]}>
+                        <Text style={[styles.detailLabel, isRTL && styles.rtl]}>{label}</Text>
+                        {key === "number" ? (
+                          existingCard.card_number_full ? (
+                            <Text style={[styles.detailValue, isRTL && styles.rtl]}>
+                              {existingCard.card_number_full}
+                            </Text>
+                          ) : (
+                            <TouchableOpacity onPress={enterEditMode} activeOpacity={0.8}>
+                              <Text style={styles.detailReEnter}>{t("reEnterToReveal")}</Text>
+                            </TouchableOpacity>
+                          )
+                        ) : (
+                          <Text style={[styles.detailValue, isRTL && styles.rtl]}>
+                            {key === "name" ? existingCard.cardholder_name : existingCard.expiry_date}
+                          </Text>
+                        )}
+                      </View>
+                      {i < arr.length - 1 && <View style={styles.detailDivider} />}
+                    </View>
+                  ))}
+                </GlassPanel>
               )}
 
-              <View style={[styles.savedInfoBox, isRTL && styles.rtlRow]}>
-                <Ionicons name="shield-checkmark-outline" size={16} color="#2E7D32" />
-                <Text style={[styles.savedInfoText, isRTL && styles.rtl]}>
-                  {t("cardSavedInfo")}
-                </Text>
-              </View>
+              {/* Saved info */}
+              <GlassPanel radius={14} padding={14} style={{ overflow: "hidden" }}>
+                <View style={[{ flexDirection: "row", alignItems: "center", gap: 10 }, isRTL && styles.rtlRow]}>
+                  <View style={styles.fieldIconWrap}>
+                    <Ionicons name="shield-checkmark-outline" size={15} color={T.green} />
+                  </View>
+                  <Text style={[styles.savedInfoText, isRTL && styles.rtl, { flex: 1 }]}>
+                    {t("cardSavedInfo")}
+                  </Text>
+                </View>
+              </GlassPanel>
 
               <TouchableOpacity
                 style={[styles.editBtn, isRTL && styles.rtlRow]}
                 onPress={enterEditMode}
                 activeOpacity={0.88}
               >
-                <Ionicons name="create-outline" size={18} color="#1B5E20" />
+                <Ionicons name="create-outline" size={18} color={T.green} />
                 <Text style={styles.editBtnText}>{t("editCard")}</Text>
               </TouchableOpacity>
             </View>
           )}
 
-          {/* ADD / EDIT MODE — form shown */}
+          {/* ADD / EDIT MODE — glass form */}
           {!isViewMode && (
             <View style={styles.form}>
-              {/* Card Number */}
-              <View style={styles.fieldGroup}>
-                <Text style={[styles.label, isRTL && styles.rtl]}>{t("cardNumber")}</Text>
-                <View style={[styles.inputRow, isRTL && styles.rtlRow, fieldErrors.cardNumber && styles.inputRowError]}>
-                  <View style={[styles.inputIconBox, { backgroundColor: "#E8F5E9" }]}>
-                    <Ionicons name="card-outline" size={18} color="#2E7D32" />
+              {/* Glass fields panel */}
+              <GlassPanel radius={20} style={{ overflow: "hidden" }}>
+                {/* Card Number */}
+                <View style={[styles.field, styles.fieldBorder, isRTL && styles.rtlRow]}>
+                  <View style={styles.fieldIconWrap}>
+                    <Ionicons name="card-outline" size={16} color={T.green} />
                   </View>
-                  <TextInput
-                    style={[styles.input, isRTL && styles.rtlInput]}
-                    placeholder="0000 0000 0000 0000"
-                    placeholderTextColor="#737373"
-                    value={cardNumber}
-                    onChangeText={(v) => {
-                      if (existingCard && v === existingCard.card_number_masked) {
-                        setCardNumber(v);
-                        return;
-                      }
-                      const formatted = formatCardNumber(v);
-                      setCardNumber(formatted);
-                      if (fieldErrors.cardNumber) setFieldErrors((e) => ({ ...e, cardNumber: null }));
-                      if (formatted.replace(/\s/g, "").length === 16) nameRef.current?.focus();
-                    }}
-                    keyboardType="number-pad"
-                    maxLength={19}
-                    returnKeyType="next"
-                    onSubmitEditing={() => nameRef.current?.focus()}
-                  />
-                </View>
-                {fieldErrors.cardNumber && (
-                  <Text style={[styles.fieldError, isRTL && styles.rtl]}>{fieldErrors.cardNumber}</Text>
-                )}
-              </View>
-
-              {/* Cardholder Name */}
-              <View style={styles.fieldGroup}>
-                <Text style={[styles.label, isRTL && styles.rtl]}>{t("cardholderName")}</Text>
-                <View style={[styles.inputRow, isRTL && styles.rtlRow, fieldErrors.cardName && styles.inputRowError]}>
-                  <View style={[styles.inputIconBox, { backgroundColor: "#E3F2FD" }]}>
-                    <Ionicons name="person-outline" size={18} color="#1565C0" />
-                  </View>
-                  <TextInput
-                    ref={nameRef}
-                    style={[styles.input, isRTL && styles.rtlInput]}
-                    placeholder={t("cardholderNamePlaceholder")}
-                    placeholderTextColor="#B8B8B8"
-                    value={cardName}
-                    onChangeText={(v) => {
-                      setCardName(v);
-                      if (fieldErrors.cardName) setFieldErrors((e) => ({ ...e, cardName: null }));
-                    }}
-                    autoCapitalize="characters"
-                    returnKeyType="next"
-                    onSubmitEditing={() => expiryRef.current?.focus()}
-                  />
-                </View>
-                {fieldErrors.cardName && (
-                  <Text style={[styles.fieldError, isRTL && styles.rtl]}>{fieldErrors.cardName}</Text>
-                )}
-              </View>
-
-              {/* Expiry + CVV */}
-              <View style={[styles.twoCol, isRTL && styles.rtlRow]}>
-                <View style={[styles.fieldGroup, { flex: 1 }]}>
-                  <Text style={[styles.label, isRTL && styles.rtl]}>{t("expiryDate")}</Text>
-                  <View style={[styles.inputRow, isRTL && styles.rtlRow, fieldErrors.expiry && styles.inputRowError]}>
-                    <View style={[styles.inputIconBox, { backgroundColor: "#F3E5F5" }]}>
-                      <Ionicons name="calendar-outline" size={18} color="#7B1FA2" />
-                    </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={[styles.fieldLabel, isRTL && styles.rtl]}>{t("cardNumber")}</Text>
                     <TextInput
-                      ref={expiryRef}
-                      style={[styles.input, isRTL && styles.rtlInput]}
-                      placeholder={t("expiryPlaceholder")}
-                      placeholderTextColor="#B8B8B8"
-                      value={expiry}
+                      style={[styles.fieldInput, isRTL && styles.rtlInput,
+                        fieldErrors.cardNumber && styles.fieldInputError]}
+                      placeholder="0000 0000 0000 0000"
+                      placeholderTextColor={T.muteStrong}
+                      value={cardNumber}
                       onChangeText={(v) => {
-                        setExpiry(formatExpiry(v));
-                        if (fieldErrors.expiry) setFieldErrors((e) => ({ ...e, expiry: null }));
+                        if (existingCard && v === existingCard.card_number_masked) {
+                          setCardNumber(v); return;
+                        }
+                        const formatted = formatCardNumber(v);
+                        setCardNumber(formatted);
+                        if (fieldErrors.cardNumber) setFieldErrors((e) => ({ ...e, cardNumber: null }));
+                        if (formatted.replace(/\s/g, "").length === 16) nameRef.current?.focus();
                       }}
                       keyboardType="number-pad"
-                      maxLength={5}
+                      maxLength={19}
                       returnKeyType="next"
-                      onSubmitEditing={() => cvvRef.current?.focus()}
+                      onSubmitEditing={() => nameRef.current?.focus()}
                     />
+                    {fieldErrors.cardNumber && (
+                      <Text style={[styles.fieldError, isRTL && styles.rtl]}>{fieldErrors.cardNumber}</Text>
+                    )}
                   </View>
-                  {fieldErrors.expiry && (
-                    <Text style={[styles.fieldError, isRTL && styles.rtl]}>{fieldErrors.expiry}</Text>
-                  )}
                 </View>
 
-                <View style={[styles.fieldGroup, { flex: 1 }]}>
-                  <Text style={[styles.label, isRTL && styles.rtl]}>{t("cvv")}</Text>
-                  <View style={[styles.inputRow, isRTL && styles.rtlRow, fieldErrors.cvv && styles.inputRowError]}>
-                    <View style={[styles.inputIconBox, { backgroundColor: "#FFF3E0" }]}>
-                      <Ionicons name="lock-closed-outline" size={18} color="#E65100" />
-                    </View>
+                {/* Cardholder Name */}
+                <View style={[styles.field, styles.fieldBorder, isRTL && styles.rtlRow]}>
+                  <View style={[styles.fieldIconWrap, { backgroundColor: "rgba(232,153,58,0.12)" }]}>
+                    <Ionicons name="person-outline" size={16} color={T.accent} />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={[styles.fieldLabel, isRTL && styles.rtl]}>{t("cardholderName")}</Text>
                     <TextInput
-                      ref={cvvRef}
-                      style={[styles.input, isRTL && styles.rtlInput]}
-                      placeholder={t("cvvPlaceholder")}
-                      placeholderTextColor="#B8B8B8"
-                      value={cvv}
+                      ref={nameRef}
+                      style={[styles.fieldInput, isRTL && styles.rtlInput,
+                        fieldErrors.cardName && styles.fieldInputError]}
+                      placeholder={t("cardholderNamePlaceholder")}
+                      placeholderTextColor={T.muteStrong}
+                      value={cardName}
                       onChangeText={(v) => {
-                        setCvv(v.replace(/\D/g, "").slice(0, 4));
-                        if (fieldErrors.cvv) setFieldErrors((e) => ({ ...e, cvv: null }));
+                        setCardName(v);
+                        if (fieldErrors.cardName) setFieldErrors((e) => ({ ...e, cardName: null }));
                       }}
-                      keyboardType="number-pad"
-                      maxLength={4}
-                      secureTextEntry
-                      onFocus={() => setCvvFocused(true)}
-                      onBlur={() => setCvvFocused(false)}
+                      autoCapitalize="characters"
+                      returnKeyType="next"
+                      onSubmitEditing={() => expiryRef.current?.focus()}
                     />
+                    {fieldErrors.cardName && (
+                      <Text style={[styles.fieldError, isRTL && styles.rtl]}>{fieldErrors.cardName}</Text>
+                    )}
                   </View>
-                  {fieldErrors.cvv && (
-                    <Text style={[styles.fieldError, isRTL && styles.rtl]}>{fieldErrors.cvv}</Text>
-                  )}
                 </View>
-              </View>
 
-              {/* Security note */}
-              <View style={[styles.secureNote, isRTL && styles.rtlRow]}>
-                <Ionicons name="shield-checkmark-outline" size={14} color="#2E7D32" />
-                <Text style={[styles.secureNoteText, isRTL && styles.rtl]}>
-                  {t("cardSecureNote")}
-                </Text>
-              </View>
+                {/* Expiry + CVV — side by side in same panel */}
+                <View style={[styles.twoFieldRow, isRTL && styles.rtlRow]}>
+                  <View style={[styles.field, { flex: 1 }, isRTL && styles.rtlRow]}>
+                    <View style={[styles.fieldIconWrap, { backgroundColor: "rgba(123,31,162,0.09)" }]}>
+                      <Ionicons name="calendar-outline" size={16} color="#7B1FA2" />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={[styles.fieldLabel, isRTL && styles.rtl]}>{t("expiryDate")}</Text>
+                      <TextInput
+                        ref={expiryRef}
+                        style={[styles.fieldInput, isRTL && styles.rtlInput,
+                          fieldErrors.expiry && styles.fieldInputError]}
+                        placeholder={t("expiryPlaceholder")}
+                        placeholderTextColor={T.muteStrong}
+                        value={expiry}
+                        onChangeText={(v) => {
+                          setExpiry(formatExpiry(v));
+                          if (fieldErrors.expiry) setFieldErrors((e) => ({ ...e, expiry: null }));
+                        }}
+                        keyboardType="number-pad"
+                        maxLength={5}
+                        returnKeyType="next"
+                        onSubmitEditing={() => cvvRef.current?.focus()}
+                      />
+                      {fieldErrors.expiry && (
+                        <Text style={[styles.fieldError, isRTL && styles.rtl]}>{fieldErrors.expiry}</Text>
+                      )}
+                    </View>
+                  </View>
+
+                  <View style={styles.twoFieldDivider} />
+
+                  <View style={[styles.field, { flex: 1 }, isRTL && styles.rtlRow]}>
+                    <View style={[styles.fieldIconWrap, { backgroundColor: "rgba(224,92,74,0.10)" }]}>
+                      <Ionicons name="lock-closed-outline" size={16} color={T.urgent} />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={[styles.fieldLabel, isRTL && styles.rtl]}>{t("cvv")}</Text>
+                      <TextInput
+                        ref={cvvRef}
+                        style={[styles.fieldInput, isRTL && styles.rtlInput,
+                          fieldErrors.cvv && styles.fieldInputError]}
+                        placeholder={t("cvvPlaceholder")}
+                        placeholderTextColor={T.muteStrong}
+                        value={cvv}
+                        onChangeText={(v) => {
+                          setCvv(v.replace(/\D/g, "").slice(0, 4));
+                          if (fieldErrors.cvv) setFieldErrors((e) => ({ ...e, cvv: null }));
+                        }}
+                        keyboardType="number-pad"
+                        maxLength={4}
+                        secureTextEntry
+                        onFocus={() => setCvvFocused(true)}
+                        onBlur={() => setCvvFocused(false)}
+                      />
+                      {fieldErrors.cvv && (
+                        <Text style={[styles.fieldError, isRTL && styles.rtl]}>{fieldErrors.cvv}</Text>
+                      )}
+                    </View>
+                  </View>
+                </View>
+              </GlassPanel>
 
               {/* Save button */}
               <TouchableOpacity
@@ -535,57 +585,61 @@ export default function PaymentScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
-  wrapper: { flex: 1, backgroundColor: "#FAFAFA" },
-  loadingWrap: { flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: "#FFFFFF" },
+  wrapper: { flex: 1, backgroundColor: "#fdfcf9" },
+  loadingWrap: { flex: 1, justifyContent: "center", alignItems: "center" },
   rtl: { textAlign: "right", writingDirection: "rtl" },
   rtlRow: { flexDirection: "row-reverse" },
   rtlInput: { textAlign: "right" },
 
   // Header
   header: {
-    backgroundColor: "#1B5E20",
+    backgroundColor: "transparent",
     paddingHorizontal: 20,
-    paddingBottom: 28,
+    paddingBottom: 16,
     flexDirection: "row",
     alignItems: "center",
     gap: 14,
   },
   backBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: "rgba(255,255,255,0.15)",
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: "rgba(255,255,255,0.82)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.95)",
     alignItems: "center",
     justifyContent: "center",
   },
   removeBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: "rgba(255,255,255,0.12)",
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: "rgba(224,92,74,0.10)",
+    borderWidth: 1,
+    borderColor: "rgba(224,92,74,0.35)",
     alignItems: "center",
     justifyContent: "center",
   },
-  headerTitle: { fontSize: 18, fontWeight: "700", color: "#FFFFFF" },
-  headerSubtitle: { fontSize: 12, color: "rgba(255,255,255,0.7)", marginTop: 2 },
+  headerTitle: { fontSize: 18, fontWeight: "700", color: T.ink },
+  headerSubtitle: { fontSize: 12, color: T.mute, marginTop: 2 },
 
   // Success banner
   successBanner: {
     flexDirection: "row",
     alignItems: "center",
     gap: 10,
-    backgroundColor: "#E8F5E9",
+    backgroundColor: "rgba(61,107,71,0.10)",
     borderRadius: 12,
     padding: 14,
     marginHorizontal: 20,
     marginTop: 16,
     borderWidth: 1,
-    borderColor: "#A5D6A7",
+    borderColor: "rgba(61,107,71,0.25)",
   },
   successBannerText: {
     fontSize: 14,
     fontWeight: "600",
-    color: "#2E7D32",
+    color: T.green,
     flex: 1,
   },
 
@@ -596,22 +650,83 @@ const styles = StyleSheet.create({
     paddingBottom: 8,
     alignItems: "center",
   },
-  card: {
+  // Outer wrapper — carries the shadow, rounded to match card shape
+  // backgroundColor needed on Android so elevation shadow renders correctly
+  cardWrapper: {
     width: "100%",
     maxWidth: 340,
     aspectRatio: 1.586,
     borderRadius: 18,
-    backgroundColor: "#1B5E20",
-    padding: 22,
-    justifyContent: "space-between",
-    overflow: "hidden",
-    shadowColor: "#1B5E20",
+    backgroundColor: T.green,
+    shadowColor: T.green,
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.35,
     shadowRadius: 16,
     elevation: 10,
   },
-  cardFlipped: { backgroundColor: "#0D3B12" },
+  // Inner clip — overflow:hidden rounds the corners without clipping the shadow
+  cardClip: {
+    flex: 1,
+    borderRadius: 18,
+    overflow: "hidden",
+  },
+  // Front face — fills cardClip absolutely
+  card: {
+    position: "absolute",
+    top: 0, left: 0, right: 0, bottom: 0,
+    backgroundColor: T.green,
+    padding: 22,
+    justifyContent: "space-between",
+  },
+  // Back face — fills cardClip absolutely
+  cardBack: {
+    position: "absolute",
+    top: 0, left: 0, right: 0, bottom: 0,
+    backgroundColor: "#2a5034",
+    justifyContent: "flex-start",
+  },
+  magStripe: {
+    height: 52,
+    backgroundColor: "rgba(0,0,0,0.78)",
+    marginTop: 24,
+  },
+  cvvStripRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginHorizontal: 20,
+    marginTop: 16,
+    gap: 10,
+  },
+  cvvSignatureStrip: {
+    flex: 1,
+    height: 40,
+    backgroundColor: "rgba(255,255,255,0.10)",
+    borderRadius: 4,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.06)",
+  },
+  cvvBox: {
+    backgroundColor: "#fff",
+    borderRadius: 8,
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+    alignItems: "center",
+    minWidth: 64,
+  },
+  cvvBoxLabel: {
+    fontSize: 8,
+    color: "#555",
+    fontWeight: "700",
+    letterSpacing: 1.5,
+    textTransform: "uppercase",
+  },
+  cvvBoxValue: {
+    fontSize: 18,
+    color: "#0F0F0F",
+    fontWeight: "800",
+    letterSpacing: 4,
+    marginTop: 3,
+  },
   cardShine: {
     position: "absolute",
     top: -40,
@@ -663,86 +778,61 @@ const styles = StyleSheet.create({
     textAlign: "center", fontSize: 9, color: "rgba(255,255,255,0.12)",
     fontWeight: "700", letterSpacing: 4,
   },
-  cvvHintRow: {
-    position: "absolute", bottom: 22, right: 22, alignItems: "flex-end", gap: 4,
-  },
-  cvvHintLabel: {
-    fontSize: 9, color: "rgba(255,255,255,0.6)", fontWeight: "600", letterSpacing: 1,
-  },
-  cvvHintBox: {
-    backgroundColor: "rgba(255,255,255,0.15)",
-    paddingHorizontal: 12, paddingVertical: 4, borderRadius: 6,
-  },
-  cvvHintText: { fontSize: 14, color: "#FFFFFF", letterSpacing: 4, fontWeight: "700" },
-
   // Form
   scroll: { flexGrow: 1 },
-  form: { paddingHorizontal: 20, paddingTop: 20, gap: 16 },
-  fieldGroup: { gap: 8 },
-  twoCol: { flexDirection: "row", gap: 12 },
-  label: { fontSize: 13, fontWeight: "600", color: "#0F0F0F" },
-  inputRow: {
+  form: { paddingHorizontal: 20, paddingTop: 20, gap: 14 },
+
+  // Glass field rows (Sign In–style)
+  field: {
     flexDirection: "row", alignItems: "center",
-    backgroundColor: "#FFFFFF", borderRadius: 12,
-    borderWidth: 1, borderColor: "#DBDBDB", overflow: "hidden",
-    shadowColor: "#000", shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.04, shadowRadius: 4, elevation: 1,
+    paddingHorizontal: 14, paddingVertical: 12, gap: 12,
   },
-  inputRowError: {
-    borderColor: "#ED4956",
-    borderWidth: 1.5,
+  fieldBorder: {
+    borderBottomWidth: 1,
+    borderBottomColor: "rgba(26,34,24,0.07)",
   },
+  fieldIconWrap: {
+    width: 34, height: 34, borderRadius: 10,
+    backgroundColor: "rgba(61,107,71,0.10)",
+    alignItems: "center", justifyContent: "center",
+  },
+  fieldLabel: {
+    fontSize: 10, fontWeight: "700", color: T.green,
+    textTransform: "uppercase", letterSpacing: 0.8, marginBottom: 2,
+  },
+  fieldInput: {
+    fontSize: 15, color: T.ink, fontWeight: "500",
+    paddingVertical: 2,
+  },
+  fieldInputError: { color: T.urgent },
   fieldError: {
-    fontSize: 12,
-    color: "#ED4956",
-    fontWeight: "500",
-    marginTop: 4,
-    marginLeft: 4,
+    fontSize: 11, color: T.urgent, fontWeight: "600",
+    marginTop: 2, letterSpacing: 0.2,
   },
-  inputIconBox: {
-    width: 48, height: 50, alignItems: "center", justifyContent: "center",
-    borderRightWidth: 1, borderRightColor: "#F0F0F0",
-  },
-  input: {
-    flex: 1, height: 50, paddingHorizontal: 14,
-    fontSize: 15, color: "#0F0F0F", fontWeight: "500",
-  },
+  twoFieldRow: { flexDirection: "row" },
+  twoFieldDivider: { width: 1, backgroundColor: "rgba(26,34,24,0.07)", marginVertical: 10 },
 
   // Security note
-  secureNote: {
-    flexDirection: "row", alignItems: "center", gap: 8,
-    backgroundColor: "#E8F5E9", borderRadius: 10, padding: 12,
-    borderWidth: 1, borderColor: "#A5D6A7",
-  },
-  secureNoteText: { fontSize: 12, color: "#2E7D32", flex: 1, lineHeight: 18 },
+  secureNoteText: { fontSize: 12, color: T.green, lineHeight: 18 },
 
   // Details toggle button
   detailsToggleBtn: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    gap: 8,
-    backgroundColor: "#F0F7F0",
-    borderRadius: 12,
-    borderWidth: 1.5,
-    borderColor: "#A5D6A7",
-    paddingVertical: 13,
-  },
-  detailsToggleBtnText: { fontSize: 15, fontWeight: "600", color: "#1B5E20" },
-
-  // Details panel
-  detailsPanel: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: 12,
+    gap: 10,
+    backgroundColor: "rgba(255,255,255,0.72)",
+    borderRadius: 14,
     borderWidth: 1,
-    borderColor: "#EBEBEB",
-    overflow: "hidden",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 1,
+    borderColor: "rgba(255,255,255,0.85)",
+    paddingVertical: 13,
+    shadowColor: "rgba(40,55,35,0.10)",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 1, shadowRadius: 8, elevation: 2,
   },
+  detailsToggleBtnText: { fontSize: 14, fontWeight: "600", color: T.green },
+
+  // Details panel rows (inside GlassPanel)
   detailRow: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -750,47 +840,44 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 13,
   },
-  detailDivider: { height: 1, backgroundColor: "#F5F5F5", marginHorizontal: 16 },
-  detailLabel: { fontSize: 13, color: "#737373", fontWeight: "500" },
-  detailValue: { fontSize: 14, color: "#0F0F0F", fontWeight: "600", letterSpacing: 0.3 },
-  detailReEnter: { fontSize: 13, color: "#2E7D32", fontWeight: "600", textDecorationLine: "underline" },
+  detailDivider: { height: 1, backgroundColor: "rgba(26,34,24,0.07)", marginHorizontal: 14 },
+  detailLabel: { fontSize: 13, color: T.mute, fontWeight: "500" },
+  detailValue: { fontSize: 14, color: T.ink, fontWeight: "600", letterSpacing: 0.3 },
+  detailReEnter: { fontSize: 13, color: T.green, fontWeight: "600", textDecorationLine: "underline" },
 
-  // Saved info box
-  savedInfoBox: {
-    flexDirection: "row", alignItems: "center", gap: 10,
-    backgroundColor: "#E8F5E9", borderRadius: 12, padding: 14,
-    borderWidth: 1, borderColor: "#A5D6A7",
-  },
-  savedInfoText: { fontSize: 13, color: "#2E7D32", flex: 1, lineHeight: 19 },
+  // Saved info
+  savedInfoText: { fontSize: 13, color: T.green, lineHeight: 19 },
 
   // Edit button
   editBtn: {
     flexDirection: "row", alignItems: "center", justifyContent: "center",
-    gap: 8, backgroundColor: "#FFFFFF", borderRadius: 12,
-    borderWidth: 1.5, borderColor: "#1B5E20",
-    paddingVertical: 15,
-    shadowColor: "#000", shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05, shadowRadius: 4, elevation: 2,
+    gap: 8, backgroundColor: "rgba(255,255,255,0.72)", borderRadius: 100,
+    borderWidth: 1.5, borderColor: T.green,
+    paddingVertical: 14,
+    shadowColor: "rgba(40,55,35,0.10)",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 1, shadowRadius: 8, elevation: 2,
   },
-  editBtnText: { fontSize: 15, fontWeight: "700", color: "#1B5E20" },
+  editBtnText: { fontSize: 14, fontWeight: "700", color: T.green },
 
   // Save button
   saveBtn: {
-    backgroundColor: "#2E7D32", borderRadius: 12, paddingVertical: 16,
+    backgroundColor: T.green, borderRadius: 100, paddingVertical: 15,
     flexDirection: "row", alignItems: "center", justifyContent: "center",
-    gap: 10,
-    shadowColor: "#1B5E20", shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3, shadowRadius: 8, elevation: 5,
+    gap: 10, borderWidth: 1, borderColor: "rgba(255,255,255,0.25)",
+    shadowColor: "rgba(30,60,35,0.35)", shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 1, shadowRadius: 18, elevation: 5,
     marginTop: 4,
   },
   saveBtnDisabled: { opacity: 0.6 },
-  saveBtnText: { color: "#FFFFFF", fontSize: 16, fontWeight: "700" },
+  saveBtnText: { color: "#FFFFFF", fontSize: 15, fontWeight: "700" },
 
   // Cancel button
   cancelBtn: {
     alignItems: "center", justifyContent: "center",
-    paddingVertical: 14, borderRadius: 12,
-    backgroundColor: "#F5F5F5",
+    paddingVertical: 14, borderRadius: 100,
+    backgroundColor: "rgba(255,255,255,0.55)",
+    borderWidth: 1, borderColor: "rgba(255,255,255,0.75)",
   },
-  cancelBtnText: { fontSize: 15, fontWeight: "600", color: "#737373" },
+  cancelBtnText: { fontSize: 14, fontWeight: "600", color: T.mute },
 });
