@@ -1,16 +1,16 @@
 import "react-native-gesture-handler";
 import { useState, useEffect } from "react";
 import { useFonts, ElMessiri_400Regular, ElMessiri_500Medium, ElMessiri_600SemiBold, ElMessiri_700Bold } from "@expo-google-fonts/el-messiri";
+import { DMSans_400Regular, DMSans_500Medium, DMSans_600SemiBold, DMSans_700Bold } from "@expo-google-fonts/dm-sans";
 import { NavigationContainer } from "@react-navigation/native";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { createStackNavigator } from "@react-navigation/stack";
 import { Text, View, ActivityIndicator, StyleSheet, Platform, StatusBar } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { LinearGradient } from "expo-linear-gradient";
 import { supabase } from "./lib/supabase";
 import { LanguageProvider, useLanguage } from "./lang/LanguageContext";
 import { LocationProvider } from "./lib/LocationContext";
-import { T, WALLPAPER } from "./components/Glass";
+import { T } from "./components/Glass";
 import HomeScreen from "./screens/HomeScreen";
 import OrdersScreen from "./screens/OrdersScreen";
 import ProfileScreen from "./screens/ProfileScreen";
@@ -32,24 +32,27 @@ const Stack = createStackNavigator();
 
 // Minimal tab icon
 const TabIcon = ({ iconName, focused, label }) => (
-  <View style={{ alignItems: "center", gap: 3 }}>
+  <View style={{ alignItems: "center", gap: 3, width: 56 }}>
     <Ionicons
       name={focused ? iconName : `${iconName}-outline`}
       size={22}
       color={focused ? T.green : T.muteStrong}
     />
-    <Text style={{ fontSize: 9, fontWeight: focused ? "700" : "500", color: focused ? T.green : T.muteStrong }}>
+    <Text
+      numberOfLines={1}
+      style={{ fontSize: 9, fontWeight: "600", color: focused ? T.green : T.muteStrong, textAlign: "center" }}
+    >
       {label}
     </Text>
   </View>
 );
 
 const TAB_BAR_STYLE = (insets) => ({
-  backgroundColor: "rgba(253,252,249,0.97)",
+  backgroundColor: "#FFFFFF",
   borderTopWidth: 1,
-  borderTopColor: "rgba(255,255,255,0.85)",
+  borderTopColor: "rgba(26,26,26,0.08)",
   elevation: 0,
-  shadowColor: "rgba(40,55,35,0.12)",
+  shadowColor: "#78716C",
   shadowOffset: { width: 0, height: -2 },
   shadowOpacity: 1,
   shadowRadius: 12,
@@ -199,12 +202,11 @@ function AppContent() {
 
   if (loading) {
     return (
-      <View style={{ flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: "#fdfcf9" }}>
+      <View style={{ flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: "#FAF7F4" }}>
         <StatusBar barStyle="dark-content" translucent backgroundColor="transparent" />
-        <LinearGradient colors={WALLPAPER.colors} start={WALLPAPER.start} end={WALLPAPER.end} style={StyleSheet.absoluteFill} />
         <ActivityIndicator color={T.green} size="large" />
         <Text style={{ color: T.mute, marginTop: 12, fontSize: 14, fontWeight: "500" }}>
-          Zaytoon
+          Wajbeh
         </Text>
       </View>
     );
@@ -244,6 +246,10 @@ export default function App() {
     ElMessiri_500Medium,
     ElMessiri_600SemiBold,
     ElMessiri_700Bold,
+    DMSans_400Regular,
+    DMSans_500Medium,
+    DMSans_600SemiBold,
+    DMSans_700Bold,
   });
 
   if (!fontsLoaded) return null;

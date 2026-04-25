@@ -14,9 +14,15 @@ import { Ionicons } from "@expo/vector-icons";
 import { supabase } from "../lib/supabase";
 import { useLanguage } from "../lang/LanguageContext";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { GlassPanel, Chip, T, WallpaperBackground, TextBackdrop, ar } from "../components/Glass";
+import { GlassPanel, Chip, T, WallpaperBackground, TextBackdrop, ar, FONTS } from "../components/Glass";
 
-const QUICK_FILTERS = ["Bakery", "Restaurant", "Café", "Abdoun", "Sweifieh"];
+const QUICK_FILTER_KEYS = [
+  { value: "Bakery",     labelKey: "filterBakery" },
+  { value: "Restaurant", labelKey: "filterRestaurant" },
+  { value: "Café",       labelKey: "filterCafe" },
+  { value: "Abdoun",     labelKey: null },
+  { value: "Sweifieh",   labelKey: null },
+];
 
 export default function SearchScreen({ navigation }) {
   const [query, setQuery] = useState("");
@@ -123,40 +129,45 @@ export default function SearchScreen({ navigation }) {
   return (
     <View style={styles.root}>
       <StatusBar barStyle="dark-content" />
-      <WallpaperBackground />
+
 
       {/* Header */}
       <View style={[styles.header, { paddingTop: insets.top + 14 }]}>
-        <Text style={[styles.locationLabel, isRTL && styles.rtl]}>· {t("appName")}</Text>
         <Text style={[styles.headerTitle, isRTL && styles.rtl, ar(isRTL, "bold")]}>{t("searchTitle")}</Text>
 
-        {/* Glass search bar */}
-        <GlassPanel radius={100} style={{ marginTop: 10 }}>
-          <View style={[styles.searchRow, isRTL && styles.rtlRow]}>
-            <Ionicons name="search-outline" size={16} color={T.muteStrong} style={{ marginLeft: 14, marginRight: 8 }} />
-            <TextInput
-              style={[styles.searchInput, isRTL && styles.rtl]}
-              placeholder={t("searchPlaceholder")}
-              placeholderTextColor={T.muteStrong}
-              value={query}
-              onChangeText={setQuery}
-            />
-            {query.length > 0 && (
-              <TouchableOpacity onPress={() => setQuery("")} style={{ marginRight: 14 }}>
-                <Ionicons name="close" size={16} color={T.muteStrong} />
-              </TouchableOpacity>
-            )}
-          </View>
-        </GlassPanel>
+        {/* Search bar */}
+        <View style={[styles.searchBar, isRTL && styles.rtlRow]}>
+          <Ionicons name="search-outline" size={16} color={T.muteStrong} />
+          <TextInput
+            style={[styles.searchInput, isRTL && styles.rtl]}
+            placeholder={t("searchPlaceholder")}
+            placeholderTextColor={T.muteStrong}
+            value={query}
+            onChangeText={setQuery}
+          />
+          {query.length > 0 && (
+            <TouchableOpacity onPress={() => setQuery("")}>
+              <Ionicons name="close" size={16} color={T.muteStrong} />
+            </TouchableOpacity>
+          )}
+        </View>
 
         {/* Quick filter chips */}
         {query.length === 0 && (
           <View style={[styles.quickFilters, isRTL && styles.rtlRow]}>
-            {QUICK_FILTERS.map((f) => (
-              <Chip key={f} onPress={() => setQuery(f)} style={{ marginRight: 6, marginBottom: 4 }}>{f}</Chip>
+            {QUICK_FILTER_KEYS.map((f) => (
+              <TouchableOpacity
+                key={f.value}
+                onPress={() => setQuery(f.value)}
+                style={styles.quickChip}
+                activeOpacity={0.75}
+              >
+                <Text style={styles.quickChipText}>{f.labelKey ? t(f.labelKey) : f.value}</Text>
+              </TouchableOpacity>
             ))}
           </View>
         )}
+
       </View>
 
       {/* Results count */}
@@ -210,18 +221,33 @@ export default function SearchScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1 },
+  root: { flex: 1, backgroundColor: T.bg },
   rtl: { textAlign: "right", writingDirection: "rtl" },
   rtlRow: { flexDirection: "row-reverse" },
 
-  header: { paddingHorizontal: 20, paddingBottom: 10 },
-  locationLabel: { fontSize: 9, letterSpacing: 1.3, textTransform: "uppercase", color: T.muteStrong, fontWeight: "600" },
-  headerTitle: { fontSize: 26, fontWeight: "700", color: T.ink, letterSpacing: -0.8, marginTop: 3, marginBottom: 4 },
+  header: {
+    backgroundColor: "#FFFFFF",
+    paddingHorizontal: 20, paddingBottom: 16,
+    borderBottomWidth: 1, borderBottomColor: T.border,
+  },
+  headerTitle: { fontSize: 30, fontWeight: "800", color: T.ink, letterSpacing: -0.8, marginBottom: 14, fontFamily: FONTS.bold },
 
-  searchRow: { flexDirection: "row", alignItems: "center", height: 44 },
-  searchInput: { flex: 1, fontSize: 14, color: T.ink, paddingVertical: 10 },
+  searchBar: {
+    flexDirection: "row", alignItems: "center", gap: 10,
+    backgroundColor: T.bg, borderRadius: 14,
+    borderWidth: 1, borderColor: T.border,
+    paddingHorizontal: 14, paddingVertical: 12,
+  },
+  searchInput: { flex: 1, fontSize: 14, color: T.ink, paddingVertical: 0 },
 
-  quickFilters: { flexDirection: "row", flexWrap: "wrap", marginTop: 10 },
+  quickFilters: { flexDirection: "row", flexWrap: "wrap", marginTop: 12, gap: 8 },
+  quickChip: {
+    borderRadius: 100,
+    paddingHorizontal: 14, paddingVertical: 7,
+    backgroundColor: T.greenLight,
+    borderWidth: 1, borderColor: "rgba(21,128,61,0.18)",
+  },
+  quickChipText: { fontSize: 12, fontWeight: "600", color: T.green },
 
   resultsBar: {
     flexDirection: "row", justifyContent: "space-between", alignItems: "center",
@@ -244,7 +270,7 @@ const styles = StyleSheet.create({
   // Card (same style as HomeScreen)
   cardRow: { flexDirection: "row", padding: 12, gap: 12 },
   thumbWrapper: { width: 80, height: 80, borderRadius: 14, overflow: "hidden", flexShrink: 0, position: "relative" },
-  thumb: { width: "100%", height: "100%", backgroundColor: "rgba(26,34,24,0.08)" },
+  thumb: { width: "100%", height: "100%", backgroundColor: "rgba(15,23,42,0.06)" },
   qtyBadge: {
     position: "absolute", top: 6,
     backgroundColor: "rgba(0,0,0,0.55)", paddingHorizontal: 7, paddingVertical: 3, borderRadius: 100,
@@ -253,10 +279,10 @@ const styles = StyleSheet.create({
   qtyText: { fontSize: 8, fontWeight: "700", color: "#fff" },
 
   restaurantLine: { flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 3 },
-  logo: { width: 16, height: 16, borderRadius: 8, backgroundColor: "rgba(26,34,24,0.08)" },
+  logo: { width: 16, height: 16, borderRadius: 8, backgroundColor: "rgba(15,23,42,0.06)" },
   restaurantName: { fontSize: 11, fontWeight: "600", color: T.ink },
   areaText: { fontSize: 10, color: T.mute },
-  bagTitle: { fontSize: 16, fontWeight: "700", color: T.ink, letterSpacing: -0.3, marginBottom: 4 },
+  bagTitle: { fontSize: 16, fontWeight: "700", color: T.ink, letterSpacing: -0.3, marginBottom: 4, fontFamily: FONTS.bold },
 
   metaRow: { flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 6 },
   pickupText: { fontSize: 10, color: T.mute },

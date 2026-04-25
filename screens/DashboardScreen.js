@@ -9,11 +9,11 @@ import {
   TextInput,
   Modal,
   ScrollView,
-  Alert,
   KeyboardAvoidingView,
   Platform,
   StatusBar,
 } from "react-native";
+import AppDialog, { useDialog } from "../components/AppDialog";
 import { useFocusEffect } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
 import { supabase } from "../lib/supabase";
@@ -124,14 +124,14 @@ const dpStyles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    backgroundColor: "rgba(255,255,255,0.80)",
+    backgroundColor: "#FFFFFF",
     borderWidth: 1,
     borderColor: "rgba(26,34,24,0.12)",
     borderRadius: 10,
     paddingHorizontal: 14,
     paddingVertical: 13,
     minHeight: 44,
-    shadowColor: "rgba(26,34,24,0.10)",
+    shadowColor: "rgba(15,23,42,0.08)",
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 1,
     shadowRadius: 3,
@@ -143,7 +143,7 @@ const dpStyles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "rgba(26,34,24,0.12)",
     borderRadius: 10,
-    backgroundColor: "rgba(255,255,255,0.95)",
+    backgroundColor: "#FFFFFF",
     maxHeight: 200,
     marginTop: 4,
     shadowColor: "rgba(26,34,24,0.12)",
@@ -159,9 +159,9 @@ const dpStyles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: "rgba(26,34,24,0.06)",
+    borderBottomColor: "rgba(15,23,42,0.05)",
   },
-  optionSelected: { backgroundColor: "rgba(61,107,71,0.10)" },
+  optionSelected: { backgroundColor: "rgba(21,128,61,0.08)" },
   optionText: { fontSize: 15, color: T.ink },
   optionTextSelected: { color: T.green, fontWeight: "600" },
 });
@@ -169,6 +169,7 @@ const dpStyles = StyleSheet.create({
 export default function DashboardScreen() {
   const insets = useSafeAreaInsets();
   const { t, isRTL } = useLanguage();
+  const { dialogProps, alert: showAlert, confirm: showConfirm } = useDialog();
   const [bags, setBags] = useState([]);
   const [restaurant, setRestaurant] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -185,8 +186,11 @@ export default function DashboardScreen() {
   const [repeatDays, setRepeatDays] = useState(1);
   const [servesPeople, setServesPeople] = useState(null);
   const [openDropdown, setOpenDropdown] = useState(null); // 'qty' | 'start' | 'end'
+  const [modalStep, setModalStep] = useState(1);
 
   const toggleDropdown = (key) => setOpenDropdown((prev) => (prev === key ? null : key));
+
+  const closeModal = () => { setModalVisible(false); setModalStep(1); setOpenDropdown(null); };
 
   useFocusEffect(
     useCallback(() => {
@@ -219,12 +223,12 @@ export default function DashboardScreen() {
 
   const addBag = async () => {
     if (!title || !price || !originalValue || !quantity || !pickupStart || !pickupEnd) {
-      Alert.alert(t("fillAllFields"), "");
+      showAlert(t("fillAllFields"), "");
       haptic.error();
       return;
     }
     if (!isNextDayTime(pickupEnd) && pickupStart >= pickupEnd) {
-      Alert.alert(t("pickupWindow"), "");
+      showAlert(t("pickupWindow"), "");
       haptic.error();
       return;
     }
@@ -232,7 +236,7 @@ export default function DashboardScreen() {
       (1 - parseFloat(price) / parseFloat(originalValue)) * 100,
     );
     if (discountPct < 50) {
-      Alert.alert(t("priceTooHighTitle"), t("priceTooHighBlock"));
+      showAlert(t("priceTooHighTitle"), t("priceTooHighBlock"));
       haptic.error();
       return;
     }
@@ -266,9 +270,9 @@ export default function DashboardScreen() {
     const { error } = await supabase.from("bags").insert(inserts);
 
     if (error) {
-      Alert.alert("Error", error.message);
+      showAlert("Error", error.message);
     } else {
-      setModalVisible(false);
+      closeModal();
       setTitle("");
       setPrice("");
       setOriginalValue("");
@@ -279,7 +283,6 @@ export default function DashboardScreen() {
       setSelectedContents([]);
       setRepeatDays(1);
       setServesPeople(null);
-      setOpenDropdown(null);
       haptic.success();
       fetchDashboard();
     }
@@ -287,21 +290,20 @@ export default function DashboardScreen() {
   };
 
   const markSoldOut = (bagId) => {
-    Alert.alert("Mark as Sold Out", "Mark this bag as sold out?", [
-      { text: "Cancel", style: "cancel" },
-      {
-        text: "Confirm",
-        style: "destructive",
-        onPress: async () => {
-          const { error } = await supabase
-            .from("bags")
-            .update({ quantity_remaining: 0, status: "sold_out" })
-            .eq("id", bagId);
-          if (error) Alert.alert("Error", error.message);
-          else fetchDashboard();
-        },
+    showConfirm(
+      "Mark as Sold Out",
+      t("markSoldOutConfirm"),
+      async () => {
+        const { error } = await supabase
+          .from("bags")
+          .update({ quantity_remaining: 0, status: "sold_out" })
+          .eq("id", bagId);
+        if (error) showAlert("Error", error.message);
+        else fetchDashboard();
       },
-    ]);
+      null,
+      { confirmText: t("markSoldOut"), danger: true },
+    );
   };
 
   const totalBags = bags.length;
@@ -419,7 +421,7 @@ export default function DashboardScreen() {
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
-        <WallpaperBackground />
+
         <View style={{ paddingHorizontal: 20, paddingTop: insets.top + 12, gap: 16, width: "100%" }}>
           <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
             <SkeletonBox width={48} height={48} radius={14} />
@@ -450,7 +452,7 @@ export default function DashboardScreen() {
   if (!restaurant) {
     return (
       <View style={styles.noRestaurantContainer}>
-        <WallpaperBackground />
+
         <Ionicons name="storefront-outline" size={48} color={T.muteStrong} />
         <Text style={styles.noRestaurantTitle}>{t("noRestaurantFound") || "No restaurant found"}</Text>
         <Text style={styles.noRestaurantSubtitle}>
@@ -462,8 +464,8 @@ export default function DashboardScreen() {
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="dark-content" translucent backgroundColor="transparent" />
-      <WallpaperBackground />
+      <StatusBar barStyle="dark-content" />
+
       <FlatList
         data={bags}
         keyExtractor={(item) => item.id}
@@ -522,11 +524,6 @@ export default function DashboardScreen() {
               </View>
             </GlassPanel>
 
-            {/* Section title */}
-            <View style={styles.sectionHeader}>
-              <Text style={[styles.sectionTitle, ar(isRTL, "bold")]}>{t("todayBags")}</Text>
-              <Text style={styles.sectionCount}>{bags.length}</Text>
-            </View>
           </View>
         }
         ListEmptyComponent={
@@ -548,26 +545,35 @@ export default function DashboardScreen() {
       <Modal
         visible={modalVisible}
         animationType="slide"
-        onRequestClose={() => setModalVisible(false)}
+        onRequestClose={closeModal}
       >
         <View style={styles.modal}>
-          <WallpaperBackground />
+
           {/* Glass modal header */}
           <View style={styles.modalHeader}>
             <View style={styles.modalHandle} />
-            <View style={styles.modalTitleRow}>
-              <View style={styles.modalTitleLeft}>
+            <View style={[styles.modalTitleRow, isRTL && styles.rtlRow]}>
+              <View style={[styles.modalTitleLeft, isRTL && styles.rtlRow]}>
+                {modalStep === 2 && (
+                  <TouchableOpacity onPress={() => setModalStep(1)} style={isRTL ? { marginLeft: 8, padding: 4 } : { marginRight: 8, padding: 4 }}>
+                    <Ionicons name={isRTL ? "arrow-forward" : "arrow-back"} size={18} color={T.green} />
+                  </TouchableOpacity>
+                )}
                 <View style={styles.modalTitleIcon}>
                   <Ionicons name="bag-handle" size={18} color={T.green} />
                 </View>
                 <Text style={styles.modalTitle}>{t("addNewBag")}</Text>
               </View>
-              <TouchableOpacity
-                style={styles.modalCloseBtn}
-                onPress={() => setModalVisible(false)}
-              >
-                <Ionicons name="close" size={18} color={T.mute} />
-              </TouchableOpacity>
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
+                <View style={styles.stepIndicator}>
+                  <View style={[styles.stepDot, modalStep >= 1 && styles.stepDotActive]} />
+                  <View style={[styles.stepLine]} />
+                  <View style={[styles.stepDot, modalStep >= 2 && styles.stepDotActive]} />
+                </View>
+                <TouchableOpacity style={styles.modalCloseBtn} onPress={closeModal}>
+                  <Ionicons name="close" size={18} color={T.mute} />
+                </TouchableOpacity>
+              </View>
             </View>
           </View>
 
@@ -577,30 +583,33 @@ export default function DashboardScreen() {
               showsVerticalScrollIndicator={false}
               keyboardShouldPersistTaps="always"
             >
+              {/* ── STEP 1: Details + Pricing ── */}
+              {modalStep === 1 && <>
+
               {/* BAG DETAILS */}
               <View style={styles.modalSection}>
-                <View style={styles.sectionChip}>
+                <View style={[styles.sectionChip, isRTL && styles.rtlRow]}>
                   <Ionicons name="pencil-outline" size={13} color={T.muteStrong} />
                   <Text style={[styles.modalSectionTitle, { color: T.mute }]}>{t("bagDetailsSection") || "BAG DETAILS"}</Text>
                 </View>
 
-                <Text style={styles.inputLabel}>{t("bagTitle")}</Text>
-                <View style={styles.inputWrapper}>
-                  <Ionicons name="pricetag-outline" size={15} color={T.muteStrong} style={{ marginRight: 8 }} />
+                <Text style={[styles.inputLabel, isRTL && styles.rtl]}>{t("bagTitle")}</Text>
+                <View style={[styles.inputWrapper, isRTL && styles.rtlRow]}>
+                  <Ionicons name="pricetag-outline" size={15} color={T.muteStrong} style={isRTL ? { marginLeft: 8 } : { marginRight: 8 }} />
                   <TextInput
-                    style={styles.input}
-                    placeholder="e.g. Surprise Pastry Bag"
+                    style={[styles.input, isRTL && styles.inputRTL]}
+                    placeholder={t("bagTitlePlaceholder")}
                     placeholderTextColor={T.muteStrong}
                     value={title}
                     onChangeText={setTitle}
                   />
                 </View>
 
-                <Text style={styles.inputLabel}>{t("description")}</Text>
+                <Text style={[styles.inputLabel, isRTL && styles.rtl]}>{t("description")}</Text>
                 <View style={[styles.inputWrapper, styles.inputWrapperMulti]}>
                   <TextInput
-                    style={[styles.input, styles.inputMulti]}
-                    placeholder="What's in the bag? (optional)"
+                    style={[styles.input, styles.inputMulti, isRTL && styles.inputRTL]}
+                    placeholder={t("bagDescPlaceholder")}
                     placeholderTextColor={T.muteStrong}
                     value={description}
                     onChangeText={setDescription}
@@ -610,46 +619,9 @@ export default function DashboardScreen() {
                 </View>
               </View>
 
-              {/* POSSIBLE CONTENTS */}
-              <View style={styles.modalSection}>
-                <View style={styles.sectionChip}>
-                  <Ionicons name="list-outline" size={13} color={T.muteStrong} />
-                  <Text style={[styles.modalSectionTitle, { color: T.mute }]}>{t("possibleContentsSection")}</Text>
-                </View>
-                <Text style={[styles.inputLabel, { marginBottom: 10 }]}>{t("tapToSelect")}</Text>
-                <View style={styles.contentsGrid}>
-                  {BAG_CONTENTS.map((item) => {
-                    const selected = selectedContents.includes(item.key);
-                    return (
-                      <TouchableOpacity
-                        key={item.key}
-                        style={[styles.contentChip, selected && styles.contentChipSelected]}
-                        onPress={() =>
-                          setSelectedContents((prev) =>
-                            prev.includes(item.key)
-                              ? prev.filter((k) => k !== item.key)
-                              : [...prev, item.key]
-                          )
-                        }
-                        activeOpacity={0.7}
-                      >
-                        <Ionicons
-                          name={item.icon}
-                          size={14}
-                          color={selected ? "#fff" : T.green}
-                        />
-                        <Text style={[styles.contentChipText, selected && styles.contentChipTextSelected]}>
-                          {t(item.key)}
-                        </Text>
-                      </TouchableOpacity>
-                    );
-                  })}
-                </View>
-              </View>
-
               {/* PRICING */}
               <View style={styles.modalSection}>
-                <View style={styles.sectionChip}>
+                <View style={[styles.sectionChip, isRTL && styles.rtlRow]}>
                   <Ionicons name="cash-outline" size={13} color={T.muteStrong} />
                   <Text style={[styles.modalSectionTitle, { color: T.mute }]}>{t("pricingSection") || "PRICING"}</Text>
                 </View>
@@ -740,12 +712,12 @@ export default function DashboardScreen() {
 
               {/* QUANTITY */}
               <View style={styles.modalSection}>
-                <View style={styles.sectionChip}>
+                <View style={[styles.sectionChip, isRTL && styles.rtlRow]}>
                   <Ionicons name="layers-outline" size={13} color={T.mute} />
                   <Text style={[styles.modalSectionTitle, { color: T.mute }]}>{t("quantity").replace(" *", "")}</Text>
                 </View>
                 <DropdownPicker
-                  placeholder="Select number of bags"
+                  placeholder={t("quantity").replace(" *", "")}
                   value={quantity}
                   options={QUANTITIES}
                   onSelect={(v) => { setQuantity(v); setOpenDropdown(null); }}
@@ -755,34 +727,17 @@ export default function DashboardScreen() {
                 />
               </View>
 
-              {/* SERVING SIZE */}
-              <View style={styles.modalSection}>
-                <View style={styles.sectionChip}>
-                  <Ionicons name="people-outline" size={13} color={T.mute} />
-                  <Text style={[styles.modalSectionTitle, { color: T.mute }]}>{t("servingSizeSection")}</Text>
-                </View>
-                <DropdownPicker
-                  placeholder={t("selectServingSize")}
-                  value={servesPeople}
-                  options={SERVES_OPTIONS}
-                  onSelect={(v) => { setServesPeople(v); setOpenDropdown(null); }}
-                  isOpen={openDropdown === "serves"}
-                  onToggle={() => toggleDropdown("serves")}
-                  format={(v) => v === 6 ? t("serves6Plus") : t("servesCount", { count: v })}
-                />
-              </View>
-
               {/* PICKUP TIME */}
               <View style={styles.modalSection}>
-                <View style={styles.sectionChip}>
+                <View style={[styles.sectionChip, isRTL && styles.rtlRow]}>
                   <Ionicons name="time-outline" size={13} color={T.mute} />
-                  <Text style={[styles.modalSectionTitle, { color: T.mute }]}>PICKUP TIME</Text>
+                  <Text style={[styles.modalSectionTitle, { color: T.mute }]}>{t("pickupWindow").toUpperCase()}</Text>
                 </View>
                 <View style={styles.inputRow}>
                   <View style={styles.inputHalf}>
                     <Text style={styles.inputLabel}>{t("from")} *</Text>
                     <DropdownPicker
-                      placeholder="From"
+                      placeholder={t("from")}
                       value={pickupStart}
                       options={TIMES}
                       onSelect={(v) => {
@@ -797,7 +752,7 @@ export default function DashboardScreen() {
                   <View style={[styles.inputHalf, !pickupStart && { opacity: 0.4 }]}>
                     <Text style={styles.inputLabel}>{t("until")} *</Text>
                     <DropdownPicker
-                      placeholder="Until"
+                      placeholder={t("until")}
                       value={pickupEnd}
                       options={getEndTimes(pickupStart)}
                       onSelect={(v) => { if (!pickupStart) return; setPickupEnd(v); setOpenDropdown(null); }}
@@ -809,9 +764,76 @@ export default function DashboardScreen() {
                 </View>
               </View>
 
+              {/* Step 1 → Next button */}
+              <View style={styles.modalSection}>
+                <TouchableOpacity
+                  style={styles.saveBtn}
+                  onPress={() => setModalStep(2)}
+                  activeOpacity={0.88}
+                >
+                  <Text style={styles.saveBtnText}>Next →</Text>
+                </TouchableOpacity>
+              </View>
+
+              <View style={{ height: insets.bottom + 40 }} />
+              </>}
+
+              {/* ── STEP 2: Contents + Schedule ── */}
+              {modalStep === 2 && <>
+
+              {/* POSSIBLE CONTENTS */}
+              <View style={styles.modalSection}>
+                <View style={[styles.sectionChip, isRTL && styles.rtlRow]}>
+                  <Ionicons name="list-outline" size={13} color={T.muteStrong} />
+                  <Text style={[styles.modalSectionTitle, { color: T.mute }]}>{t("possibleContentsSection")}</Text>
+                </View>
+                <Text style={[styles.inputLabel, { marginBottom: 10 }]}>{t("tapToSelect")}</Text>
+                <View style={styles.contentsGrid}>
+                  {BAG_CONTENTS.map((item) => {
+                    const selected = selectedContents.includes(item.key);
+                    return (
+                      <TouchableOpacity
+                        key={item.key}
+                        style={[styles.contentChip, selected && styles.contentChipSelected]}
+                        onPress={() =>
+                          setSelectedContents((prev) =>
+                            prev.includes(item.key)
+                              ? prev.filter((k) => k !== item.key)
+                              : [...prev, item.key]
+                          )
+                        }
+                        activeOpacity={0.7}
+                      >
+                        <Ionicons name={item.icon} size={14} color={selected ? "#fff" : T.green} />
+                        <Text style={[styles.contentChipText, selected && styles.contentChipTextSelected]}>
+                          {t(item.key)}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              </View>
+
+              {/* SERVING SIZE */}
+              <View style={styles.modalSection}>
+                <View style={[styles.sectionChip, isRTL && styles.rtlRow]}>
+                  <Ionicons name="people-outline" size={13} color={T.mute} />
+                  <Text style={[styles.modalSectionTitle, { color: T.mute }]}>{t("servingSizeSection")}</Text>
+                </View>
+                <DropdownPicker
+                  placeholder={t("selectServingSize")}
+                  value={servesPeople}
+                  options={SERVES_OPTIONS}
+                  onSelect={(v) => { setServesPeople(v); setOpenDropdown(null); }}
+                  isOpen={openDropdown === "serves"}
+                  onToggle={() => toggleDropdown("serves")}
+                  format={(v) => v === 6 ? t("serves6Plus") : t("servesCount", { count: v })}
+                />
+              </View>
+
               {/* REPEAT POSTING */}
               <View style={styles.modalSection}>
-                <View style={styles.sectionChip}>
+                <View style={[styles.sectionChip, isRTL && styles.rtlRow]}>
                   <Ionicons name="repeat-outline" size={13} color={T.muteStrong} />
                   <Text style={[styles.modalSectionTitle, { color: T.mute }]}>{t("repeatSection")}</Text>
                 </View>
@@ -836,6 +858,7 @@ export default function DashboardScreen() {
                 )}
               </View>
 
+              {/* Post Bag */}
               <View style={styles.modalSection}>
                 <TouchableOpacity
                   style={[styles.saveBtn, saving && styles.saveBtnDisabled]}
@@ -852,16 +875,21 @@ export default function DashboardScreen() {
               </View>
 
               <View style={{ height: insets.bottom + 40 }} />
+              </>}
             </ScrollView>
           </KeyboardAvoidingView>
         </View>
       </Modal>
+      <AppDialog {...dialogProps} />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
+  rtl: { textAlign: "right", writingDirection: "rtl" },
+  rtlRow: { flexDirection: "row-reverse" },
+  inputRTL: { textAlign: "right", writingDirection: "rtl" },
   loadingContainer: { flex: 1, justifyContent: "center", alignItems: "center" },
   noRestaurantContainer: {
     flex: 1,
@@ -881,12 +909,14 @@ const styles = StyleSheet.create({
 
   // Restaurant header
   restaurantHeader: {
-    backgroundColor: "transparent",
+    backgroundColor: "#FFFFFF",
     paddingHorizontal: 20,
     paddingBottom: 16,
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
+    borderBottomWidth: 1,
+    borderBottomColor: T.border,
   },
   restaurantHeaderLeft: {
     flexDirection: "row",
@@ -897,14 +927,12 @@ const styles = StyleSheet.create({
   restaurantAvatar: {
     width: 44,
     height: 44,
-    borderRadius: 22,
-    backgroundColor: "rgba(255,255,255,0.55)",
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.8)",
+    borderRadius: 14,
+    backgroundColor: T.green,
     alignItems: "center",
     justifyContent: "center",
   },
-  restaurantAvatarText: { fontSize: 16, fontWeight: "700", color: T.ink },
+  restaurantAvatarText: { fontSize: 16, fontWeight: "700", color: "#FFFFFF" },
   restaurantName: {
     fontSize: 15,
     fontWeight: "700",
@@ -924,7 +952,7 @@ const styles = StyleSheet.create({
   addBtnLabel: { fontSize: 13, color: "#FFFFFF", fontWeight: "700" },
 
   // Stats row
-  statsPanel: { marginHorizontal: 16, marginBottom: 12 },
+  statsPanel: { marginHorizontal: 16, marginTop: 8, marginBottom: 16 },
   statsRow: { flexDirection: "row" },
   statItem: {
     flex: 1,
@@ -933,7 +961,7 @@ const styles = StyleSheet.create({
   },
   statItemDivider: {
     width: 1,
-    backgroundColor: "rgba(26,34,24,0.10)",
+    backgroundColor: "rgba(15,23,42,0.08)",
     marginVertical: 2,
   },
   statNum: {
@@ -963,7 +991,7 @@ const styles = StyleSheet.create({
 
   // Bag card
   bagCard: {
-    backgroundColor: "rgba(255,255,255,0.82)",
+    backgroundColor: "#FFFFFF",
     borderRadius: 14,
     marginHorizontal: 12,
     marginBottom: 12,
@@ -1007,17 +1035,17 @@ const styles = StyleSheet.create({
   // Price row
   bagPriceRow: {
     flexDirection: "row",
-    backgroundColor: "rgba(255,255,255,0.55)",
+    backgroundColor: "rgba(26,26,26,0.04)",
     borderRadius: 10,
     padding: 12,
     marginBottom: 14,
     borderWidth: 1,
-    borderColor: "rgba(26,34,24,0.08)",
+    borderColor: "rgba(15,23,42,0.06)",
   },
   bagPriceItem: { flex: 1, alignItems: "center" },
   bagPriceDivider: {
     width: 1,
-    backgroundColor: "rgba(26,34,24,0.08)",
+    backgroundColor: "rgba(15,23,42,0.06)",
     marginHorizontal: 4,
   },
   bagPriceLabel: {
@@ -1048,7 +1076,7 @@ const styles = StyleSheet.create({
   progressPct: { fontSize: 12, fontWeight: "600", color: T.green },
   progressBar: {
     height: 6,
-    backgroundColor: "rgba(26,34,24,0.08)",
+    backgroundColor: "rgba(15,23,42,0.06)",
     borderRadius: 3,
     overflow: "hidden",
   },
@@ -1059,6 +1087,12 @@ const styles = StyleSheet.create({
   },
   progressFooter: { marginTop: 4 },
   progressRemaining: { fontSize: 11, color: T.muteStrong },
+
+  // Step indicator
+  stepIndicator: { flexDirection: "row", alignItems: "center", gap: 4 },
+  stepDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: T.border, borderWidth: 1, borderColor: T.muteStrong },
+  stepDotActive: { backgroundColor: T.green, borderColor: T.green },
+  stepLine: { width: 16, height: 2, backgroundColor: T.border },
 
   // Sold out button
   soldOutBtn: {
@@ -1107,7 +1141,7 @@ const styles = StyleSheet.create({
     paddingTop: 16,
     paddingBottom: 20,
     borderBottomWidth: 1,
-    borderBottomColor: "rgba(26,34,24,0.07)",
+    borderBottomColor: "rgba(15,23,42,0.06)",
   },
   modalHandle: {
     width: 40,
@@ -1128,9 +1162,9 @@ const styles = StyleSheet.create({
     width: 34,
     height: 34,
     borderRadius: 10,
-    backgroundColor: "rgba(61,107,71,0.12)",
+    backgroundColor: "rgba(21,128,61,0.10)",
     borderWidth: 1,
-    borderColor: "rgba(61,107,71,0.18)",
+    borderColor: "rgba(21,128,61,0.15)",
     alignItems: "center",
     justifyContent: "center",
   },
@@ -1139,7 +1173,7 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: "rgba(26,34,24,0.07)",
+    backgroundColor: "rgba(15,23,42,0.06)",
     alignItems: "center",
     justifyContent: "center",
   },
@@ -1166,13 +1200,13 @@ const styles = StyleSheet.create({
   inputWrapper: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "rgba(255,255,255,0.80)",
+    backgroundColor: "#FFFFFF",
     borderWidth: 1,
     borderColor: "rgba(26,34,24,0.12)",
     borderRadius: 10,
     paddingHorizontal: 14,
     marginBottom: 14,
-    shadowColor: "rgba(26,34,24,0.08)",
+    shadowColor: "rgba(15,23,42,0.06)",
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 1,
     shadowRadius: 3,
@@ -1228,12 +1262,12 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 10,
-    backgroundColor: "rgba(61,107,71,0.10)",
+    backgroundColor: "rgba(21,128,61,0.08)",
     borderRadius: 10,
     padding: 12,
     marginBottom: 14,
     borderWidth: 1,
-    borderColor: "rgba(61,107,71,0.25)",
+    borderColor: "rgba(21,128,61,0.20)",
   },
   discountBadge: {
     backgroundColor: T.accent,
@@ -1267,7 +1301,7 @@ const styles = StyleSheet.create({
     gap: 6,
     borderWidth: 1.5,
     borderColor: "rgba(61,107,71,0.30)",
-    backgroundColor: "rgba(255,255,255,0.72)",
+    backgroundColor: "#FFFFFF",
     borderRadius: 20,
     paddingHorizontal: 12,
     paddingVertical: 8,
@@ -1296,7 +1330,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     gap: 8,
-    backgroundColor: "rgba(255,255,255,0.55)",
+    backgroundColor: "rgba(26,26,26,0.04)",
   },
   imagePickerPlaceholderText: {
     fontSize: 13,

@@ -6,7 +6,6 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   ScrollView,
-  Alert,
   StatusBar,
   Modal,
   TextInput,
@@ -14,13 +13,13 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from "react-native";
+import AppDialog, { useDialog } from "../components/AppDialog";
 import { Ionicons } from "@expo/vector-icons";
-import { LinearGradient } from "expo-linear-gradient";
 import * as ImagePicker from "expo-image-picker";
 import { supabase } from "../lib/supabase";
 import { useLanguage } from "../lang/LanguageContext";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { GlassPanel, GlassButton, T, WallpaperBackground, WALLPAPER, TextBackdrop, ar } from "../components/Glass";
+import { GlassPanel, GlassButton, T, WallpaperBackground, ar, FONTS } from "../components/Glass";
 
 export default function ProfileScreen({ navigation }) {
   const [user, setUser] = useState(null);
@@ -37,6 +36,7 @@ export default function ProfileScreen({ navigation }) {
 
   const { t, language, toggleLanguage, isRTL } = useLanguage();
   const insets = useSafeAreaInsets();
+  const { dialogProps, alert: showAlert, confirm: showConfirm } = useDialog();
 
   useEffect(() => {
     loadProfile();
@@ -77,7 +77,7 @@ export default function ProfileScreen({ navigation }) {
   const handlePickImage = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== "granted") {
-      Alert.alert("Permission needed", "Allow access to your photos to upload a logo.");
+      showAlert("Permission needed", "Allow access to your photos to upload a logo.");
       return;
     }
 
@@ -116,7 +116,7 @@ export default function ProfileScreen({ navigation }) {
 
       setRestaurant((prev) => ({ ...prev, logo_url: publicUrl }));
     } catch (e) {
-      Alert.alert("Upload failed", e.message);
+      showAlert("Upload failed", e.message);
     } finally {
       setUploading(false);
     }
@@ -132,10 +132,10 @@ export default function ProfileScreen({ navigation }) {
   };
 
   const handleSave = async () => {
-    if (!editValue.trim()) { Alert.alert("Error", "Field cannot be empty."); return; }
+    if (!editValue.trim()) { showAlert("Error", "Field cannot be empty."); return; }
     if (editModal.type === "password") {
-      if (editValue.length < 6) { Alert.alert("Error", "Password must be at least 6 characters."); return; }
-      if (editValue !== editValue2) { Alert.alert("Error", "Passwords do not match."); return; }
+      if (editValue.length < 6) { showAlert("Error", "Password must be at least 6 characters."); return; }
+      if (editValue !== editValue2) { showAlert("Error", "Passwords do not match."); return; }
     }
 
     setSaving(true);
@@ -149,30 +149,33 @@ export default function ProfileScreen({ navigation }) {
       if (error) throw error;
 
       if (editModal.type === "email") {
-        Alert.alert("Check your email", "A confirmation link has been sent to your new address.");
+        showAlert("Check your email", "A confirmation link has been sent to your new address.");
       } else {
         setUser(data.user);
-        Alert.alert("Saved", "Your profile has been updated.");
+        showAlert("Saved", "Your profile has been updated.");
       }
       setEditModal({ visible: false, type: null });
     } catch (e) {
-      Alert.alert("Error", e.message);
+      showAlert("Error", e.message);
     } finally {
       setSaving(false);
     }
   };
 
   const handleSignOut = () => {
-    Alert.alert(t("signOut"), t("signOutConfirm"), [
-      { text: t("cancel") || "Cancel", style: "cancel" },
-      { text: t("signOut"), style: "destructive", onPress: () => supabase.auth.signOut() },
-    ]);
+    showConfirm(
+      t("signOut"),
+      t("signOutConfirm"),
+      () => supabase.auth.signOut(),
+      null,
+      { confirmText: t("signOut"), cancelText: t("cancel") || "Cancel", danger: true },
+    );
   };
 
   if (loading) {
     return (
       <View style={styles.root}>
-        <WallpaperBackground />
+
         <View style={styles.center}><ActivityIndicator size="large" color={T.green} /></View>
       </View>
     );
@@ -204,7 +207,7 @@ export default function ProfileScreen({ navigation }) {
     <>
       <View style={styles.root}>
         <StatusBar barStyle="dark-content" translucent backgroundColor="transparent" />
-        <WallpaperBackground />
+
 
         <ScrollView
           showsVerticalScrollIndicator={false}
@@ -214,9 +217,10 @@ export default function ProfileScreen({ navigation }) {
           <Text style={[styles.screenLabel, isRTL && styles.rtl]}>· {t("appName")}</Text>
           <Text style={[styles.screenTitle, isRTL && styles.rtl, ar(isRTL, "bold")]}>{t("profileTitle")}</Text>
 
-          {/* Avatar card */}
-          <GlassPanel radius={24} padding={20} style={styles.avatarCard}>
-            <View style={{ alignItems: "center" }}>
+          {/* Avatar card — green top, white stats bottom */}
+          <GlassPanel radius={24} style={[styles.avatarCard, { overflow: "hidden" }]}>
+            {/* Green header zone */}
+            <View style={styles.avatarGreenZone}>
               <TouchableOpacity
                 style={styles.avatarCircle}
                 onPress={isRestaurant ? handlePickImage : undefined}
@@ -246,7 +250,7 @@ export default function ProfileScreen({ navigation }) {
               )}
             </View>
 
-            {/* Stats */}
+            {/* Stats row — white zone */}
             <View style={[styles.statsRow, isRTL && styles.rtlRow]}>
               <View style={styles.statItem}>
                 <Text style={styles.statNum}>{orderStats.total}</Text>
@@ -312,7 +316,7 @@ export default function ProfileScreen({ navigation }) {
                 <View style={styles.menuIconBadge}>
                   <Ionicons name="chatbubble-ellipses-outline" size={15} color={T.green} />
                 </View>
-                <Text style={[styles.menuLabel, isRTL && styles.rtl]}>{t("contactUs")}</Text>
+                <Text style={[styles.menuLabel, isRTL && styles.rtl]}>{t("contactUsMenu")}</Text>
               </View>
               <Ionicons name={isRTL ? "chevron-back" : "chevron-forward"} size={14} color={T.muteStrong} />
             </TouchableOpacity>
@@ -344,7 +348,6 @@ export default function ProfileScreen({ navigation }) {
             onPress={() => setEditModal({ visible: false, type: null })}
           />
           <View style={styles.modalSheet}>
-            <LinearGradient colors={WALLPAPER.colors} start={WALLPAPER.start} end={WALLPAPER.end} style={StyleSheet.absoluteFill} />
             <View style={styles.modalHandle} />
             <Text style={styles.modalTitle}>{editModalTitle}</Text>
 
@@ -412,51 +415,59 @@ export default function ProfileScreen({ navigation }) {
           </View>
         </KeyboardAvoidingView>
       </Modal>
+      <AppDialog {...dialogProps} />
     </>
   );
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1 },
+  root: { flex: 1, backgroundColor: T.bg },
   rtl: { textAlign: "right", writingDirection: "rtl" },
   rtlRow: { flexDirection: "row-reverse" },
   center: { flex: 1, justifyContent: "center", alignItems: "center" },
 
   scroll: { paddingHorizontal: 20 },
   screenLabel: { fontSize: 9, letterSpacing: 1.3, textTransform: "uppercase", color: T.green, fontWeight: "700", marginBottom: 4 },
-  screenTitle: { fontSize: 26, fontWeight: "800", color: T.ink, letterSpacing: -0.8, marginBottom: 20 },
+  screenTitle: { fontSize: 26, fontWeight: "800", color: T.ink, letterSpacing: -0.8, marginBottom: 20, fontFamily: FONTS.bold },
 
   // Avatar card
   avatarCard: { marginBottom: 24 },
+  avatarGreenZone: {
+    backgroundColor: T.green,
+    alignItems: "center",
+    paddingTop: 28,
+    paddingBottom: 24,
+    paddingHorizontal: 20,
+  },
   avatarCircle: {
-    width: 80, height: 80, borderRadius: 40,
-    backgroundColor: "rgba(255,255,255,0.5)",
-    borderWidth: 2, borderColor: "rgba(255,255,255,0.8)",
+    width: 84, height: 84, borderRadius: 42,
+    backgroundColor: "rgba(255,255,255,0.20)",
+    borderWidth: 3, borderColor: "rgba(255,255,255,0.50)",
     alignItems: "center", justifyContent: "center",
-    marginBottom: 12, overflow: "hidden",
+    marginBottom: 14, overflow: "hidden",
   },
-  avatarImage: { width: 80, height: 80, borderRadius: 40 },
-  avatarText: { fontSize: 28, fontWeight: "700", color: T.ink },
+  avatarImage: { width: 84, height: 84, borderRadius: 42 },
+  avatarText: { fontSize: 30, fontWeight: "700", color: "#FFFFFF" },
   cameraOverlay: {
-    position: "absolute", bottom: 0, left: 0, right: 0, height: 24,
-    backgroundColor: "rgba(0,0,0,0.45)", alignItems: "center", justifyContent: "center",
+    position: "absolute", bottom: 0, left: 0, right: 0, height: 26,
+    backgroundColor: "rgba(0,0,0,0.40)", alignItems: "center", justifyContent: "center",
   },
-  displayName: { fontSize: 17, fontWeight: "700", color: T.ink, marginBottom: 3 },
-  emailText: { fontSize: 12, color: T.mute },
-  restaurantBadge: { marginTop: 8, backgroundColor: "rgba(61,107,71,0.12)", borderRadius: 100, paddingHorizontal: 12, paddingVertical: 4 },
-  restaurantBadgeText: { fontSize: 11, color: T.green, fontWeight: "600" },
+  displayName: { fontSize: 18, fontWeight: "700", color: "#FFFFFF", marginBottom: 3 },
+  emailText: { fontSize: 12, color: "rgba(255,255,255,0.70)" },
+  restaurantBadge: { marginTop: 10, backgroundColor: "rgba(255,255,255,0.18)", borderRadius: 100, paddingHorizontal: 14, paddingVertical: 5, borderWidth: 1, borderColor: "rgba(255,255,255,0.30)" },
+  restaurantBadgeText: { fontSize: 11, color: "#FFFFFF", fontWeight: "600" },
 
-  statsRow: { flexDirection: "row", marginTop: 20, paddingTop: 16, borderTopWidth: 1, borderTopColor: "rgba(26,34,24,0.08)" },
+  statsRow: { flexDirection: "row", paddingVertical: 18 },
   statItem: { flex: 1, alignItems: "center" },
-  statNum: { fontSize: 15, fontWeight: "700", color: T.green, marginBottom: 2, textAlign: "center" },
+  statNum: { fontSize: 16, fontWeight: "700", color: T.green, marginBottom: 2, textAlign: "center" },
   statLabel: { fontSize: 9, color: T.mute, textAlign: "center", letterSpacing: 0.3 },
-  statDivider: { width: 1, backgroundColor: "rgba(26,34,24,0.10)", marginVertical: 2 },
+  statDivider: { width: 1, backgroundColor: T.border, marginVertical: 4 },
 
   sectionLabel: { fontSize: 9, letterSpacing: 1.2, textTransform: "uppercase", color: T.green, fontWeight: "700", marginBottom: 8 },
 
   menuIconBadge: {
     width: 34, height: 34, borderRadius: 10,
-    backgroundColor: "rgba(61,107,71,0.10)",
+    backgroundColor: "rgba(21,128,61,0.08)",
     alignItems: "center", justifyContent: "center",
   },
   menuRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 16, paddingVertical: 12 },
@@ -464,24 +475,24 @@ const styles = StyleSheet.create({
   menuLabel: { fontSize: 14, color: T.ink, fontWeight: "600" },
   menuSub: { fontSize: 11, color: T.mute, marginTop: 1, maxWidth: 200 },
   menuValue: { fontSize: 13, color: T.mute },
-  menuDivider: { height: 1, backgroundColor: "rgba(26,34,24,0.07)", marginHorizontal: 14 },
+  menuDivider: { height: 1, backgroundColor: "rgba(15,23,42,0.06)", marginHorizontal: 14 },
 
   versionText: { fontSize: 11, color: T.muteStrong, textAlign: "center", marginTop: 20 },
 
   // Modal
   modalOverlay: { flex: 1, justifyContent: "flex-end", backgroundColor: "rgba(0,0,0,0.35)" },
-  modalSheet: { borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24, paddingBottom: 36, gap: 4, overflow: "hidden" },
-  modalHandle: { width: 40, height: 4, backgroundColor: "rgba(26,34,24,0.2)", borderRadius: 2, alignSelf: "center", marginBottom: 20 },
+  modalSheet: { borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24, paddingBottom: 36, gap: 4, overflow: "hidden", backgroundColor: T.bg },
+  modalHandle: { width: 40, height: 4, backgroundColor: "rgba(15,23,42,0.15)", borderRadius: 2, alignSelf: "center", marginBottom: 20 },
   modalTitle: { fontSize: 18, fontWeight: "700", color: T.ink, textAlign: "center", marginBottom: 16 },
   inputLabel: { fontSize: 11, fontWeight: "700", color: T.green, textTransform: "uppercase", letterSpacing: 0.8, marginBottom: 6, marginTop: 8 },
   input: {
-    borderWidth: 1.5, borderColor: "rgba(61,107,71,0.25)", borderRadius: 12,
+    borderWidth: 1.5, borderColor: "rgba(21,128,61,0.20)", borderRadius: 12,
     paddingHorizontal: 14, paddingVertical: 12,
-    fontSize: 15, color: T.ink, backgroundColor: "rgba(255,255,255,0.75)",
+    fontSize: 15, color: T.ink, backgroundColor: "#FFFFFF",
   },
   inputHint: { fontSize: 11, color: T.mute, marginTop: 6 },
   modalBtnRow: { flexDirection: "row", gap: 12, marginTop: 24 },
-  modalCancelBtn: { flex: 1, borderWidth: 1, borderColor: "rgba(26,34,24,0.2)", borderRadius: 100, paddingVertical: 13, alignItems: "center" },
+  modalCancelBtn: { flex: 1, borderWidth: 1, borderColor: "rgba(15,23,42,0.15)", borderRadius: 100, paddingVertical: 13, alignItems: "center" },
   modalCancelText: { fontSize: 14, color: T.mute, fontWeight: "500" },
   modalSaveBtn: { flex: 1, backgroundColor: T.green, borderRadius: 100, paddingVertical: 13, alignItems: "center" },
   modalSaveText: { fontSize: 14, color: "#fff", fontWeight: "600" },

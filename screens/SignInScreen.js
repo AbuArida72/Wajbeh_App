@@ -48,7 +48,7 @@ export default function SignInScreen({ navigation, onAuthSuccess }) {
 
   return (
     <View style={styles.root}>
-      <WallpaperBackground />
+
 
       <SafeAreaView style={styles.safe}>
         <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : "height"}>
@@ -149,7 +149,7 @@ export default function SignInScreen({ navigation, onAuthSuccess }) {
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1 },
+  root: { flex: 1, backgroundColor: T.bg },
   safe: { flex: 1 },
   scroll: { flexGrow: 1, paddingHorizontal: 24, paddingVertical: 16 },
   rtl: { textAlign: "right", writingDirection: "rtl" },
@@ -158,20 +158,20 @@ const styles = StyleSheet.create({
   navRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 36 },
   backBtn: {
     width: 44, height: 44, borderRadius: 22,
-    backgroundColor: "rgba(255,255,255,0.72)",
-    borderWidth: 1, borderColor: "rgba(255,255,255,0.90)",
+    backgroundColor: "#FFFFFF",
+    borderWidth: 1, borderColor: "rgba(26,26,26,0.12)",
     alignItems: "center", justifyContent: "center",
   },
 
   // Centered heading
   headingSection: { alignItems: "center", marginBottom: 32 },
   brandBadge: {
-    backgroundColor: "rgba(61,107,71,0.10)",
+    backgroundColor: "rgba(21,128,61,0.08)",
     borderRadius: 100,
     paddingHorizontal: 14,
     paddingVertical: 5,
     borderWidth: 1,
-    borderColor: "rgba(61,107,71,0.18)",
+    borderColor: "rgba(21,128,61,0.15)",
     marginBottom: 18,
   },
   brandText: { fontSize: 11, fontWeight: "800", color: T.green, letterSpacing: 1.2, textTransform: "uppercase" },
@@ -180,11 +180,11 @@ const styles = StyleSheet.create({
 
   // Fields
   field: { flexDirection: "row", alignItems: "center", paddingHorizontal: 14, paddingVertical: 14, gap: 12 },
-  fieldBorder: { borderBottomWidth: 1, borderBottomColor: "rgba(26,34,24,0.08)" },
+  fieldBorder: { borderBottomWidth: 1, borderBottomColor: "rgba(15,23,42,0.06)" },
   fieldIconWrap: {
     width: 34, height: 34, borderRadius: 10,
-    backgroundColor: "rgba(61,107,71,0.10)",
-    borderWidth: 1, borderColor: "rgba(61,107,71,0.15)",
+    backgroundColor: "rgba(21,128,61,0.08)",
+    borderWidth: 1, borderColor: "rgba(21,128,61,0.12)",
     alignItems: "center", justifyContent: "center",
     flexShrink: 0,
   },
@@ -200,9 +200,9 @@ const styles = StyleSheet.create({
   errorText: { color: T.urgent, fontSize: 13, flex: 1 },
 
   dividerRow: { flexDirection: "row", alignItems: "center", gap: 12, marginVertical: 22 },
-  divLine: { flex: 1, height: 1, backgroundColor: "rgba(26,34,24,0.10)" },
+  divLine: { flex: 1, height: 1, backgroundColor: "rgba(15,23,42,0.08)" },
   divText: { fontSize: 11, color: T.muteStrong, fontWeight: "600" },
 
   signUpText: { fontSize: 14, color: T.mute, textAlign: "center" },
-  signUpLink: { color: T.accent, fontWeight: "700" },
+  signUpLink: { color: T.green, fontWeight: "700" },
 });

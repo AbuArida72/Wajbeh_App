@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   View,
   Text,
@@ -8,12 +8,14 @@ import {
   Image,
   ScrollView,
   StatusBar,
+  Animated,
 } from "react-native";
+import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 import { supabase } from "../lib/supabase";
 import { useLanguage } from "../lang/LanguageContext";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { GlassPanel, Chip, T, WallpaperBackground, TextBackdrop, ar, SkeletonBox } from "../components/Glass";
+import { GlassPanel, T, ar, SkeletonBox, FONTS } from "../components/Glass";
 import { useLocation } from "../lib/LocationContext";
 
 function haversineKm(lat1, lon1, lat2, lon2) {
@@ -80,21 +82,12 @@ export default function HomeScreen({ navigation }) {
   const getDistance = (bag) => {
     const r = bag.restaurants;
     if (!userLocation || !r?.latitude || !r?.longitude) return null;
-    return haversineKm(
-      userLocation.latitude,
-      userLocation.longitude,
-      r.latitude,
-      r.longitude,
-    );
+    return haversineKm(userLocation.latitude, userLocation.longitude, r.latitude, r.longitude);
   };
 
-  const bagsWithDistance = bags.map((b) => ({
-    ...b,
-    _distance: getDistance(b),
-  }));
+  const bagsWithDistance = bags.map((b) => ({ ...b, _distance: getDistance(b) }));
   const sortedBags = [...bagsWithDistance].sort((a, b) => {
-    if (a._distance !== null && b._distance !== null)
-      return a._distance - b._distance;
+    if (a._distance !== null && b._distance !== null) return a._distance - b._distance;
     if (a._distance !== null) return -1;
     if (b._distance !== null) return 1;
     return 0;
@@ -111,15 +104,20 @@ export default function HomeScreen({ navigation }) {
     return t("filterCafe");
   };
 
-  const renderBag = ({ item }) => {
+  const AnimatedCard = ({ item }) => {
+    const scale = useRef(new Animated.Value(1)).current;
+    const onPressIn = () => Animated.spring(scale, { toValue: 0.97, useNativeDriver: true, speed: 20, bounciness: 4 }).start();
+    const onPressOut = () => Animated.spring(scale, { toValue: 1, useNativeDriver: true, speed: 20, bounciness: 4 }).start();
     const r = item.restaurants;
     const discount = Math.round((1 - item.price / item.original_value) * 100);
     const isLast = item.quantity_remaining === 1;
     const dist = item._distance;
-
     return (
+      <Animated.View style={[styles.cardWrapper, { transform: [{ scale }] }]}>
       <TouchableOpacity
-        activeOpacity={0.9}
+        activeOpacity={1}
+        onPressIn={onPressIn}
+        onPressOut={onPressOut}
         onPress={() =>
           navigation.navigate("BagDetail", {
             bag: {
@@ -130,318 +128,293 @@ export default function HomeScreen({ navigation }) {
               logo: r?.logo_url,
               pickup_start: r?.pickup_start?.slice(0, 5),
               pickup_end: r?.pickup_end?.slice(0, 5),
-              image: r?.logo_url,
+              image: item.image_url,
             },
           })
         }
-        style={styles.cardWrapper}
       >
-        <GlassPanel radius={20} style={styles.card}>
-          {/* Image */}
-          <View style={styles.thumbWrapper}>
+        <View style={styles.card}>
+          {/* ── Image block with gradient overlay ── */}
+          <View style={styles.imageBlock}>
             <Image
-              source={{ uri: r?.logo_url }}
+              source={{ uri: item.image_url }}
               style={styles.thumb}
               resizeMode="cover"
             />
-            <View style={[styles.qtyBadge, isLast && styles.qtyBadgeUrgent, { [isRTL ? "right" : "left"]: 10 }]}>
-              <Text style={styles.qtyText}>
-                {isLast ? t("lastOne") : `${item.quantity_remaining} ${t("left")}`}
-              </Text>
-            </View>
-            <View style={styles.discountBadge}>
+
+            {/* Dark gradient at bottom for text legibility */}
+            <LinearGradient
+              colors={["transparent", "rgba(0,0,0,0.72)"]}
+              style={styles.imageGradient}
+            />
+
+            {/* Top badges */}
+            {isLast ? (
+              <View style={[styles.qtyBadge, styles.qtyBadgeUrgent, { [isRTL ? "right" : "left"]: 12 }]}>
+                <Text style={styles.qtyText}>{t("lastOne")}</Text>
+              </View>
+            ) : (
+              <View style={[styles.qtyBadge, { [isRTL ? "right" : "left"]: 12 }]}>
+                <Text style={styles.qtyText}>{item.quantity_remaining} {t("left")}</Text>
+              </View>
+            )}
+
+            <View style={[styles.discountBadge, { [isRTL ? "left" : "right"]: 12 }]}>
               <Text style={styles.discountText}>−{discount}%</Text>
+            </View>
+
+            {/* Restaurant info overlaid on gradient */}
+            <View style={[styles.imageBottom, isRTL && styles.rtlRow]}>
+              <Image source={{ uri: r?.logo_url }} style={styles.overlayLogo} />
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.overlayName, isRTL && styles.rtl]} numberOfLines={1}>
+                  {r?.name}
+                </Text>
+                <Text style={[styles.overlayArea, isRTL && styles.rtl]} numberOfLines={1}>
+                  {r?.area} · {r?.category}
+                </Text>
+              </View>
+              {dist !== null && (
+                <View style={styles.distBadge}>
+                  <Text style={styles.distText}>
+                    {dist < 1 ? `${Math.round(dist * 1000)}m` : `${dist.toFixed(1)}km`}
+                  </Text>
+                </View>
+              )}
             </View>
           </View>
 
-          {/* Card body */}
-          <View style={styles.cardBody}>
-            {/* Restaurant row */}
-            <View style={[styles.restaurantRow, isRTL && styles.rtlRow]}>
-              <Image source={{ uri: r?.logo_url }} style={styles.logo} />
-              <Text style={[styles.restaurantName, isRTL && styles.rtl, ar(isRTL, "medium")]} numberOfLines={1}>
-                {r?.name}
+          {/* ── Card footer ── */}
+          <View style={[styles.cardFooter, isRTL && styles.rtlRow]}>
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.bagTitle, isRTL && styles.rtl, ar(isRTL, "semiBold")]} numberOfLines={1}>
+                {item.title}
               </Text>
-              <Text style={styles.areaDot}>·</Text>
-              <Text style={styles.areaText} numberOfLines={1}>{r?.area}</Text>
-            </View>
-
-            {/* Bag title */}
-            <Text style={[styles.bagTitle, isRTL && styles.rtl, ar(isRTL, "semiBold")]} numberOfLines={2}>
-              {item.title}
-            </Text>
-
-            {/* Pickup + distance */}
-            <View style={[styles.metaRow, isRTL && styles.rtlRow]}>
-              <View style={[styles.metaItem, isRTL && styles.rtlRow]}>
+              <View style={[styles.timeRow, isRTL && styles.rtlRow]}>
                 <Ionicons name="time-outline" size={11} color={T.muteStrong} />
                 <Text style={styles.pickupText}>
                   {r?.pickup_start?.slice(0, 5)} – {r?.pickup_end?.slice(0, 5)}
                 </Text>
               </View>
-              {dist !== null && (
-                <Text style={styles.distText}>
-                  {dist < 1 ? `${Math.round(dist * 1000)}m` : `${dist.toFixed(1)}km`}
-                </Text>
-              )}
             </View>
-
-            {/* Price row */}
-            <View style={[styles.priceRow, isRTL && styles.rtlRow]}>
-              <Text style={styles.originalPrice}>
-                JD {parseFloat(item.original_value).toFixed(2)}
-              </Text>
-              <Text style={styles.price}>
-                JD {parseFloat(item.price).toFixed(2)}
-              </Text>
+            <View style={styles.priceBlock}>
+              <Text style={styles.originalPrice}>JD {parseFloat(item.original_value).toFixed(2)}</Text>
+              <Text style={styles.price}>JD {parseFloat(item.price).toFixed(2)}</Text>
             </View>
           </View>
-        </GlassPanel>
+        </View>
       </TouchableOpacity>
+      </Animated.View>
     );
   };
 
   return (
     <View style={styles.root}>
-      <StatusBar
-        barStyle="dark-content"
-        translucent
-        backgroundColor="transparent"
-      />
+      <StatusBar barStyle="light-content" translucent backgroundColor="transparent" />
 
-      {/* Wallpaper */}
-      <WallpaperBackground />
-
-      {/* Header */}
-      <View style={[styles.header, { paddingTop: insets.top + 16 }]}>
+      {/* Green header */}
+      <View style={[styles.header, { paddingTop: insets.top + 12 }]}>
         <View style={[styles.headerTop, isRTL && styles.rtlRow]}>
-          <View>
-            <Text style={[styles.locationLabel, isRTL && styles.rtl]}>
-              {cityName || t("ammanJordan")}
-            </Text>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.brandLabel}>Wajbeh</Text>
             <Text style={[styles.headerTitle, isRTL && styles.rtl, ar(isRTL, "bold")]}>
-              {t("todaysAvailableBags") || "Today's bags"}
+              {t("todaysAvailableBags") || "Today's Bags"}
             </Text>
           </View>
-          <GlassPanel
-            radius={100}
-            style={{ paddingHorizontal: 12, paddingVertical: 6 }}
-          >
-            <Text style={{ fontSize: 12, fontWeight: "700", color: T.ink }}>
-              {bags.length} {t("bagsUnit") || "bags"}
-            </Text>
-          </GlassPanel>
+          <View style={styles.countPill}>
+            <Text style={styles.countPillNum}>{bags.length}</Text>
+            <Text style={styles.countPillLabel}>{t("bagsUnit")}</Text>
+          </View>
         </View>
 
         {userLocation && (
-          <Text style={[styles.nearestText, isRTL && styles.rtl]}>
+          <Text style={styles.nearestText}>
+            <Ionicons name="navigate-circle-outline" size={11} color="rgba(255,255,255,0.60)" />{" "}
             {t("nearestFirst")}
           </Text>
         )}
 
-        {/* Filter chips */}
+        {/* Filter pills */}
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.filtersRow}
-          style={{ marginTop: 12 }}
+          style={{ marginTop: 16 }}
         >
           {FILTERS.map((f) => (
-            <Chip
+            <TouchableOpacity
               key={f}
-              active={activeFilter === f}
               onPress={() => setActiveFilter(f)}
-              style={{ marginRight: 6 }}
+              style={[styles.filterPill, activeFilter === f && styles.filterPillActive]}
+              activeOpacity={0.75}
             >
-              {getFilterLabel(f)}
-            </Chip>
+              <Text style={[styles.filterPillText, activeFilter === f && styles.filterPillTextActive]}>
+                {getFilterLabel(f)}
+              </Text>
+            </TouchableOpacity>
           ))}
         </ScrollView>
       </View>
 
       {/* Content */}
-      {loading ? (
-        <View style={{ paddingHorizontal: 16, paddingTop: 12, gap: 14 }}>
-          {[0, 1, 2].map((i) => (
-            <GlassPanel key={i} radius={20} style={{ overflow: "hidden" }}>
-              <SkeletonBox width="100%" height={170} radius={0} />
-              <View style={{ padding: 14, gap: 10 }}>
-                <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-                  <SkeletonBox width={20} height={20} radius={10} />
-                  <SkeletonBox width={120} height={12} radius={6} />
+      <View style={styles.body}>
+        {loading ? (
+          <View style={{ padding: 16, gap: 14 }}>
+            {[0, 1, 2].map((i) => (
+              <View key={i} style={[styles.card, { overflow: "hidden" }]}>
+                <SkeletonBox width="100%" height={200} radius={0} />
+                <View style={{ padding: 14, gap: 8, flexDirection: "row", alignItems: "center" }}>
+                  <View style={{ flex: 1, gap: 6 }}>
+                    <SkeletonBox width="60%" height={14} radius={6} />
+                    <SkeletonBox width="40%" height={11} radius={6} />
+                  </View>
+                  <SkeletonBox width={70} height={32} radius={8} />
                 </View>
-                <SkeletonBox width="80%" height={16} radius={6} />
-                <SkeletonBox width="50%" height={11} radius={6} />
-                <SkeletonBox width={80} height={20} radius={6} />
               </View>
-            </GlassPanel>
-          ))}
-        </View>
-      ) : filtered.length === 0 ? (
-        <View style={styles.center}>
-          <Ionicons name="bag-handle-outline" size={48} color={T.muteStrong} />
-          <Text style={[styles.emptyTitle, isRTL && styles.rtl]}>
-            {t("noBagsTitle")}
-          </Text>
-          <Text style={[styles.emptyText, isRTL && styles.rtl]}>
-            {t("noBagsSubtitle")}
-          </Text>
-          <TouchableOpacity onPress={fetchBags} style={styles.refreshBtn}>
-            <Text style={styles.refreshBtnText}>{t("refresh")}</Text>
-          </TouchableOpacity>
-        </View>
-      ) : (
-        <FlatList
-          data={filtered}
-          keyExtractor={(item) => item.id}
-          renderItem={renderBag}
-          contentContainerStyle={[
-            styles.list,
-            { paddingBottom: insets.bottom + 20 },
-          ]}
-          showsVerticalScrollIndicator={false}
-          onRefresh={fetchBags}
-          refreshing={loading}
-        />
-      )}
+            ))}
+          </View>
+        ) : filtered.length === 0 ? (
+          <View style={styles.center}>
+            <Ionicons name="bag-handle-outline" size={48} color={T.muteStrong} />
+            <Text style={[styles.emptyTitle, isRTL && styles.rtl]}>{t("noBagsTitle")}</Text>
+            <Text style={[styles.emptyText, isRTL && styles.rtl]}>{t("noBagsSubtitle")}</Text>
+            <TouchableOpacity onPress={fetchBags} style={styles.refreshBtn}>
+              <Text style={styles.refreshBtnText}>{t("refresh")}</Text>
+            </TouchableOpacity>
+          </View>
+        ) : (
+          <FlatList
+            data={filtered}
+            keyExtractor={(item) => item.id}
+            renderItem={({ item }) => <AnimatedCard item={item} />}
+            contentContainerStyle={[styles.list, { paddingBottom: insets.bottom + 20 }]}
+            showsVerticalScrollIndicator={false}
+            onRefresh={fetchBags}
+            refreshing={loading}
+          />
+        )}
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1 },
+  root: { flex: 1, backgroundColor: T.bg },
   rtl: { textAlign: "right", writingDirection: "rtl" },
   rtlRow: { flexDirection: "row-reverse" },
 
   // Header
-  header: { paddingHorizontal: 20, paddingBottom: 8 },
-  headerTop: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "flex-end",
-    marginBottom: 4,
+  header: {
+    backgroundColor: T.green,
+    paddingHorizontal: 20,
+    paddingBottom: 20,
   },
-  locationLabel: {
-    fontSize: 9,
-    letterSpacing: 1.4,
-    textTransform: "uppercase",
-    color: T.muteStrong,
-    fontWeight: "600",
-    marginBottom: 4,
+  headerTop: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 2 },
+  locationRow: { flexDirection: "row", alignItems: "center", gap: 4, marginBottom: 6 },
+  locationLabel: { fontSize: 11, color: "rgba(255,255,255,0.65)", fontWeight: "500", letterSpacing: 0.3 },
+  brandLabel: { fontSize: 9, fontWeight: "700", color: "rgba(255,255,255,0.45)", letterSpacing: 2.2, textTransform: "uppercase", marginBottom: 4, fontFamily: FONTS.bold },
+  headerTitle: { fontSize: 28, fontWeight: "800", color: "#FFFFFF", letterSpacing: -0.7, fontFamily: FONTS.bold },
+  countPill: {
+    backgroundColor: "rgba(255,255,255,0.18)",
+    borderRadius: 14, paddingHorizontal: 12, paddingVertical: 8,
+    borderWidth: 1, borderColor: "rgba(255,255,255,0.28)",
+    alignItems: "center", minWidth: 48,
   },
-  headerTitle: {
-    fontSize: 24,
-    fontWeight: "700",
-    color: T.ink,
-    letterSpacing: -0.6,
-  },
-  nearestText: { fontSize: 11, color: T.muteStrong, marginTop: 2 },
-  filtersRow: { gap: 6, paddingBottom: 4 },
+  countPillNum: { fontSize: 22, fontWeight: "800", color: "#FFFFFF", lineHeight: 24, fontFamily: FONTS.bold },
+  countPillLabel: { fontSize: 9, fontWeight: "600", color: "rgba(255,255,255,0.70)", letterSpacing: 0.5, textTransform: "uppercase", marginTop: 1 },
+  nearestText: { fontSize: 11, color: "rgba(255,255,255,0.60)", marginTop: 4 },
 
-  // List
-  list: { paddingTop: 12, paddingHorizontal: 16 },
+  // Filter pills
+  filtersRow: { gap: 8, paddingBottom: 2 },
+  filterPill: {
+    borderRadius: 100, paddingHorizontal: 16, paddingVertical: 8,
+    backgroundColor: "rgba(255,255,255,0.15)",
+    borderWidth: 1, borderColor: "rgba(255,255,255,0.22)",
+  },
+  filterPillActive: { backgroundColor: "#FFFFFF" },
+  filterPillText: { fontSize: 13, fontWeight: "600", color: "rgba(255,255,255,0.82)" },
+  filterPillTextActive: { color: T.green },
+
+  // Body
+  body: { flex: 1, backgroundColor: T.bg },
+  list: { paddingTop: 16, paddingHorizontal: 16 },
 
   // Card
-  cardWrapper: { marginBottom: 14 },
-  card: { overflow: "hidden" },
+  cardWrapper: { marginBottom: 16 },
+  card: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 20,
+    overflow: "hidden",
+    borderWidth: 1,
+    borderColor: T.border,
+    shadowColor: "#0F172A",
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.14,
+    shadowRadius: 10,
+    elevation: 4,
+  },
 
-  thumbWrapper: {
-    width: "100%",
-    height: 170,
-    position: "relative",
+  // Image block
+  imageBlock: { width: "100%", height: 200, position: "relative" },
+  thumb: { width: "100%", height: 200, backgroundColor: T.border },
+  imageGradient: {
+    position: "absolute", left: 0, right: 0, bottom: 0, height: 110,
   },
-  thumb: {
-    width: "100%",
-    height: 170,
-    backgroundColor: "rgba(26,34,24,0.08)",
-  },
+
+  // Badges on image
   qtyBadge: {
-    position: "absolute",
-    top: 10,
+    position: "absolute", top: 12,
     backgroundColor: "rgba(0,0,0,0.52)",
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 100,
+    paddingHorizontal: 9, paddingVertical: 4, borderRadius: 100,
   },
   qtyBadgeUrgent: { backgroundColor: T.urgent },
   qtyText: { fontSize: 10, fontWeight: "700", color: "#fff" },
   discountBadge: {
-    position: "absolute",
-    bottom: 10,
-    right: 10,
+    position: "absolute", top: 12,
     backgroundColor: T.accent,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 100,
+    paddingHorizontal: 10, paddingVertical: 4, borderRadius: 100,
   },
-  discountText: { fontSize: 11, fontWeight: "700", color: "#fff" },
+  discountText: { fontSize: 11, fontWeight: "800", color: "#fff" },
 
-  cardBody: { padding: 14, gap: 6 },
-  restaurantRow: { flexDirection: "row", alignItems: "center", gap: 6 },
-  logo: { width: 20, height: 20, borderRadius: 10, backgroundColor: "rgba(26,34,24,0.08)" },
-  restaurantName: {
-    fontSize: 12,
-    fontWeight: "600",
-    color: T.ink,
-    flexShrink: 1,
+  // Restaurant info overlaid on gradient
+  imageBottom: {
+    position: "absolute", bottom: 0, left: 0, right: 0,
+    flexDirection: "row", alignItems: "center", gap: 10,
+    paddingHorizontal: 14, paddingBottom: 12,
   },
-  areaDot: { fontSize: 11, color: T.muteStrong },
-  areaText: { fontSize: 11, color: T.muteStrong, flexShrink: 1 },
-  bagTitle: {
-    fontSize: 16,
-    fontWeight: "700",
-    color: T.ink,
-    letterSpacing: -0.3,
+  overlayLogo: {
+    width: 36, height: 36, borderRadius: 10,
+    backgroundColor: "rgba(255,255,255,0.15)",
+    borderWidth: 1.5, borderColor: "rgba(255,255,255,0.30)",
   },
+  overlayName: { fontSize: 14, fontWeight: "700", color: "#FFFFFF", letterSpacing: -0.2 },
+  overlayArea: { fontSize: 11, color: "rgba(255,255,255,0.72)", marginTop: 1 },
+  distBadge: {
+    backgroundColor: "rgba(255,255,255,0.18)",
+    borderRadius: 100, paddingHorizontal: 8, paddingVertical: 4,
+    borderWidth: 1, borderColor: "rgba(255,255,255,0.25)",
+  },
+  distText: { fontSize: 11, fontWeight: "600", color: "#FFFFFF" },
 
-  metaRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
+  // Card footer
+  cardFooter: {
+    flexDirection: "row", alignItems: "center", justifyContent: "space-between",
+    paddingHorizontal: 14, paddingVertical: 12, gap: 12,
   },
-  metaItem: { flexDirection: "row", alignItems: "center", gap: 4 },
-  pickupText: { fontSize: 11, color: T.muteStrong },
-  distText: { fontSize: 11, fontWeight: "700", color: T.green },
+  bagTitle: { fontSize: 15, fontWeight: "700", color: T.ink, letterSpacing: -0.2, marginBottom: 3, fontFamily: FONTS.bold },
+  timeRow: { flexDirection: "row", alignItems: "center", gap: 4 },
+  pickupText: { fontSize: 11, color: T.mute },
+  priceBlock: { alignItems: "flex-end" },
+  originalPrice: { fontSize: 11, color: T.muteStrong, textDecorationLine: "line-through" },
+  price: { fontSize: 20, fontWeight: "800", color: T.accent, letterSpacing: -0.4 },
 
-  priceRow: {
-    flexDirection: "row",
-    alignItems: "baseline",
-    gap: 8,
-    marginTop: 2,
-  },
-  originalPrice: {
-    fontSize: 12,
-    color: T.muteStrong,
-    textDecorationLine: "line-through",
-  },
-  price: {
-    fontSize: 20,
-    fontWeight: "800",
-    color: T.accent,
-    letterSpacing: -0.4,
-  },
-
-  // States
-  center: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    gap: 12,
-    padding: 32,
-  },
-  emptyTitle: {
-    fontSize: 16,
-    fontWeight: "700",
-    color: T.ink,
-    textAlign: "center",
-  },
+  // Empty state
+  center: { flex: 1, justifyContent: "center", alignItems: "center", gap: 12, padding: 32 },
+  emptyTitle: { fontSize: 16, fontWeight: "700", color: T.ink, textAlign: "center" },
   emptyText: { fontSize: 13, color: T.mute, textAlign: "center" },
   refreshBtn: {
-    backgroundColor: T.green,
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 100,
-    marginTop: 4,
+    backgroundColor: T.green, paddingHorizontal: 24, paddingVertical: 12,
+    borderRadius: 100, marginTop: 4,
   },
   refreshBtnText: { color: "#fff", fontWeight: "700", fontSize: 13 },
 });

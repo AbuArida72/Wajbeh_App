@@ -29,6 +29,7 @@ export const translations = {
     signInLanding: "Sign In",
     restaurantQuestion: "Are you a restaurant?",
     contactUs: "Contact us to join",
+    contactUsMenu: "Contact Us",
 
     // Auth — sign in
     signInTitle: "Sign in",
@@ -67,7 +68,7 @@ export const translations = {
     passwordsMismatch: "Passwords do not match",
     passwordTooShort: "Password must be at least 6 characters",
     restaurantNote:
-      "Are you a restaurant owner? Contact us at hello@zaytoon.jo to get listed on Zaytoon زيتون.",
+      "Are you a restaurant owner? Contact us at hello@wajbeh.jo to get listed.",
     checkYourEmail: "Check your email!",
     weSentLink: "We sent a confirmation link to",
     openEmail: "Open your email",
@@ -79,7 +80,7 @@ export const translations = {
     daily: "Daily",
 
     // Home screen
-    appName: "Zaytoon",
+    appName: "Wajbeh",
     todaysAvailableBags: "Today's available bags",
     bagsUnit: "bags",
     nearestFirst: "Showing nearest first",
@@ -183,7 +184,7 @@ export const translations = {
     restaurantAccount: "Restaurant Account",
     confirmEmailHint:
       "A confirmation link will be sent to your new email address",
-    appVersion: "Zaytoon v1.0.0",
+    appVersion: "Wajbeh v1.0.0",
 
     memberSince: "Member since",
     email: "Email",
@@ -303,8 +304,8 @@ export const translations = {
       "Reservations are final once made. Please only reserve if you're sure you can pick up.",
     faqRestaurant: "How do restaurants join?",
     faqRestaurantAnswer:
-      "Email us at hello@zaytoon.jo and we'll get your restaurant set up within 24 hours.",
-    appTagline: "Zaytoon · Fighting food waste in Jordan",
+      "Email us at hello@wajbeh.jo and we'll get your restaurant set up within 24 hours.",
+    appTagline: "Wajbeh · Fighting food waste in Jordan",
 
     // Confirmation thank-you
     thankYouTitle: "Thank you for saving food!",
@@ -413,6 +414,24 @@ export const translations = {
       "This bag will be posted for {count} consecutive days with the same settings.",
     permissionRequired: "Permission Required",
     galleryPermission: "Please allow access to your photo library.",
+
+    // Landing stats labels
+    statOffRetail: "off retail price",
+    statRestaurants: "restaurants in Amman",
+    statBagsDaily: "every day",
+
+    // Dashboard placeholders
+    bagTitlePlaceholder: "e.g. Surprise Pastry Bag",
+    bagDescPlaceholder: "What's in the bag? (optional)",
+    fromLabel: "From",
+    untilLabel: "Until",
+
+    // Dashboard / sold out dialog
+    markSoldOutConfirm: "Mark this bag as sold out?",
+
+    // Restaurant orders alerts
+    updateOrderError: "Could not update order.",
+    confirmArrivalMsg: "Ask the customer to confirm pickup in their app.",
   },
 
   ar: {
@@ -444,6 +463,7 @@ export const translations = {
     signInLanding: "تسجيل الدخول",
     restaurantQuestion: "هل أنت مطعم؟",
     contactUs: "تواصل معنا للانضمام",
+    contactUsMenu: "تواصل معنا",
 
     // Auth — sign in
     signInTitle: "تسجيل الدخول",
@@ -483,7 +503,7 @@ export const translations = {
     passwordsMismatch: "كلمتا المرور غير متطابقتين",
     passwordTooShort: "يجب أن تكون كلمة المرور 6 أحرف على الأقل",
     restaurantNote:
-      "هل أنت صاحب مطعم؟ تواصل معنا على hello@zaytoon.jo لإدراج مطعمك في زيتون.",
+      "هل أنت صاحب مطعم؟ تواصل معنا على hello@wajbeh.jo لإدراج مطعمك.",
     checkYourEmail: "تحقق من بريدك!",
     weSentLink: "أرسلنا رابط التأكيد إلى",
     openEmail: "افتح بريدك الإلكتروني",
@@ -495,7 +515,7 @@ export const translations = {
     daily: "يومياً",
 
     // Home screen
-    appName: "زيتون",
+    appName: "وجبة",
     todaysAvailableBags: "أكياس اليوم المتاحة",
     bagsUnit: "كيس",
     nearestFirst: "ترتيب حسب القرب",
@@ -598,7 +618,7 @@ export const translations = {
     memberBadge: "عضو",
     restaurantAccount: "حساب مطعم",
     confirmEmailHint: "سيتم إرسال رابط التأكيد إلى بريدك الجديد",
-    appVersion: "زيتون v1.0.0",
+    appVersion: "وجبة v1.0.0",
     memberSince: "عضو منذ",
     email: "البريد الإلكتروني",
     name: "الاسم",
@@ -715,8 +735,8 @@ export const translations = {
       "الحجوزات نهائية بعد تأكيدها. يرجى الحجز فقط إذا كنت متأكداً من قدرتك على الاستلام.",
     faqRestaurant: "كيف تنضم المطاعم؟",
     faqRestaurantAnswer:
-      "أرسل لنا على hello@zaytoon.jo وسنضبط مطعمك خلال 24 ساعة.",
-    appTagline: "زيتون · نحارب هدر الطعام في الأردن",
+      "أرسل لنا على hello@wajbeh.jo وسنضبط مطعمك خلال 24 ساعة.",
+    appTagline: "وجبة · نحارب هدر الطعام في الأردن",
 
 
     // Confirmation thank-you
@@ -826,5 +846,23 @@ export const translations = {
       "سيتم نشر هذا الكيس لمدة {count} أيام متتالية بنفس الإعدادات.",
     permissionRequired: "إذن مطلوب",
     galleryPermission: "يرجى السماح بالوصول إلى مكتبة الصور.",
+
+    // Landing stats labels
+    statOffRetail: "خصم على سعر التجزئة",
+    statRestaurants: "مطعم في عمّان",
+    statBagsDaily: "يومياً",
+
+    // Dashboard placeholders
+    bagTitlePlaceholder: "مثال: كيس المخبوزات المفاجئ",
+    bagDescPlaceholder: "ماذا في الكيس؟ (اختياري)",
+    fromLabel: "من",
+    untilLabel: "حتى",
+
+    // Dashboard / sold out dialog
+    markSoldOutConfirm: "تعليم هذا الكيس كنافد؟",
+
+    // Restaurant orders alerts
+    updateOrderError: "تعذّر تحديث الطلب.",
+    confirmArrivalMsg: "اطلب من العميل تأكيد الاستلام في تطبيقه.",
   },
 };

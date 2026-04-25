@@ -6,16 +6,16 @@ import {
   FlatList,
   TouchableOpacity,
   RefreshControl,
-  Alert,
   StatusBar,
   Platform,
 } from "react-native";
+import AppDialog, { useDialog } from "../components/AppDialog";
 import { useFocusEffect } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
 import { supabase } from "../lib/supabase";
 import { useLanguage } from "../lang/LanguageContext";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { GlassPanel, Chip, T, WallpaperBackground, TextBackdrop, ar, SkeletonBox } from "../components/Glass";
+import { GlassPanel, Chip, T, WallpaperBackground, TextBackdrop, ar, SkeletonBox, FONTS } from "../components/Glass";
 import { haptic } from "../lib/haptics";
 
 const isPickupTimeActive = (pickupStart) => {
@@ -58,6 +58,7 @@ export default function OrdersScreen({ navigation }) {
   const autoSwitchedRef = useRef(false);
   const { t, isRTL } = useLanguage();
   const insets = useSafeAreaInsets();
+  const { dialogProps, alert: showAlert } = useDialog();
 
   useEffect(() => {
     fetchOrders();
@@ -113,17 +114,17 @@ export default function OrdersScreen({ navigation }) {
       .from("orders")
       .update({ status: "picked_up", picked_up_at: new Date().toISOString() })
       .eq("id", orderId);
-    if (error) Alert.alert("Error", error.message);
+    if (error) showAlert("Error", error.message);
     else { haptic.success(); fetchOrders(); }
   };
 
   const getStatusConfig = (status) => {
     switch (status) {
-      case "reserved": return { color: T.green, label: t("statusReserved") };
-      case "arriving": return { color: T.accent, label: t("statusArriving") };
-      case "picked_up": return { color: T.muteStrong, label: t("statusPickedUp") };
-      case "cancelled": return { color: T.urgent, label: t("statusCancelled") };
-      default: return { color: T.muteStrong, label: status };
+      case "reserved":  return { color: T.green,      label: t("statusReserved"),  icon: "time-outline" };
+      case "arriving":  return { color: T.accent,     label: t("statusArriving"),  icon: "walk-outline" };
+      case "picked_up": return { color: "#0D7A3E",    label: t("statusPickedUp"),  icon: "checkmark-circle-outline" };
+      case "cancelled": return { color: T.urgent,     label: t("statusCancelled"), icon: "close-circle-outline" };
+      default:          return { color: T.muteStrong, label: status,               icon: "ellipse-outline" };
     }
   };
 
@@ -153,7 +154,13 @@ export default function OrdersScreen({ navigation }) {
             <Text style={[styles.restaurantName, isRTL && styles.rtl, ar(isRTL, "medium")]} numberOfLines={1}>{restaurant?.name}</Text>
             <Text style={[styles.area, isRTL && styles.rtl]}>{restaurant?.area}</Text>
           </View>
-          <View style={[styles.statusPill, { borderColor: config.color + "55" }]}>
+          <View style={[
+            styles.statusPill,
+            { backgroundColor: config.color + "18", borderColor: config.color + "40" },
+            item.status === "picked_up" && styles.statusPillFulfilled,
+            item.status === "cancelled" && styles.statusPillCancelled,
+          ]}>
+            <Ionicons name={config.icon} size={11} color={config.color} style={{ marginRight: 4 }} />
             <Text style={[styles.statusText, { color: config.color }]}>{config.label}</Text>
           </View>
         </View>
@@ -244,7 +251,7 @@ export default function OrdersScreen({ navigation }) {
   if (loading) {
     return (
       <View style={styles.root}>
-        <WallpaperBackground />
+
         <View style={[styles.header, { paddingTop: insets.top + 14 }]}>
           <SkeletonBox width={140} height={28} radius={8} style={{ marginBottom: 4 }} />
           <SkeletonBox width="100%" height={52} radius={100} style={{ marginTop: 10 }} />
@@ -272,40 +279,31 @@ export default function OrdersScreen({ navigation }) {
 
   return (
     <View style={styles.root}>
-      <StatusBar barStyle="dark-content" translucent backgroundColor="transparent" />
-      <WallpaperBackground />
+      <StatusBar barStyle="dark-content" />
 
       {/* Header */}
       <View style={[styles.header, { paddingTop: insets.top + 14 }]}>
         <View style={[styles.headerTop, isRTL && styles.rtlRow]}>
-          <View>
-            <Text style={[styles.locationLabel, isRTL && styles.rtl]}>· {t("appName")}</Text>
-            <Text style={[styles.headerTitle, isRTL && styles.rtl, ar(isRTL, "bold")]}>{t("myOrders")}</Text>
-          </View>
-          <Chip>{orders.length} {t("bagsUnit") || "bags"}</Chip>
+          <Text style={[styles.headerTitle, isRTL && styles.rtl, ar(isRTL, "bold")]}>{t("myOrders")}</Text>
         </View>
 
-        {/* Stats glass strip */}
-        <GlassPanel radius={100} padding={10}>
-          <View style={[styles.statsRow, isRTL && styles.rtlRow]}>
-            <View style={styles.statItem}>
-              <Text style={styles.statNum}>{todayOrders.length}</Text>
-              <Text style={styles.statLabel}>{t("today")}</Text>
-            </View>
-            <View style={styles.statDivider} />
-            <View style={styles.statItem}>
-              <Text style={styles.statNum}>{historyOrders.length}</Text>
-              <Text style={styles.statLabel}>{t("pastMonth")}</Text>
-            </View>
-            <View style={styles.statDivider} />
-            <View style={styles.statItem}>
-              <Text style={styles.statNum}>
-                JD {orders.reduce((s, o) => s + parseFloat(o.amount_paid || 0), 0).toFixed(0)}
-              </Text>
-              <Text style={styles.statLabel}>{t("spent")}</Text>
-            </View>
+        {/* Stats row */}
+        <View style={[styles.statsRow, isRTL && styles.rtlRow]}>
+          <View style={styles.statPill}>
+            <Text style={styles.statNum}>{todayOrders.length}</Text>
+            <Text style={styles.statLabel}>{t("today")}</Text>
           </View>
-        </GlassPanel>
+          <View style={styles.statPill}>
+            <Text style={styles.statNum}>{historyOrders.length}</Text>
+            <Text style={styles.statLabel}>{t("pastMonth")}</Text>
+          </View>
+          <View style={styles.statPill}>
+            <Text style={styles.statNum}>
+              JD {orders.reduce((s, o) => s + parseFloat(o.amount_paid || 0), 0).toFixed(0)}
+            </Text>
+            <Text style={styles.statLabel}>{t("spent")}</Text>
+          </View>
+        </View>
 
         {/* Tabs */}
         <View style={[styles.tabRow, isRTL && styles.rtlRow]}>
@@ -358,35 +356,49 @@ export default function OrdersScreen({ navigation }) {
           </View>
         }
       />
+      <AppDialog {...dialogProps} />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1 },
+  root: { flex: 1, backgroundColor: T.bg },
   rtl: { textAlign: "right", writingDirection: "rtl" },
   rtlRow: { flexDirection: "row-reverse" },
 
-  header: { paddingHorizontal: 20, paddingBottom: 10, gap: 12 },
-  headerTop: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-end" },
-  locationLabel: { fontSize: 9, letterSpacing: 1.3, textTransform: "uppercase", color: T.muteStrong, fontWeight: "600" },
-  headerTitle: { fontSize: 26, fontWeight: "700", color: T.ink, letterSpacing: -0.8, marginTop: 3 },
+  header: {
+    backgroundColor: "#FFFFFF",
+    paddingHorizontal: 20, paddingBottom: 16, gap: 14,
+    borderBottomWidth: 1, borderBottomColor: T.border,
+  },
+  headerTop: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
+  headerTitle: { fontSize: 30, fontWeight: "800", color: T.ink, letterSpacing: -0.8, fontFamily: FONTS.bold },
+  countBadge: {
+    backgroundColor: T.greenLight, borderRadius: 20,
+    paddingHorizontal: 12, paddingVertical: 6,
+    borderWidth: 1, borderColor: "rgba(21,128,61,0.18)",
+  },
+  countBadgeText: { fontSize: 15, fontWeight: "700", color: T.green },
 
-  statsRow: { flexDirection: "row", justifyContent: "space-around" },
-  statItem: { flex: 1, alignItems: "center" },
-  statNum: { fontSize: 15, fontWeight: "700", color: T.green, letterSpacing: -0.3 },
+  statsRow: { flexDirection: "row", gap: 10 },
+  statPill: {
+    flex: 1, alignItems: "center",
+    backgroundColor: T.bg,
+    borderRadius: 12, paddingVertical: 10,
+    borderWidth: 1, borderColor: T.border,
+  },
+  statNum: { fontSize: 15, fontWeight: "700", color: T.ink, letterSpacing: -0.3 },
   statLabel: { fontSize: 9, color: T.mute, marginTop: 2, letterSpacing: 0.3 },
-  statDivider: { width: 1, backgroundColor: "rgba(255,255,255,0.4)", marginVertical: 2 },
 
   tabRow: { flexDirection: "row", gap: 10 },
   tab: {
     flex: 1, paddingVertical: 10, alignItems: "center", borderRadius: 100,
-    backgroundColor: "rgba(255,255,255,0.55)",
-    borderWidth: 1, borderColor: "rgba(255,255,255,0.85)",
+    backgroundColor: T.bg,
+    borderWidth: 1, borderColor: T.border,
   },
-  tabActive: { backgroundColor: "rgba(61,107,71,0.88)", borderColor: "rgba(61,107,71,0.60)" },
+  tabActive: { backgroundColor: T.green, borderColor: T.green },
   tabText: { fontSize: 13, fontWeight: "600", color: T.mute },
-  tabTextActive: { color: "#fff", fontWeight: "700" },
+  tabTextActive: { color: "#FFFFFF", fontWeight: "700" },
 
   list: { paddingHorizontal: 16 },
 
@@ -396,9 +408,11 @@ const styles = StyleSheet.create({
   cardTop: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", padding: 14, paddingStart: 18 },
   restaurantName: { fontSize: 15, fontWeight: "700", color: T.ink, marginBottom: 3 },
   area: { fontSize: 12, color: T.mute },
-  statusPill: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 100, borderWidth: 1, marginLeft: 10 },
+  statusPill: { flexDirection: "row", alignItems: "center", paddingHorizontal: 10, paddingVertical: 4, borderRadius: 100, borderWidth: 1, marginLeft: 10 },
+  statusPillFulfilled: { backgroundColor: "rgba(13,122,62,0.12)", borderColor: "rgba(13,122,62,0.30)" },
+  statusPillCancelled: { backgroundColor: "rgba(220,38,38,0.10)", borderColor: "rgba(220,38,38,0.30)" },
   statusText: { fontSize: 11, fontWeight: "700" },
-  divider: { height: 1, backgroundColor: "rgba(255,255,255,0.25)", marginHorizontal: 14 },
+  divider: { height: 1, backgroundColor: "rgba(15,23,42,0.06)", marginHorizontal: 14 },
   bagTitle: { fontSize: 14, fontWeight: "600", color: T.ink, marginHorizontal: 18, marginTop: 10, marginBottom: 4 },
   pickupRow: { flexDirection: "row", alignItems: "center", gap: 4, marginHorizontal: 18, marginBottom: 10 },
   pickupTime: { fontSize: 12, color: T.mute },
@@ -408,9 +422,9 @@ const styles = StyleSheet.create({
   // Green code tile
   codeTile: {
     flex: 1, alignItems: "center", paddingVertical: 14,
-    backgroundColor: "rgba(61,107,71,0.10)",
+    backgroundColor: "rgba(21,128,61,0.08)",
     borderRadius: 14,
-    borderWidth: 1, borderColor: "rgba(61,107,71,0.20)",
+    borderWidth: 1, borderColor: "rgba(21,128,61,0.18)",
   },
   codeLabel: { fontSize: 9, color: T.green, letterSpacing: 1, textTransform: "uppercase", fontWeight: "700", marginBottom: 6 },
   codeValue: { fontSize: 26, fontWeight: "800", color: T.green, letterSpacing: 5 },

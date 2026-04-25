@@ -15,7 +15,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 import { supabase } from "../lib/supabase";
 import { useLanguage } from "../lang/LanguageContext";
-import { GlassPanel, GlassButton, Chip, T, WallpaperBackground, WALLPAPER, TextBackdrop, ar, InlineError } from "../components/Glass";
+import { GlassPanel, GlassButton, Chip, T, WallpaperBackground, TextBackdrop, ar, InlineError, FONTS } from "../components/Glass";
 import { haptic } from "../lib/haptics";
 
 export default function BagDetailScreen({ route, navigation }) {
@@ -79,7 +79,7 @@ export default function BagDetailScreen({ route, navigation }) {
   return (
     <View style={styles.root}>
       <StatusBar barStyle="dark-content" translucent backgroundColor="transparent" />
-      <WallpaperBackground />
+
 
       <ScrollView
         style={styles.scroll}
@@ -90,7 +90,7 @@ export default function BagDetailScreen({ route, navigation }) {
         <View style={styles.heroWrapper}>
           <Image source={{ uri: bag.image }} style={styles.heroImage} resizeMode="cover" />
           <LinearGradient
-            colors={["transparent", "rgba(253,252,249,0.6)", "#fdfcf9"]}
+            colors={["transparent", "rgba(250,247,244,0.7)", "#FAF7F4"]}
             style={styles.heroFade}
           />
           <View style={[styles.heroTopBar, { paddingTop: insets.top + 10 }, isRTL && styles.rtlRow]}>
@@ -125,7 +125,7 @@ export default function BagDetailScreen({ route, navigation }) {
           </TextBackdrop>
 
           {/* Price card */}
-          <GlassPanel radius={18} padding={16} style={{ marginBottom: 12 }}>
+          <GlassPanel radius={18} padding={16} style={{ marginBottom: 12, backgroundColor: T.greenLight, borderColor: "rgba(21,128,61,0.22)" }}>
             <View style={[styles.priceRow, isRTL && styles.rtlRow]}>
               <View>
                 <Text style={[styles.priceCap, isRTL && styles.rtl]}>{t("youPay")}</Text>
@@ -237,7 +237,6 @@ export default function BagDetailScreen({ route, navigation }) {
       <Modal visible={confirmModal} transparent animationType="slide" onRequestClose={() => setConfirmModal(false)}>
         <View style={styles.modalOverlay}>
           <View style={[styles.modalSheet, { paddingBottom: insets.bottom + 20 }]}>
-            <LinearGradient colors={WALLPAPER.colors} start={WALLPAPER.start} end={WALLPAPER.end} style={StyleSheet.absoluteFill} />
             <View style={styles.modalHandle} />
 
             <View style={[styles.modalHeader, isRTL && styles.rtlRow]}>
@@ -267,7 +266,7 @@ export default function BagDetailScreen({ route, navigation }) {
 
             {/* Payment method */}
             {paymentMethod && (
-              <GlassPanel radius={16} padding={14} style={{ flexDirection: "row", gap: 12, alignItems: "center", marginBottom: 16 }}>
+              <GlassPanel radius={16} padding={14} style={{ flexDirection: isRTL ? "row-reverse" : "row", gap: 12, alignItems: "center", marginBottom: 16 }}>
                 <View style={styles.cardIcon}>
                   <Ionicons name="card-outline" size={18} color={T.green} />
                 </View>
@@ -294,14 +293,14 @@ export default function BagDetailScreen({ route, navigation }) {
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1 },
+  root: { flex: 1, backgroundColor: T.bg },
   scroll: { flex: 1 },
   rtl: { textAlign: "right", writingDirection: "rtl" },
   rtlRow: { flexDirection: "row-reverse" },
 
   // Hero
   heroWrapper: { height: 300, position: "relative" },
-  heroImage: { width: "100%", height: 300, backgroundColor: "rgba(26,34,24,0.08)" },
+  heroImage: { width: "100%", height: 300, backgroundColor: "rgba(15,23,42,0.06)" },
   heroFade: { position: "absolute", bottom: 0, left: 0, right: 0, height: 120 },
   heroTopBar: {
     position: "absolute", top: 0, left: 0, right: 0,
@@ -310,8 +309,8 @@ const styles = StyleSheet.create({
   },
   circleBtn: {
     width: 44, height: 44, borderRadius: 22,
-    backgroundColor: "rgba(255,255,255,0.82)",
-    borderWidth: 1, borderColor: "rgba(255,255,255,0.95)",
+    backgroundColor: "#FFFFFF",
+    borderWidth: 1, borderColor: "rgba(15,23,42,0.06)",
     alignItems: "center", justifyContent: "center",
   },
   discountPill: {
@@ -322,20 +321,20 @@ const styles = StyleSheet.create({
   // Content
   content: { paddingHorizontal: 18, paddingTop: 14 },
   restaurantRow: { flexDirection: "row", alignItems: "center", gap: 10 },
-  logo: { width: 32, height: 32, borderRadius: 16, backgroundColor: "rgba(26,34,24,0.08)" },
+  logo: { width: 32, height: 32, borderRadius: 16, backgroundColor: "rgba(15,23,42,0.06)" },
   restaurantName: { fontSize: 13, fontWeight: "700", color: T.ink },
   restaurantMeta: { fontSize: 11, color: T.mute, marginTop: 1 },
   urgentBadge: { backgroundColor: "rgba(224,92,74,0.12)", borderRadius: 100, paddingHorizontal: 10, paddingVertical: 4 },
   urgentText: { fontSize: 11, fontWeight: "700", color: T.urgent },
 
-  bagTitle: { fontSize: 28, fontWeight: "800", color: T.ink, letterSpacing: -0.8, lineHeight: 32, marginTop: 10 },
+  bagTitle: { fontSize: 28, fontWeight: "800", color: T.ink, letterSpacing: -0.8, lineHeight: 32, marginTop: 10, fontFamily: FONTS.bold },
 
   // Price
   priceRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
   priceCap: { fontSize: 9, letterSpacing: 1, textTransform: "uppercase", color: T.muteStrong, fontWeight: "700", marginBottom: 4 },
   priceMain: { fontSize: 30, fontWeight: "800", color: T.accent, letterSpacing: -0.8 },
   priceOriginal: { fontSize: 12, color: T.muteStrong, textDecorationLine: "line-through" },
-  savePill: { backgroundColor: "rgba(61,107,71,0.12)", borderRadius: 100, paddingHorizontal: 10, paddingVertical: 4 },
+  savePill: { backgroundColor: "rgba(21,128,61,0.10)", borderRadius: 100, paddingHorizontal: 10, paddingVertical: 4 },
   savePillText: { fontSize: 11, fontWeight: "700", color: T.green },
 
   // Pickup
@@ -345,7 +344,7 @@ const styles = StyleSheet.create({
   pickupLabel: { fontSize: 9, color: T.muteStrong, textTransform: "uppercase", letterSpacing: 0.5 },
   pickupTime: { fontSize: 22, fontWeight: "800", color: T.green, letterSpacing: -0.5 },
   pickupArrow: { opacity: 0.4 },
-  todayPill: { backgroundColor: "rgba(61,107,71,0.12)", borderRadius: 100, paddingHorizontal: 10, paddingVertical: 4 },
+  todayPill: { backgroundColor: "rgba(21,128,61,0.10)", borderRadius: 100, paddingHorizontal: 10, paddingVertical: 4 },
   todayText: { fontSize: 10, fontWeight: "700", color: T.green },
 
   // Serves
@@ -356,7 +355,7 @@ const styles = StyleSheet.create({
   sectionCapRow: { flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 10 },
   sectionCap: { fontSize: 9, letterSpacing: 1.4, textTransform: "uppercase", color: T.muteStrong, fontWeight: "700" },
   expectRow: { flexDirection: "row", alignItems: "center", gap: 12, paddingHorizontal: 16, paddingVertical: 12 },
-  expectDivider: { borderBottomWidth: 1, borderBottomColor: "rgba(26,34,24,0.06)" },
+  expectDivider: { borderBottomWidth: 1, borderBottomColor: "rgba(15,23,42,0.05)" },
   expectDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: T.greenBright, flexShrink: 0 },
   expectText: { fontSize: 13, color: T.ink, flex: 1, lineHeight: 19 },
 
@@ -369,17 +368,17 @@ const styles = StyleSheet.create({
 
   // Modal
   modalOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.35)", justifyContent: "flex-end" },
-  modalSheet: { borderTopLeftRadius: 28, borderTopRightRadius: 28, paddingHorizontal: 20, paddingTop: 12, overflow: "hidden" },
-  modalHandle: { width: 36, height: 4, backgroundColor: "rgba(26,34,24,0.18)", borderRadius: 2, alignSelf: "center", marginBottom: 20 },
+  modalSheet: { borderTopLeftRadius: 28, borderTopRightRadius: 28, paddingHorizontal: 20, paddingTop: 12, overflow: "hidden", backgroundColor: "#FFFFFF" },
+  modalHandle: { width: 36, height: 4, backgroundColor: "rgba(15,23,42,0.12)", borderRadius: 2, alignSelf: "center", marginBottom: 20 },
   modalHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 18 },
   modalTitle: { fontSize: 18, fontWeight: "800", color: T.ink },
   summaryRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingVertical: 12, paddingHorizontal: 16 },
   summaryLabel: { fontSize: 13, color: T.mute },
   summaryValue: { fontSize: 13, fontWeight: "600", color: T.ink, maxWidth: "55%", textAlign: "right" },
-  rowDivider: { height: 1, backgroundColor: "rgba(26,34,24,0.06)", marginHorizontal: 14 },
+  rowDivider: { height: 1, backgroundColor: "rgba(15,23,42,0.05)", marginHorizontal: 14 },
   cardIcon: {
     width: 38, height: 38, borderRadius: 19,
-    backgroundColor: "rgba(61,107,71,0.12)",
+    backgroundColor: "rgba(21,128,61,0.10)",
     alignItems: "center", justifyContent: "center",
   },
 });

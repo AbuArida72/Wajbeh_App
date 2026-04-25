@@ -11,7 +11,7 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useLanguage } from "../lang/LanguageContext";
-import { GlassPanel, T, WallpaperBackground, TextBackdrop, ar } from "../components/Glass";
+import { GlassPanel, T, WallpaperBackground, TextBackdrop, ar, FONTS } from "../components/Glass";
 
 export default function ContactScreen({ navigation }) {
   const insets = useSafeAreaInsets();
@@ -21,9 +21,9 @@ export default function ContactScreen({ navigation }) {
   const CONTACT_ITEMS = [
     {
       label: "Email",
-      value: "support@zaytoon.jo",
+      value: "support@wajbeh.jo",
       icon: "mail-outline",
-      action: () => Linking.openURL("mailto:support@zaytoon.jo"),
+      action: () => Linking.openURL("mailto:support@wajbeh.jo"),
     },
     {
       label: "WhatsApp",
@@ -33,9 +33,9 @@ export default function ContactScreen({ navigation }) {
     },
     {
       label: "Instagram",
-      value: "@zaytoon.jo",
+      value: "@wajbeh.jo",
       icon: "logo-instagram",
-      action: () => Linking.openURL("https://instagram.com/zaytoon.jo"),
+      action: () => Linking.openURL("https://instagram.com/wajbeh.jo"),
     },
   ];
 
@@ -49,17 +49,14 @@ export default function ContactScreen({ navigation }) {
   return (
     <View style={styles.root}>
       <StatusBar barStyle="dark-content" />
-      <WallpaperBackground />
 
       {/* Header */}
       <View style={[styles.header, { paddingTop: insets.top + 14 }, isRTL && styles.rtlRow]}>
         <TouchableOpacity
           onPress={() => navigation.goBack()}
-          style={{ width: 38, height: 38 }}
+          style={styles.backBtn}
         >
-          <GlassPanel radius={50} style={{ width: 38, height: 38, alignItems: "center", justifyContent: "center" }}>
-            <Ionicons name={isRTL ? "arrow-forward" : "arrow-back"} size={18} color={T.ink} />
-          </GlassPanel>
+          <Ionicons name={isRTL ? "arrow-forward" : "arrow-back"} size={18} color={T.ink} />
         </TouchableOpacity>
         <Text style={[styles.headerTitle, isRTL && styles.rtl, ar(isRTL, "bold")]}>{t("contactTitle")}</Text>
         <View style={{ width: 38 }} />
@@ -126,22 +123,30 @@ export default function ContactScreen({ navigation }) {
           ))}
         </GlassPanel>
 
-        <Text style={styles.footerText}>Zaytoon · Save food. Save money.</Text>
+        <Text style={styles.footerText}>{t("appTagline")}</Text>
       </ScrollView>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1 },
+  root: { flex: 1, backgroundColor: T.bg },
   rtl: { textAlign: "right", writingDirection: "rtl" },
   rtlRow: { flexDirection: "row-reverse" },
 
   header: {
+    backgroundColor: "#FFFFFF",
     flexDirection: "row", alignItems: "center", justifyContent: "space-between",
     paddingHorizontal: 20, paddingBottom: 14,
+    borderBottomWidth: 1, borderBottomColor: T.border,
   },
-  headerTitle: { fontSize: 17, fontWeight: "700", color: T.ink },
+  backBtn: {
+    width: 44, height: 44, borderRadius: 22,
+    backgroundColor: T.bg,
+    borderWidth: 1, borderColor: T.border,
+    alignItems: "center", justifyContent: "center",
+  },
+  headerTitle: { fontSize: 17, fontWeight: "700", color: T.ink, fontFamily: FONTS.bold },
 
   content: { paddingHorizontal: 20, paddingTop: 16 },
 
@@ -159,7 +164,7 @@ const styles = StyleSheet.create({
   faqQuestion: { flex: 1, fontSize: 13, fontWeight: "600", color: T.ink, lineHeight: 19 },
   faqAnswer: { fontSize: 12, color: T.mute, lineHeight: 19, paddingHorizontal: 16, paddingBottom: 16 },
 
-  divider: { height: 1, backgroundColor: "rgba(255,255,255,0.3)", marginHorizontal: 14 },
+  divider: { height: 1, backgroundColor: "rgba(15,23,42,0.06)", marginHorizontal: 14 },
 
   footerText: { fontSize: 11, color: T.muteStrong, textAlign: "center", marginTop: 8 },
 });

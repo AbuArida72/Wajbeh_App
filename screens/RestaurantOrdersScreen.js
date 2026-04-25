@@ -8,9 +8,9 @@ import {
   ActivityIndicator,
   RefreshControl,
   TextInput,
-  Alert,
   StatusBar,
 } from "react-native";
+import AppDialog, { useDialog } from "../components/AppDialog";
 import { useFocusEffect } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
 import { supabase } from "../lib/supabase";
@@ -21,6 +21,7 @@ import { GlassPanel, T, WallpaperBackground, ar } from "../components/Glass";
 export default function RestaurantOrdersScreen() {
   const insets = useSafeAreaInsets();
   const { t, isRTL } = useLanguage();
+  const { dialogProps, alert: showAlert } = useDialog();
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -75,7 +76,7 @@ export default function RestaurantOrdersScreen() {
     if (data && data.bags?.restaurant_id === restaurantId) {
       setFoundOrder(data);
     } else {
-      Alert.alert(t("noReservationsTitle"), t("noReservationFound"));
+      showAlert(t("noReservationsTitle"), t("noReservationFound"));
     }
     setSearching(false);
   };
@@ -88,14 +89,14 @@ export default function RestaurantOrdersScreen() {
       .eq("id", orderId)
       .select();
     if (error) {
-      Alert.alert("Error", error.message);
+      showAlert("Error", error.message);
     } else if (!data || data.length === 0) {
-      Alert.alert("Error", "Could not update order.");
+      showAlert("Error", t("updateOrderError"));
     } else {
       setFoundOrder(null);
       setCode("");
       fetchOrders();
-      Alert.alert("Confirmed!", "Ask the customer to confirm pickup in their app.");
+      showAlert(t("confirmCustomerArrival"), t("confirmArrivalMsg"));
     }
     setConfirming(false);
   };
@@ -109,10 +110,10 @@ export default function RestaurantOrdersScreen() {
 
   const getStatusConfig = (status) => {
     switch (status) {
-      case "reserved":   return { label: t("pendingLabel"),      color: T.green,  bg: "rgba(61,107,71,0.10)",  border: "rgba(61,107,71,0.20)" };
+      case "reserved":   return { label: t("pendingLabel"),      color: T.green,  bg: "rgba(21,128,61,0.08)",  border: "rgba(21,128,61,0.18)" };
       case "arriving":   return { label: t("pendingPickupConf"), color: T.accent, bg: "rgba(232,153,58,0.10)", border: "rgba(232,153,58,0.22)" };
-      case "picked_up":  return { label: t("fulfilledLabel"),    color: T.muteStrong, bg: "rgba(26,34,24,0.06)", border: "rgba(26,34,24,0.10)" };
-      default:           return { label: status,                 color: T.muteStrong, bg: "rgba(26,34,24,0.06)", border: "rgba(26,34,24,0.10)" };
+      case "picked_up":  return { label: t("fulfilledLabel"),    color: T.muteStrong, bg: "rgba(15,23,42,0.05)", border: "rgba(15,23,42,0.08)" };
+      default:           return { label: status,                 color: T.muteStrong, bg: "rgba(15,23,42,0.05)", border: "rgba(15,23,42,0.08)" };
     }
   };
 
@@ -160,8 +161,8 @@ export default function RestaurantOrdersScreen() {
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="dark-content" translucent backgroundColor="transparent" />
-      <WallpaperBackground />
+      <StatusBar barStyle="dark-content" />
+
 
       <FlatList
         data={displayOrders}
@@ -343,15 +344,20 @@ export default function RestaurantOrdersScreen() {
           )
         }
       />
+      <AppDialog {...dialogProps} />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
+  container: { flex: 1, backgroundColor: T.bg },
 
   // ── Scan section ──
-  scanSection: { paddingHorizontal: 20, paddingBottom: 20 },
+  scanSection: {
+    paddingHorizontal: 20, paddingBottom: 24,
+    backgroundColor: "#FFFFFF",
+    borderBottomWidth: 1, borderBottomColor: T.border,
+  },
   scanTitle: { fontSize: 22, fontWeight: "800", color: T.ink, marginBottom: 4, textAlign: "center", letterSpacing: -0.5 },
   scanSubtitle: { fontSize: 13, color: T.mute, marginBottom: 20, textAlign: "center" },
 
@@ -359,13 +365,13 @@ const styles = StyleSheet.create({
   codeInputRow: { flexDirection: "row", gap: 8, justifyContent: "center", marginBottom: 16 },
   codeBox: {
     width: 44, height: 56, borderRadius: 12,
-    backgroundColor: "rgba(255,255,255,0.72)",
-    borderWidth: 1.5, borderColor: "rgba(26,34,24,0.12)",
+    backgroundColor: T.bg,
+    borderWidth: 1.5, borderColor: T.border,
     alignItems: "center", justifyContent: "center",
   },
   codeBoxFilled: {
-    backgroundColor: "rgba(61,107,71,0.10)",
-    borderColor: "rgba(61,107,71,0.45)",
+    backgroundColor: "rgba(21,128,61,0.08)",
+    borderColor: "rgba(21,128,61,0.45)",
   },
   codeBoxActive: {
     borderColor: T.green,
@@ -403,14 +409,14 @@ const styles = StyleSheet.create({
   // Found order card internals
   foundHeader: {
     flexDirection: "row", alignItems: "center", gap: 8,
-    backgroundColor: "rgba(61,107,71,0.10)",
+    backgroundColor: "rgba(21,128,61,0.08)",
     paddingHorizontal: 16, paddingVertical: 12,
-    borderBottomWidth: 1, borderBottomColor: "rgba(61,107,71,0.12)",
+    borderBottomWidth: 1, borderBottomColor: "rgba(21,128,61,0.10)",
   },
   foundHeaderText: { fontSize: 14, fontWeight: "700", color: T.green },
   foundBody: { paddingHorizontal: 16, paddingTop: 8, paddingBottom: 4 },
   foundRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingVertical: 10 },
-  foundDivider: { height: 1, backgroundColor: "rgba(26,34,24,0.06)" },
+  foundDivider: { height: 1, backgroundColor: "rgba(15,23,42,0.05)" },
   foundLabel: { fontSize: 13, color: T.mute },
   foundValue: { fontSize: 13, fontWeight: "600", color: T.ink },
   foundValueAccent: { fontSize: 17, fontWeight: "800", color: T.accent },
@@ -428,16 +434,16 @@ const styles = StyleSheet.create({
   statItem: { flex: 1, alignItems: "center" },
   statNum: { fontSize: 15, fontWeight: "700", color: T.green, letterSpacing: -0.3, marginBottom: 2 },
   statLabel: { fontSize: 9, color: T.mute, letterSpacing: 0.3 },
-  statDivider: { width: 1, backgroundColor: "rgba(26,34,24,0.08)", marginHorizontal: 4, height: 28, alignSelf: "center" },
+  statDivider: { width: 1, backgroundColor: "rgba(15,23,42,0.06)", marginHorizontal: 4, height: 28, alignSelf: "center" },
 
   // Tabs
   tabRow: { flexDirection: "row", marginHorizontal: 16, marginBottom: 14, gap: 10 },
   tab: {
     flex: 1, paddingVertical: 10, alignItems: "center", borderRadius: 100,
-    backgroundColor: "rgba(255,255,255,0.55)",
-    borderWidth: 1, borderColor: "rgba(255,255,255,0.85)",
+    backgroundColor: "rgba(26,26,26,0.04)",
+    borderWidth: 1, borderColor: "rgba(26,26,26,0.10)",
   },
-  tabActive: { backgroundColor: "rgba(61,107,71,0.88)", borderColor: "rgba(61,107,71,0.60)" },
+  tabActive: { backgroundColor: "rgba(21,128,61,0.85)", borderColor: "rgba(21,128,61,0.55)" },
   tabText: { fontSize: 13, fontWeight: "600", color: T.mute },
   tabTextActive: { color: "#fff", fontWeight: "700" },
 
@@ -451,12 +457,12 @@ const styles = StyleSheet.create({
   orderDate: { fontSize: 12, color: T.mute },
   statusBadge: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 100, borderWidth: 1, marginLeft: 10 },
   statusText: { fontSize: 11, fontWeight: "700" },
-  rowDivider: { height: 1, backgroundColor: "rgba(26,34,24,0.06)", marginHorizontal: 14 },
+  rowDivider: { height: 1, backgroundColor: "rgba(15,23,42,0.05)", marginHorizontal: 14 },
   orderBottom: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingHorizontal: 18, paddingVertical: 12 },
   orderPrice: { fontSize: 17, fontWeight: "800", color: T.accent },
   awaitingBadge: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 100, borderWidth: 1 },
   awaitingText: { fontSize: 11, fontWeight: "600" },
-  fulfilledBadge: { flexDirection: "row", alignItems: "center", gap: 4, backgroundColor: "rgba(61,107,71,0.10)", paddingHorizontal: 10, paddingVertical: 5, borderRadius: 100 },
+  fulfilledBadge: { flexDirection: "row", alignItems: "center", gap: 4, backgroundColor: "rgba(21,128,61,0.08)", paddingHorizontal: 10, paddingVertical: 5, borderRadius: 100 },
   fulfilledBadgeText: { fontSize: 11, fontWeight: "600" },
 
   // Empty & loading

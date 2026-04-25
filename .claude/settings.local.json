@@ -3,7 +3,15 @@
     "allow": [
       "Bash(npm install:*)",
       "Bash(npx expo *)",
-      "Bash(eas build *)"
+      "Bash(eas build *)",
+      "Bash(sed -i 's/.*<WallpaperBackground \\\\/>//g' SignInScreen.js SignUpScreen.js ProfileScreen.js OrdersScreen.js DashboardScreen.js PaymentScreen.js BagDetailScreen.js SearchScreen.js ConfirmationScreen.js ContactScreen.js RestaurantOrdersScreen.js MapScreen.js)",
+      "Bash(sed -i \"s/root: { flex: 1 },/root: { flex: 1, backgroundColor: T.bg },/g\" SignInScreen.js SignUpScreen.js ProfileScreen.js OrdersScreen.js DashboardScreen.js PaymentScreen.js BagDetailScreen.js SearchScreen.js ConfirmationScreen.js ContactScreen.js RestaurantOrdersScreen.js)",
+      "Bash(sed -i \"s/root: { flex: 1, backgroundColor: \\\\\"#FFFFFF\\\\\" }/root: { flex: 1, backgroundColor: T.bg }/g\" SignInScreen.js SignUpScreen.js ProfileScreen.js OrdersScreen.js)",
+      "Bash(sed -i 's|colors={\\\\[\"transparent\", \"rgba\\(248,247,242,0.6\\)\", \"#F8F7F2\"\\\\]}|colors={[\"transparent\", \"rgba\\(241,245,249,0.7\\)\", \"#F1F5F9\"]}|g' screens/BagDetailScreen.js)",
+      "Bash(sed -i 's/rgba\\(26,34,24,0\\\\.08\\)/rgba\\(15,23,42,0.06\\)/g; s/rgba\\(26,34,24,0\\\\.06\\)/rgba\\(15,23,42,0.05\\)/g; s/rgba\\(26,34,24,0\\\\.07\\)/rgba\\(15,23,42,0.06\\)/g; s/rgba\\(26,34,24,0\\\\.10\\)/rgba\\(15,23,42,0.08\\)/g; s/rgba\\(26,34,24,0\\\\.2\\)/rgba\\(15,23,42,0.15\\)/g; s/rgba\\(26,34,24,0\\\\.18\\)/rgba\\(15,23,42,0.12\\)/g; s/rgba\\(26,34,24,0\\\\.20\\)/rgba\\(15,23,42,0.15\\)/g' screens/*.js)",
+      "Bash(sed -i 's/rgba\\(61,107,71,0\\\\.10\\)/rgba\\(21,128,61,0.08\\)/g; s/rgba\\(61,107,71,0\\\\.12\\)/rgba\\(21,128,61,0.10\\)/g; s/rgba\\(61,107,71,0\\\\.15\\)/rgba\\(21,128,61,0.12\\)/g; s/rgba\\(61,107,71,0\\\\.18\\)/rgba\\(21,128,61,0.15\\)/g; s/rgba\\(61,107,71,0\\\\.20\\)/rgba\\(21,128,61,0.18\\)/g; s/rgba\\(61,107,71,0\\\\.22\\)/rgba\\(21,128,61,0.18\\)/g; s/rgba\\(61,107,71,0\\\\.25\\)/rgba\\(21,128,61,0.20\\)/g; s/rgba\\(61,107,71,0\\\\.60\\)/rgba\\(21,128,61,0.55\\)/g; s/rgba\\(61,107,71,0\\\\.88\\)/rgba\\(21,128,61,0.85\\)/g' screens/*.js)",
+      "Bash(sed -i 's/rgba\\(26,26,26,0\\\\.06\\)/rgba\\(15,23,42,0.05\\)/g; s/rgba\\(26,26,26,0\\\\.07\\)/rgba\\(15,23,42,0.06\\)/g; s/rgba\\(26,26,26,0\\\\.08\\)/rgba\\(15,23,42,0.06\\)/g' screens/*.js)",
+      "Bash(npx tsc *)"
     ]
   }
 }

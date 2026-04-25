@@ -5,13 +5,12 @@ import {
   StyleSheet,
   TouchableOpacity,
   ActivityIndicator,
-  Alert,
   Linking,
   Platform,
 } from "react-native";
+import AppDialog, { useDialog } from "../components/AppDialog";
 import MapView, { Marker } from "react-native-maps";
 import * as Location from "expo-location";
-import { BlurView } from "expo-blur";
 import { Ionicons } from "@expo/vector-icons";
 import { supabase } from "../lib/supabase";
 import { useLanguage } from "../lang/LanguageContext";
@@ -25,12 +24,13 @@ const AMMAN_REGION = {
   longitudeDelta: 0.05,
 };
 
-const SUPPORT_EMAIL = "support@zaytoon.jo";
+const SUPPORT_EMAIL = "support@wajbeh.jo";
 const SUPPORT_WA    = "https://wa.me/96270000000";
 
 export default function MapScreen() {
   const { t, isRTL } = useLanguage();
   const insets = useSafeAreaInsets();
+  const { dialogProps, alert: showAlert } = useDialog();
   const [loading, setLoading]       = useState(true);
   const [saving, setSaving]         = useState(false);
   const [restaurant, setRestaurant] = useState(null);
@@ -112,10 +112,10 @@ export default function MapScreen() {
       .eq("id", restaurant.id);
 
     if (error) {
-      Alert.alert(t("error") || "Error", t("locationSaveError"));
+      showAlert(t("error") || "Error", t("locationSaveError"));
     } else {
       setSavedMarker({ ...marker });
-      Alert.alert(t("locationSaved"), t("locationSavedMsg"));
+      showAlert(t("locationSaved"), t("locationSavedMsg"));
     }
     setSaving(false);
   };
@@ -129,7 +129,7 @@ export default function MapScreen() {
   const useMyLocation = async () => {
     const { status } = await Location.requestForegroundPermissionsAsync();
     if (status !== "granted") {
-      Alert.alert(t("permissionNeeded"), t("locationPermissionMsg"));
+      showAlert(t("permissionNeeded"), t("locationPermissionMsg"));
       return;
     }
     const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
@@ -159,7 +159,7 @@ export default function MapScreen() {
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
-        <WallpaperBackground />
+
         <GlassPanel radius={20} padding={28} style={styles.loadingCard}>
           <ActivityIndicator size="large" color={T.green} />
           <Text style={[styles.loadingText, ar(isRTL)]}>{t("loadingMap")}</Text>
@@ -170,10 +170,8 @@ export default function MapScreen() {
 
   return (
     <View style={styles.container}>
-      {/* ── TOP BAR (glass) ── */}
+      {/* ── TOP BAR ── */}
       <View style={[styles.topBar, { paddingTop: insets.top + 10 }]}>
-        <BlurView intensity={85} tint="light" style={StyleSheet.absoluteFill} />
-        <View style={styles.topBarSheen} />
         <View style={[styles.topBarInner, isRTL && styles.rtlRow]}>
           {/* Status dot + name */}
           <View style={[styles.topBarTexts, isRTL && { alignItems: "flex-end" }]}>
@@ -246,10 +244,8 @@ export default function MapScreen() {
         )}
       </View>
 
-      {/* ── BOTTOM BAR (glass) ── */}
+      {/* ── BOTTOM BAR ── */}
       <View style={[styles.bottomBar, { paddingBottom: insets.bottom + 12 }]}>
-        <BlurView intensity={85} tint="light" style={StyleSheet.absoluteFill} />
-        <View style={styles.bottomBarSheen} />
 
         {savedMarker ? (
           /* Location locked — show contact-us section */
@@ -334,12 +330,13 @@ export default function MapScreen() {
           </View>
         )}
       </View>
+      <AppDialog {...dialogProps} />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#f3f2ec" },
+  container: { flex: 1, backgroundColor: "#F8F7F2" },
   rtl:       { textAlign: "right", writingDirection: "rtl" },
   rtlRow:    { flexDirection: "row-reverse" },
 
@@ -353,14 +350,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingBottom: 14,
     borderBottomWidth: 1,
-    borderBottomColor: "rgba(255,255,255,0.7)",
-    overflow: "hidden",
+    borderBottomColor: "rgba(15,23,42,0.06)",
+    backgroundColor: "#FFFFFF",
     zIndex: 10,
-  },
-  topBarSheen: {
-    position: "absolute",
-    top: 0, left: 0, right: 0, height: 1,
-    backgroundColor: "rgba(255,255,255,0.95)",
   },
   topBarInner: {
     flexDirection: "row",
@@ -394,16 +386,15 @@ const styles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: 14,
-    overflow: "hidden",
-    backgroundColor: "rgba(255,255,255,0.80)",
+    backgroundColor: "#FFFFFF",
     alignItems: "center",
     justifyContent: "center",
     gap: 2,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.9)",
-    shadowColor: "rgba(26,34,24,0.16)",
+    borderColor: "rgba(26,26,26,0.10)",
+    shadowColor: "#000",
     shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 1,
+    shadowOpacity: 0.10,
     shadowRadius: 8,
     elevation: 4,
   },
@@ -426,13 +417,8 @@ const styles = StyleSheet.create({
     paddingTop: 14,
     paddingHorizontal: 16,
     borderTopWidth: 1,
-    borderTopColor: "rgba(255,255,255,0.7)",
-    overflow: "hidden",
-  },
-  bottomBarSheen: {
-    position: "absolute",
-    top: 0, left: 0, right: 0, height: 1,
-    backgroundColor: "rgba(255,255,255,0.95)",
+    borderTopColor: "rgba(15,23,42,0.06)",
+    backgroundColor: "#FFFFFF",
   },
   bottomContent: { gap: 10 },
 
@@ -463,7 +449,7 @@ const styles = StyleSheet.create({
     color: "#fff",
   },
 
-  divider: { height: 1, backgroundColor: "rgba(26,34,24,0.07)" },
+  divider: { height: 1, backgroundColor: "rgba(15,23,42,0.06)" },
 
   // Contact section
   contactSection: { gap: 8 },
@@ -489,9 +475,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 10,
     borderRadius: 10,
-    backgroundColor: "rgba(61,107,71,0.10)",
+    backgroundColor: "rgba(21,128,61,0.08)",
     borderWidth: 1,
-    borderColor: "rgba(61,107,71,0.20)",
+    borderColor: "rgba(21,128,61,0.18)",
   },
   contactBtnWa: {
     backgroundColor: "#25D366",
@@ -512,11 +498,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 13,
     borderRadius: 12,
-    backgroundColor: "rgba(26,34,24,0.06)",
+    backgroundColor: "rgba(15,23,42,0.05)",
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 1,
-    borderColor: "rgba(26,34,24,0.10)",
+    borderColor: "rgba(15,23,42,0.08)",
   },
   cancelBtnText: { color: T.ink, fontWeight: "500", fontSize: 14 },
   saveBtn: {

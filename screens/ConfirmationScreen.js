@@ -32,21 +32,21 @@ export default function ConfirmationScreen({ route, navigation }) {
 
   return (
     <View style={styles.root}>
-      <WallpaperBackground />
+
       <SafeAreaView style={styles.safe}>
         <ScrollView
           contentContainerStyle={styles.container}
           showsVerticalScrollIndicator={false}
         >
-          {/* Success header */}
-          <View style={styles.successSection}>
-            <GlassPanel radius={40} style={styles.checkCircle}>
-              <Ionicons name="checkmark" size={34} color={T.green} />
-            </GlassPanel>
+          {/* Success banner — solid green */}
+          <View style={styles.successBand}>
+            <View style={styles.checkCircle}>
+              <Ionicons name="checkmark" size={36} color={T.green} />
+            </View>
             <Text style={[styles.successTitle, ar(isRTL, "bold")]}>{t("bagReserved")}</Text>
             <Text style={styles.successSub}>
               {t("showCodeAt")}{" "}
-              <Text style={{ color: T.ink, fontWeight: "700" }}>{bag.restaurant}</Text>{" "}
+              <Text style={{ color: "#FFFFFF", fontWeight: "700" }}>{bag.restaurant}</Text>{" "}
               {t("toCollect")}
             </Text>
           </View>
@@ -159,17 +159,36 @@ export default function ConfirmationScreen({ route, navigation }) {
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1 },
+  root: { flex: 1, backgroundColor: T.bg },
   safe: { flex: 1 },
   container: { flexGrow: 1, paddingHorizontal: 20, paddingTop: 16, paddingBottom: 32 },
   rtl: { textAlign: "right", writingDirection: "rtl" },
   rtlRow: { flexDirection: "row-reverse" },
 
-  // Success header
-  successSection: { alignItems: "center", marginBottom: 20, paddingTop: 8 },
-  checkCircle: { width: 72, height: 72, alignItems: "center", justifyContent: "center", marginBottom: 14 },
-  successTitle: { fontSize: 26, fontWeight: "800", color: T.ink, letterSpacing: -0.8, textAlign: "center", marginBottom: 8 },
-  successSub: { fontSize: 13, color: T.mute, textAlign: "center", lineHeight: 20, paddingHorizontal: 16 },
+  // Success banner
+  successBand: {
+    backgroundColor: T.green,
+    alignItems: "center",
+    marginHorizontal: -20,
+    marginTop: -16,
+    paddingTop: 40,
+    paddingBottom: 32,
+    paddingHorizontal: 32,
+    marginBottom: 24,
+  },
+  checkCircle: {
+    width: 76, height: 76, borderRadius: 38,
+    backgroundColor: "#FFFFFF",
+    alignItems: "center", justifyContent: "center",
+    marginBottom: 16,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 6,
+  },
+  successTitle: { fontSize: 24, fontWeight: "800", color: "#FFFFFF", letterSpacing: -0.6, textAlign: "center", marginBottom: 8 },
+  successSub: { fontSize: 13, color: "rgba(255,255,255,0.80)", textAlign: "center", lineHeight: 20 },
 
   // Thank you card
   thankYouCard: { marginBottom: 16 },
@@ -182,7 +201,7 @@ const styles = StyleSheet.create({
   codeLabel: { fontSize: 9, letterSpacing: 1.5, textTransform: "uppercase", color: T.muteStrong, fontWeight: "700", marginBottom: 14 },
   codeText: { fontSize: 40, fontWeight: "800", color: T.green, letterSpacing: 6 },
   dashedRow: { flexDirection: "row", gap: 3, marginTop: 16, marginBottom: 12 },
-  dashedDot: { width: 4, height: 1.5, backgroundColor: "rgba(26,34,24,0.2)", borderRadius: 1 },
+  dashedDot: { width: 4, height: 1.5, backgroundColor: "rgba(15,23,42,0.15)", borderRadius: 1 },
   codeHint: { fontSize: 10, color: T.muteStrong },
   lockBox: { alignItems: "center", gap: 8, paddingVertical: 8 },
   lockTitle: { fontSize: 14, fontWeight: "600", color: T.ink },
@@ -192,7 +211,7 @@ const styles = StyleSheet.create({
   savingsCard: { marginBottom: 20 },
   savingsRow: { flexDirection: "row", alignItems: "center" },
   savingsItem: { flex: 1, alignItems: "center" },
-  savingsDivider: { width: 1, height: 36, backgroundColor: "rgba(26,34,24,0.10)" },
+  savingsDivider: { width: 1, height: 36, backgroundColor: "rgba(15,23,42,0.08)" },
   savingsCap: { fontSize: 9, color: T.muteStrong, textTransform: "uppercase", letterSpacing: 0.8, fontWeight: "600", marginBottom: 4 },
   savingsPrice: { fontSize: 18, fontWeight: "800", color: T.accent, letterSpacing: -0.3 },
 
@@ -204,15 +223,15 @@ const styles = StyleSheet.create({
   detailLeft: { flexDirection: "row", alignItems: "center", gap: 9, flex: 1 },
   detailLabel: { fontSize: 13, color: T.mute },
   detailValue: { fontSize: 13, fontWeight: "600", color: T.ink, maxWidth: "50%", textAlign: "right" },
-  rowDivider: { height: 1, backgroundColor: "rgba(26,34,24,0.06)", marginHorizontal: 16 },
+  rowDivider: { height: 1, backgroundColor: "rgba(15,23,42,0.05)", marginHorizontal: 16 },
 
   // Steps
   stepRow: { flexDirection: "row", alignItems: "flex-start", gap: 12, paddingHorizontal: 16, paddingVertical: 13 },
-  stepBorder: { borderBottomWidth: 1, borderBottomColor: "rgba(26,34,24,0.06)" },
+  stepBorder: { borderBottomWidth: 1, borderBottomColor: "rgba(15,23,42,0.05)" },
   stepBadge: {
     width: 24, height: 24, borderRadius: 12,
-    backgroundColor: "rgba(61,107,71,0.12)",
-    borderWidth: 1, borderColor: "rgba(61,107,71,0.22)",
+    backgroundColor: "rgba(21,128,61,0.10)",
+    borderWidth: 1, borderColor: "rgba(21,128,61,0.18)",
     alignItems: "center", justifyContent: "center", flexShrink: 0,
   },
   stepNum: { fontSize: 12, fontWeight: "700", color: T.green },

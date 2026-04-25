@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "Zaytoon",
+    "name": "Wajbeh",
     "slug": "wajbeh",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -13,11 +13,11 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.zaytoon.app",
+      "bundleIdentifier": "com.wajbeh.app",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
-        "NSLocationWhenInUseUsageDescription": "Zaytoon uses your location to show nearby restaurants and help restaurants set their location on the map.",
-        "NSLocationAlwaysAndWhenInUseUsageDescription": "Zaytoon uses your location to show nearby restaurants."
+        "NSLocationWhenInUseUsageDescription": "Wajbeh uses your location to show nearby restaurants and help restaurants set their location on the map.",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "Wajbeh uses your location to show nearby restaurants."
       }
     },
     "android": {
@@ -25,7 +25,7 @@
         "foregroundImage": "./assets/icon.png",
         "backgroundColor": "#2E7D32"
       },
-      "package": "com.zaytoon.app",
+      "package": "com.wajbeh.app",
       "permissions": [
         "ACCESS_FINE_LOCATION",
         "ACCESS_COARSE_LOCATION"

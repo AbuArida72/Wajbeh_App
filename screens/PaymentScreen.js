@@ -6,13 +6,13 @@ import {
   TouchableOpacity,
   TextInput,
   ScrollView,
-  Alert,
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
   StatusBar,
   Animated,
 } from "react-native";
+import AppDialog, { useDialog } from "../components/AppDialog";
 import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { supabase } from "../lib/supabase";
@@ -100,12 +100,12 @@ function CardVisual({ number, name, expiry, cvv, cvvFocused, t }) {
             <Text style={styles.cardFieldValue}>{expiry || "MM/YY"}</Text>
           </View>
         </View>
-        <Text style={styles.cardWatermark}>ZAYTOON</Text>
+        <Text style={styles.cardWatermark}>WAJBEH</Text>
       </Animated.View>
 
       {/* ── Back face ── */}
       <Animated.View style={[styles.cardBack, { transform: [{ rotateY: backRotateY }], opacity: backOpacity }]}>
-        <Text style={styles.cardWatermark}>ZAYTOON</Text>
+        <Text style={styles.cardWatermark}>WAJBEH</Text>
         {/* Magnetic stripe */}
         <View style={styles.magStripe} />
         {/* Signature strip + CVV */}
@@ -127,6 +127,7 @@ function CardVisual({ number, name, expiry, cvv, cvvFocused, t }) {
 export default function PaymentScreen({ navigation }) {
   const { t, isRTL } = useLanguage();
   const insets = useSafeAreaInsets();
+  const { dialogProps, alert: showAlert, confirm: showConfirm } = useDialog();
 
   const [cardNumber, setCardNumber] = useState("");
   const [cardName, setCardName] = useState("");
@@ -244,37 +245,36 @@ export default function PaymentScreen({ navigation }) {
       setSavedSuccess(true);
       successTimer.current = setTimeout(() => setSavedSuccess(false), 3000);
     } catch (e) {
-      Alert.alert("Error", e.message);
+      showAlert("Error", e.message);
     } finally {
       setSaving(false);
     }
   };
 
   const handleRemove = () => {
-    Alert.alert(t("removeCard"), t("confirmRemoveCard"), [
-      { text: t("cancel"), style: "cancel" },
-      {
-        text: t("removeCard"),
-        style: "destructive",
-        onPress: async () => {
-          if (!existingCard) return;
-          const { error } = await supabase
-            .from("payment_methods")
-            .delete()
-            .eq("id", existingCard.id);
-          if (error) {
-            Alert.alert("Error", error.message);
-          } else {
-            setExistingCard(null);
-            setCardName("");
-            setExpiry("");
-            setCardNumber("");
-            setCvv("");
-            setEditMode(false);
-          }
-        },
+    showConfirm(
+      t("removeCard"),
+      t("confirmRemoveCard"),
+      async () => {
+        if (!existingCard) return;
+        const { error } = await supabase
+          .from("payment_methods")
+          .delete()
+          .eq("id", existingCard.id);
+        if (error) {
+          showAlert("Error", error.message);
+        } else {
+          setExistingCard(null);
+          setCardName("");
+          setExpiry("");
+          setCardNumber("");
+          setCvv("");
+          setEditMode(false);
+        }
       },
-    ]);
+      null,
+      { confirmText: t("removeCard"), cancelText: t("cancel"), danger: true },
+    );
   };
 
   // In view mode use the saved masked number; in edit mode use live input
@@ -289,7 +289,7 @@ export default function PaymentScreen({ navigation }) {
   if (loadingExisting) {
     return (
       <View style={styles.loadingWrap}>
-        <WallpaperBackground />
+
         <ActivityIndicator color={T.green} size="large" />
       </View>
     );
@@ -298,7 +298,7 @@ export default function PaymentScreen({ navigation }) {
   return (
     <View style={styles.wrapper}>
       <StatusBar barStyle="dark-content" translucent backgroundColor="transparent" />
-      <WallpaperBackground />
+
 
       {/* Header */}
       <View style={[styles.header, { paddingTop: insets.top + 12 }, isRTL && styles.rtlRow]}>
@@ -580,12 +580,13 @@ export default function PaymentScreen({ navigation }) {
           )}
         </ScrollView>
       </KeyboardAvoidingView>
+      <AppDialog {...dialogProps} />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  wrapper: { flex: 1, backgroundColor: "#fdfcf9" },
+  wrapper: { flex: 1, backgroundColor: "#F8F7F2" },
   loadingWrap: { flex: 1, justifyContent: "center", alignItems: "center" },
   rtl: { textAlign: "right", writingDirection: "rtl" },
   rtlRow: { flexDirection: "row-reverse" },
@@ -604,9 +605,9 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: "rgba(255,255,255,0.82)",
+    backgroundColor: "#FFFFFF",
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.95)",
+    borderColor: "rgba(26,26,26,0.12)",
     alignItems: "center",
     justifyContent: "center",
   },
@@ -628,13 +629,13 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 10,
-    backgroundColor: "rgba(61,107,71,0.10)",
+    backgroundColor: "rgba(21,128,61,0.08)",
     borderRadius: 12,
     padding: 14,
     marginHorizontal: 20,
     marginTop: 16,
     borderWidth: 1,
-    borderColor: "rgba(61,107,71,0.25)",
+    borderColor: "rgba(21,128,61,0.20)",
   },
   successBannerText: {
     fontSize: 14,
@@ -775,7 +776,7 @@ const styles = StyleSheet.create({
   cardFieldValue: { fontSize: 13, fontWeight: "700", color: "#FFFFFF", letterSpacing: 0.5 },
   cardWatermark: {
     position: "absolute", bottom: 16, left: 0, right: 0,
-    textAlign: "center", fontSize: 9, color: "rgba(255,255,255,0.12)",
+    textAlign: "center", fontSize: 9, color: "rgba(255,255,255,0.22)",
     fontWeight: "700", letterSpacing: 4,
   },
   // Form
@@ -789,11 +790,11 @@ const styles = StyleSheet.create({
   },
   fieldBorder: {
     borderBottomWidth: 1,
-    borderBottomColor: "rgba(26,34,24,0.07)",
+    borderBottomColor: "rgba(15,23,42,0.06)",
   },
   fieldIconWrap: {
     width: 34, height: 34, borderRadius: 10,
-    backgroundColor: "rgba(61,107,71,0.10)",
+    backgroundColor: "rgba(21,128,61,0.08)",
     alignItems: "center", justifyContent: "center",
   },
   fieldLabel: {
@@ -810,7 +811,7 @@ const styles = StyleSheet.create({
     marginTop: 2, letterSpacing: 0.2,
   },
   twoFieldRow: { flexDirection: "row" },
-  twoFieldDivider: { width: 1, backgroundColor: "rgba(26,34,24,0.07)", marginVertical: 10 },
+  twoFieldDivider: { width: 1, backgroundColor: "rgba(15,23,42,0.06)", marginVertical: 10 },
 
   // Security note
   secureNoteText: { fontSize: 12, color: T.green, lineHeight: 18 },
@@ -821,10 +822,10 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     gap: 10,
-    backgroundColor: "rgba(255,255,255,0.72)",
+    backgroundColor: "#FFFFFF",
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.85)",
+    borderColor: "rgba(26,26,26,0.10)",
     paddingVertical: 13,
     shadowColor: "rgba(40,55,35,0.10)",
     shadowOffset: { width: 0, height: 2 },
@@ -840,7 +841,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 13,
   },
-  detailDivider: { height: 1, backgroundColor: "rgba(26,34,24,0.07)", marginHorizontal: 14 },
+  detailDivider: { height: 1, backgroundColor: "rgba(15,23,42,0.06)", marginHorizontal: 14 },
   detailLabel: { fontSize: 13, color: T.mute, fontWeight: "500" },
   detailValue: { fontSize: 14, color: T.ink, fontWeight: "600", letterSpacing: 0.3 },
   detailReEnter: { fontSize: 13, color: T.green, fontWeight: "600", textDecorationLine: "underline" },
@@ -851,7 +852,7 @@ const styles = StyleSheet.create({
   // Edit button
   editBtn: {
     flexDirection: "row", alignItems: "center", justifyContent: "center",
-    gap: 8, backgroundColor: "rgba(255,255,255,0.72)", borderRadius: 100,
+    gap: 8, backgroundColor: "#FFFFFF", borderRadius: 100,
     borderWidth: 1.5, borderColor: T.green,
     paddingVertical: 14,
     shadowColor: "rgba(40,55,35,0.10)",
@@ -876,8 +877,8 @@ const styles = StyleSheet.create({
   cancelBtn: {
     alignItems: "center", justifyContent: "center",
     paddingVertical: 14, borderRadius: 100,
-    backgroundColor: "rgba(255,255,255,0.55)",
-    borderWidth: 1, borderColor: "rgba(255,255,255,0.75)",
+    backgroundColor: "#FFFFFF",
+    borderWidth: 1, borderColor: "rgba(26,26,26,0.12)",
   },
   cancelBtnText: { fontSize: 14, fontWeight: "600", color: T.mute },
 });

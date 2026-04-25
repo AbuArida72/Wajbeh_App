@@ -4,11 +4,12 @@ import {
   StyleSheet,
   TouchableOpacity,
   StatusBar,
+  ImageBackground,
 } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { useLanguage } from "../lang/LanguageContext";
 import { Ionicons } from "@expo/vector-icons";
-import { GlassPanel, GlassButton, Chip, T, WallpaperBackground, ar } from "../components/Glass";
+import { T, ar, FONTS } from "../components/Glass";
 import { useLocation } from "../lib/LocationContext";
 
 export default function LandingScreen({ navigation }) {
@@ -18,58 +19,51 @@ export default function LandingScreen({ navigation }) {
 
   return (
     <View style={styles.root}>
-      <StatusBar barStyle="dark-content" translucent backgroundColor="transparent" />
+      <StatusBar barStyle="light-content" translucent backgroundColor="transparent" />
 
-      {/* Wallpaper */}
-      <WallpaperBackground />
+      {/* Full-screen food hero */}
+      <ImageBackground
+        source={{ uri: "https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=1200" }}
+        style={styles.hero}
+        imageStyle={styles.heroImage}
+      >
+        {/* Dark overlay */}
+        <View style={styles.overlay} />
 
-      <SafeAreaView style={styles.safe}>
-        <View style={[styles.content, { paddingBottom: insets.bottom + 20 }]}>
-
-          {/* Top bar — language toggle only */}
+        <SafeAreaView style={{ flex: 1 }}>
+          {/* Top bar */}
           <View style={[styles.topBar, isRTL && styles.rtlRow]}>
-            <View />
-            <Chip onPress={toggleLanguage}>
-              {language === "en" ? "العربية" : "English"}
-            </Chip>
+            <Text style={[styles.brandName, ar(isRTL, "bold")]}>{t("appName")}</Text>
+            <TouchableOpacity style={styles.langBtn} onPress={toggleLanguage} activeOpacity={0.8}>
+              <Text style={styles.langBtnText}>
+                {language === "en" ? "العربية" : "English"}
+              </Text>
+            </TouchableOpacity>
           </View>
 
-          {/* Brand hero — centered Zaytoon */}
-          <View style={styles.brandHero}>
-            {/* Top leaf sprigs */}
-            <View style={styles.plantTop}>
-              <Ionicons name="leaf" size={18} color={T.green} style={{ opacity: 0.55, transform: [{ rotate: "40deg" }] }} />
-              <Ionicons name="leaf" size={24} color={T.green} style={{ opacity: 0.70, transform: [{ rotate: "10deg" }] }} />
-              <Ionicons name="leaf" size={18} color={T.green} style={{ opacity: 0.55, transform: [{ rotate: "-30deg" }] }} />
-            </View>
-
-            <Text style={[styles.brandName, ar(isRTL, "bold")]}>{t("appName")}</Text>
-
+          {/* Center text */}
+          <View style={styles.heroCenter}>
             <View style={[styles.locationRow, isRTL && styles.rtlRow]}>
               <View style={styles.locationDot} />
-              <Text style={[styles.locationText, isRTL && styles.rtl]}>
+              <Text style={styles.locationText}>
                 {cityName || t("ammanJordan")}
               </Text>
             </View>
-          </View>
-
-          {/* Hero text */}
-          <View style={styles.hero}>
             <Text style={[styles.heroTitle, isRTL && styles.rtl, ar(isRTL, "bold")]}>
-              {t("heroTitle") || "Save food.\nSave money."}
+              {t("heroTitle")}
             </Text>
-            <Text style={[styles.heroSub, isRTL && styles.rtl, ar(isRTL, "regular")]}>
-              {t("landingSubtitle") || "Surplus food from the best restaurants in Amman — up to 70% off."}
+            <Text style={[styles.heroSub, isRTL && styles.rtl, isRTL && { maxWidth: "100%", alignSelf: "flex-end" }, ar(isRTL, "regular")]}>
+              {t("landingSubtitle")}
             </Text>
           </View>
 
-          {/* Stats strip */}
-          <GlassPanel radius={18} padding={16} style={{ marginBottom: 32 }}>
+          {/* Stats row */}
+          <View style={styles.statsContainer}>
             <View style={[styles.statsRow, isRTL && styles.rtlRow]}>
               {[
-                { n: "70%",       l: t("offRetail") || "off retail" },
-                { n: "5+",        l: t("restaurantsLabel") || "restaurants" },
-                { n: t("daily") || "Daily", l: t("freshBagsLabel") || "fresh bags" },
+                { n: "70%", l: t("statOffRetail") },
+                { n: "5+",  l: t("statRestaurants") },
+                { n: t("freshBagsLabel"), l: t("statBagsDaily") },
               ].map((s, i) => (
                 <View key={i} style={[styles.statItem, i < 2 && styles.statDivider]}>
                   <Text style={styles.statNum}>{s.n}</Text>
@@ -77,77 +71,238 @@ export default function LandingScreen({ navigation }) {
                 </View>
               ))}
             </View>
-          </GlassPanel>
+          </View>
+        </SafeAreaView>
+      </ImageBackground>
 
-          <View style={{ flex: 1 }} />
+      {/* Bottom sheet */}
+      <View style={[styles.sheet, { paddingBottom: insets.bottom + 16 }]}>
+        <View style={styles.sheetHandle} />
 
-          {/* CTAs */}
-          <GlassButton primary onPress={() => navigation.navigate("SignUp")}>
-            {t("createAccountLanding") || "Create account"}
-          </GlassButton>
-          <View style={{ height: 10 }} />
-          <GlassButton onPress={() => navigation.navigate("SignIn")}>
-            {t("signInLanding") || "Sign in"}
-          </GlassButton>
+        <Text style={[styles.sheetTitle, isRTL && styles.rtl, ar(isRTL, "bold")]}>
+          {t("joinMovement")}
+        </Text>
+        <Text style={[styles.sheetSubtitle, isRTL && styles.rtl, ar(isRTL, "regular")]}>
+          {t("joinMovementDesc")}
+        </Text>
 
-          <TouchableOpacity onPress={() => navigation.navigate("Contact")} style={{ marginTop: 18, alignItems: "center" }}>
-            <Text style={[styles.restaurantNote, isRTL && styles.rtl]}>
-              {t("restaurantQuestion") || "Are you a restaurant?"}{" "}
-              <Text style={styles.restaurantLink}>{t("contactUs") || "Contact us"}</Text>
-            </Text>
+        <View style={styles.btnGroup}>
+          <TouchableOpacity
+            style={styles.primaryBtn}
+            onPress={() => navigation.navigate("SignUp")}
+            activeOpacity={0.87}
+          >
+            <Text style={styles.primaryBtnText}>{t("createAccountLanding")}</Text>
           </TouchableOpacity>
 
+          <TouchableOpacity
+            style={styles.secondaryBtn}
+            onPress={() => navigation.navigate("SignIn")}
+            activeOpacity={0.87}
+          >
+            <Text style={styles.secondaryBtnText}>{t("signInLanding")}</Text>
+          </TouchableOpacity>
         </View>
-      </SafeAreaView>
+
+        <View style={[styles.footerRow, isRTL && styles.rtlRow]}>
+          <View style={styles.footerLine} />
+          <Text style={styles.footerNote}>
+            {t("restaurantQuestion")}{" "}
+            <Text
+              style={styles.footerLink}
+              onPress={() => navigation.navigate("Contact")}
+            >
+              {t("contactUs")}
+            </Text>
+          </Text>
+          <View style={styles.footerLine} />
+        </View>
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1 },
-  safe: { flex: 1 },
-  content: { flex: 1, paddingHorizontal: 24, paddingTop: 10 },
+  root: { flex: 1, backgroundColor: "#0D2010" },
   rtl: { textAlign: "right", writingDirection: "rtl" },
   rtlRow: { flexDirection: "row-reverse" },
 
-  topBar: { flexDirection: "row", justifyContent: "flex-end", alignItems: "center", marginBottom: 16 },
+  // Hero
+  hero: { flex: 1 },
+  heroImage: { resizeMode: "cover" },
+  overlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(0,0,0,0.52)",
+  },
 
-  brandHero: { alignItems: "center", marginBottom: 36 },
-  plantTop: { flexDirection: "row", alignItems: "flex-end", gap: 4, marginBottom: 2 },
+  // Top bar
+  topBar: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingHorizontal: 24,
+    paddingTop: 16,
+    paddingBottom: 8,
+  },
   brandName: {
-    fontSize: 72,
+    fontSize: 34,
+    fontWeight: "800",
+    color: "#FFFFFF",
+    letterSpacing: -0.8,
+    fontFamily: FONTS.bold,
+  },
+  langBtn: {
+    backgroundColor: "rgba(255,255,255,0.18)",
+    borderRadius: 100,
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.25)",
+  },
+  langBtnText: { fontSize: 12, fontWeight: "600", color: "#FFFFFF" },
+
+  // Center hero text
+  heroCenter: {
+    flex: 1,
+    justifyContent: "center",
+    paddingHorizontal: 28,
+  },
+  locationRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginBottom: 16,
+  },
+  locationDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 4,
+    backgroundColor: T.greenBright,
+  },
+  locationText: {
+    fontSize: 11,
+    letterSpacing: 1.6,
+    textTransform: "uppercase",
+    color: "rgba(255,255,255,0.70)",
+    fontWeight: "600",
+  },
+  heroTitle: {
+    fontSize: 28,
+    fontWeight: "800",
+    color: "#FFFFFF",
+    letterSpacing: -0.6,
+    lineHeight: 34,
+    marginBottom: 14,
+    fontFamily: FONTS.bold,
+  },
+  heroSub: {
+    fontSize: 15,
+    color: "rgba(255,255,255,0.72)",
+    lineHeight: 23,
+    maxWidth: 300,
+  },
+
+  // Stats
+  statsContainer: {
+    marginHorizontal: 20,
+    marginBottom: 28,
+    backgroundColor: "rgba(255,255,255,0.10)",
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.14)",
+    paddingVertical: 14,
+  },
+  statsRow: {
+    flexDirection: "row",
+    paddingHorizontal: 8,
+  },
+  statItem: { flex: 1, alignItems: "center" },
+  statDivider: {
+    borderRightWidth: 1,
+    borderRightColor: "rgba(255,255,255,0.18)",
+  },
+  statNum: {
+    fontSize: 18,
+    fontWeight: "800",
+    color: "#FFFFFF",
+    letterSpacing: -0.3,
+    marginBottom: 2,
+  },
+  statLabel: {
+    fontSize: 10,
+    color: "rgba(255,255,255,0.60)",
+    textAlign: "center",
+  },
+
+  // Bottom sheet
+  sheet: {
+    backgroundColor: "#FFFFFF",
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    paddingHorizontal: 28,
+    paddingTop: 20,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.12,
+    shadowRadius: 20,
+    elevation: 12,
+  },
+  sheetHandle: {
+    width: 40,
+    height: 4,
+    backgroundColor: "rgba(26,26,26,0.12)",
+    borderRadius: 2,
+    alignSelf: "center",
+    marginBottom: 24,
+  },
+  sheetTitle: {
+    fontSize: 22,
     fontWeight: "800",
     color: T.ink,
-    letterSpacing: -3,
-    lineHeight: 76,
-    marginBottom: 40,
+    textAlign: "center",
+    marginBottom: 8,
+    letterSpacing: -0.5,
+  },
+  sheetSubtitle: {
+    fontSize: 14,
+    color: T.mute,
+    textAlign: "center",
+    lineHeight: 21,
+    marginBottom: 28,
+    paddingHorizontal: 8,
   },
 
-  hero: { marginBottom: 32 },
-  locationRow: { flexDirection: "row", alignItems: "center", gap: 7, marginBottom: 16 },
-  locationDot: {
-    width: 7, height: 7, borderRadius: 4,
-    backgroundColor: T.greenBright,
-    shadowColor: T.greenBright, shadowOffset: { width: 0, height: 0 }, shadowOpacity: 0.9, shadowRadius: 6,
+  // Buttons
+  btnGroup: { gap: 12, marginBottom: 24 },
+  primaryBtn: {
+    backgroundColor: T.green,
+    paddingVertical: 16,
+    borderRadius: 14,
+    alignItems: "center",
+    shadowColor: T.green,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.28,
+    shadowRadius: 10,
+    elevation: 4,
   },
-  locationText: { fontSize: 10, letterSpacing: 1.4, textTransform: "uppercase", color: T.muteStrong, fontWeight: "700" },
-
-  heroTitle: {
-    fontSize: 32,
-    fontWeight: "700",
-    color: T.ink,
-    letterSpacing: -1,
-    lineHeight: 38,
-    marginBottom: 14,
+  primaryBtnText: { color: "#FFFFFF", fontSize: 15, fontWeight: "700" },
+  secondaryBtn: {
+    backgroundColor: "#FFFFFF",
+    paddingVertical: 15,
+    borderRadius: 14,
+    alignItems: "center",
+    borderWidth: 1.5,
+    borderColor: "rgba(26,26,26,0.14)",
   },
-  heroSub: { fontSize: 14, lineHeight: 21, color: T.mute, maxWidth: 290 },
+  secondaryBtnText: { color: T.ink, fontSize: 15, fontWeight: "600" },
 
-  statsRow: { flexDirection: "row" },
-  statItem: { flex: 1, alignItems: "center" },
-  statDivider: { borderRightWidth: 1, borderRightColor: "rgba(255,255,255,0.4)" },
-  statNum: { fontSize: 20, fontWeight: "800", color: T.ink, letterSpacing: -0.5, marginBottom: 3 },
-  statLabel: { fontSize: 9, color: T.mute, letterSpacing: 0.4, textAlign: "center" },
-
-  restaurantNote: { fontSize: 12, color: T.mute },
-  restaurantLink: { color: T.accent, fontWeight: "700" },
+  // Footer
+  footerRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  footerLine: { flex: 1, height: 1, backgroundColor: "rgba(15,23,42,0.06)" },
+  footerNote: { fontSize: 12, color: T.mute, textAlign: "center" },
+  footerLink: { color: T.green, fontWeight: "700" },
 });
